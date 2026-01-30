@@ -178,6 +178,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                                     <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider">Staða (Status)</TableHead>
                                     <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider w-[100px]">Forgangur</TableHead>
                                     <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider w-[100px]">Hæð</TableHead>
+                                    <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider w-[140px]">QR</TableHead>
                                     <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider text-right">Aðgerðir</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -213,6 +214,20 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                                                 </TableCell>
                                                 <TableCell className="py-4 text-zinc-600">
                                                     {element.floor || '-'}
+                                                </TableCell>
+                                                <TableCell className="py-4 text-zinc-600">
+                                                    {element.qr_code_url ? (
+                                                        <a
+                                                            href={element.qr_code_url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-blue-600 hover:underline text-sm"
+                                                        >
+                                                            View QR
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-zinc-400">—</span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="py-4 text-right">
                                                     <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-zinc-500 hover:text-blue-600">

@@ -16,6 +16,7 @@ import {
     Trash2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { quickCompleteDelivery } from '@/lib/driver/complete-delivery-action'
 import Image from 'next/image'
 
 interface DeliveryElement {
@@ -211,47 +212,30 @@ export function DeliverPageClient({
                 if (signatureBlob) {
                     const signaturePath = `deliveries/${deliveryId}/signature-${Date.now()}.png`
                     const { error: sigError } = await supabase.storage
-                        .from('delivery-photos')
+                        .from('signatures')
                         .upload(signaturePath, signatureBlob)
 
                     if (!sigError) {
                         const { data: urlData } = supabase.storage
-                            .from('delivery-photos')
+                            .from('signatures')
                             .getPublicUrl(signaturePath)
                         signatureUrl = urlData.publicUrl
                     }
                 }
             }
 
-            // Update delivery
-            const { error: deliveryError } = await supabase
-                .from('deliveries')
-                .update({
-                    status: 'completed',
-                    received_by_name: receivedByName.trim(),
-                    received_by_signature_url: signatureUrl,
-                    delivery_photo_url: photoUrl,
-                    delivered_at: new Date().toISOString(),
-                })
-                .eq('id', deliveryId)
+            // Call server action to complete delivery
+            const result = await quickCompleteDelivery(
+                deliveryId,
+                receivedByName.trim(),
+                signatureUrl || undefined,
+                photoUrl || undefined
+            )
 
-            if (deliveryError) {
-                console.error('Delivery update error:', deliveryError)
-                setError('Gat ekki uppfært afhendingu')
+            if (!result.success) {
+                setError(result.error || 'Villa við að staðfesta afhendingu')
                 setIsSubmitting(false)
                 return
-            }
-
-            // Update all elements to "delivered"
-            const elementIds = elements.map((e) => e.id)
-            const { error: elementsError } = await supabase
-                .from('elements')
-                .update({ status: 'delivered' })
-                .in('id', elementIds)
-
-            if (elementsError) {
-                console.error('Elements update error:', elementsError)
-                // Don't fail - delivery was marked complete
             }
 
             // Success - navigate back
