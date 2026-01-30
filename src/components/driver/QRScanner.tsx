@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode'
 import { Button } from '@/components/ui/button'
-import { Camera, XCircle, RotateCcw, Flashlight } from 'lucide-react'
+import { Camera, XCircle, RotateCcw } from 'lucide-react'
 
 interface QRScannerProps {
     onScan: (decodedText: string) => void

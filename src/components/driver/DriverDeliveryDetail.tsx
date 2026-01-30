@@ -5,13 +5,33 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MapPin, Box, CheckCircle, Truck, ArrowLeft, Loader2, Camera } from 'lucide-react'
+import { MapPin, Box, CheckCircle, ArrowLeft, Loader2, Camera } from 'lucide-react'
 import Link from 'next/link'
 import { updateDeliveryStatus, updateDeliveryPhoto } from '@/lib/driver/actions'
 import { createClient } from '@/lib/supabase/client'
+import type { Database } from '@/types/database'
 
 interface DriverDeliveryDetailProps {
-    delivery: any
+    delivery: DriverDeliveryDetailData
+}
+
+type DeliveryRow = Database['public']['Tables']['deliveries']['Row']
+type ProjectRow = Database['public']['Tables']['projects']['Row']
+type DeliveryItemRow = Database['public']['Tables']['delivery_items']['Row']
+type ElementRow = Database['public']['Tables']['elements']['Row']
+
+type DeliveryStatus = 'planned' | 'loading' | 'in_transit' | 'arrived' | 'completed'
+
+type DriverDeliveryItem = DeliveryItemRow & {
+    element: Pick<ElementRow, 'id' | 'name' | 'element_type'> | null
+}
+
+type DriverDeliveryDetailData = Pick<
+    DeliveryRow,
+    'id' | 'truck_registration' | 'status' | 'delivery_photo_url'
+> & {
+    project: Pick<ProjectRow, 'id' | 'name' | 'address'> | null
+    items: DriverDeliveryItem[]
 }
 
 const statusConfig: Record<string, { label: string; color: string; nextStatus: string | null; nextLabel: string }> = {
@@ -26,13 +46,13 @@ export function DriverDeliveryDetail({ delivery }: DriverDeliveryDetailProps) {
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
     const [isUploading, setIsUploading] = useState(false)
-    const currentStatusInfo = statusConfig[delivery.status] || statusConfig.planned
+    const currentStatusInfo = statusConfig[delivery.status ?? 'planned'] || statusConfig.planned
 
     const handleStatusUpdate = () => {
         if (!currentStatusInfo.nextStatus) return
 
         startTransition(async () => {
-            await updateDeliveryStatus(delivery.id, currentStatusInfo.nextStatus as any)
+            await updateDeliveryStatus(delivery.id, currentStatusInfo.nextStatus as DeliveryStatus)
             router.refresh()
         })
     }
@@ -112,7 +132,7 @@ export function DriverDeliveryDetail({ delivery }: DriverDeliveryDetailProps) {
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-zinc-100">
-                                {delivery.items?.map((item: any) => (
+                                {delivery.items?.map((item) => (
                                     <div key={item.id} className="p-4 flex items-center justify-between">
                                         <div>
                                             <p className="font-medium text-zinc-900">{item.element?.name}</p>
@@ -169,6 +189,7 @@ export function DriverDeliveryDetail({ delivery }: DriverDeliveryDetailProps) {
 
                                     {delivery.delivery_photo_url && (
                                         <div className="relative aspect-video rounded-lg overflow-hidden border border-zinc-200 bg-white">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
                                                 src={delivery.delivery_photo_url}
                                                 alt="Delivery documentation"

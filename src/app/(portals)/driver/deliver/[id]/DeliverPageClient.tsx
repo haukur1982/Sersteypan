@@ -12,7 +12,6 @@ import {
     Loader2,
     XCircle,
     Pen,
-    Upload,
     Trash2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'

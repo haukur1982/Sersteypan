@@ -59,7 +59,8 @@ export function MessagesList({
   const [optimisticMessages, setOptimisticMessages] = useState<OptimisticMessage[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const [hasMarkedAsRead, setHasMarkedAsRead] = useState(false)
+  const hasMarkedAsReadRef = useRef(false)
+  const optimisticIdRef = useRef(0)
 
   // Combine server messages with optimistic messages
   const allMessages = [...serverMessages, ...optimisticMessages]
@@ -80,14 +81,14 @@ export function MessagesList({
 
   // CRITICAL: Auto-mark messages as read when viewing
   useEffect(() => {
-    if (!currentUserId || !onMarkAsRead || hasMarkedAsRead) return
+    if (!currentUserId || !onMarkAsRead || hasMarkedAsReadRef.current) return
 
     const unreadMessages = serverMessages
       .filter(m => !m.is_read && m.user?.id !== currentUserId)
       .map(m => m.id)
 
     if (unreadMessages.length > 0) {
-      setHasMarkedAsRead(true)
+      hasMarkedAsReadRef.current = true
       onMarkAsRead(unreadMessages).then(result => {
         if (result.error) {
           console.error('Failed to mark messages as read:', result.error)
@@ -97,11 +98,11 @@ export function MessagesList({
         }
       })
     }
-  }, [serverMessages, currentUserId, onMarkAsRead, hasMarkedAsRead, router])
+  }, [serverMessages, currentUserId, onMarkAsRead, router])
 
   // Reset hasMarkedAsRead when messages change significantly
   useEffect(() => {
-    setHasMarkedAsRead(false)
+    hasMarkedAsReadRef.current = false
   }, [serverMessages.length])
 
   // Auto-scroll to bottom when new messages arrive
@@ -147,18 +148,19 @@ export function MessagesList({
     })
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const sendMessage = useCallback(async () => {
     if (!selectedProjectId || !newMessage.trim() || !onSendMessage || isSubmitting) return
 
     const messageText = newMessage.trim()
     setIsSubmitting(true)
     setError(null)
 
+    optimisticIdRef.current += 1
+    const optimisticId = `optimistic-${optimisticIdRef.current}`
+
     // Optimistic update - show message immediately
     const optimisticMsg: OptimisticMessage = {
-      id: `optimistic-${Date.now()}`,
+      id: optimisticId,
       project_id: selectedProjectId,
       message: messageText,
       is_read: true,
@@ -195,13 +197,26 @@ export function MessagesList({
     }
 
     setIsSubmitting(false)
+  }, [
+    selectedProjectId,
+    newMessage,
+    onSendMessage,
+    isSubmitting,
+    currentUserId,
+    messagesByProject,
+    router
+  ])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await sendMessage()
   }
 
   // Keyboard shortcut: Ctrl/Cmd + Enter to send
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !isSubmitting) {
       e.preventDefault()
-      handleSubmit(e as any)
+      void sendMessage()
     }
   }
 

@@ -21,7 +21,7 @@ type DeliverySummary = DeliveryRow & {
 }
 
 interface DeliveriesTabProps {
-  deliveries: any[]
+  deliveries: DeliverySummary[]
 }
 
 export function DeliveriesTab({ deliveries }: DeliveriesTabProps) {

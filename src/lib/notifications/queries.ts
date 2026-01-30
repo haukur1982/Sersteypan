@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import type { Database } from '@/types/database'
 
 export interface Notification {
   id: string
@@ -10,6 +11,27 @@ export interface Notification {
   elementId?: string
   deliveryId?: string
   projectId?: string
+}
+
+type ElementEventRow = Database['public']['Tables']['element_events']['Row']
+type ElementRow = Database['public']['Tables']['elements']['Row']
+type ProjectRow = Database['public']['Tables']['projects']['Row']
+type DeliveryRow = Database['public']['Tables']['deliveries']['Row']
+
+type BuyerEvent = Pick<ElementEventRow, 'id' | 'status' | 'previous_status' | 'created_at'> & {
+  element: (Pick<ElementRow, 'id' | 'name'> & {
+    project: Pick<ProjectRow, 'id' | 'name' | 'company_id'> | null
+  }) | null
+}
+
+type AdminEvent = Pick<ElementEventRow, 'id' | 'status' | 'previous_status' | 'created_at'> & {
+  element: (Pick<ElementRow, 'id' | 'name'> & {
+    project: Pick<ProjectRow, 'id' | 'name'> | null
+  }) | null
+}
+
+type DriverDelivery = Pick<DeliveryRow, 'id' | 'status' | 'created_at'> & {
+  project: Pick<ProjectRow, 'id' | 'name'> | null
 }
 
 /**
@@ -58,7 +80,7 @@ export async function getUnreadNotifications(userId: string): Promise<Notificati
         .limit(10)
 
       if (events) {
-        events.forEach((event: any) => {
+        events.forEach((event: BuyerEvent) => {
           const element = event.element
           const project = element?.project
 
@@ -100,7 +122,7 @@ export async function getUnreadNotifications(userId: string): Promise<Notificati
         .limit(10)
 
       if (events) {
-        events.forEach((event: any) => {
+        events.forEach((event: AdminEvent) => {
           const element = event.element
           const project = element?.project
 
@@ -138,7 +160,7 @@ export async function getUnreadNotifications(userId: string): Promise<Notificati
         .limit(10)
 
       if (deliveries) {
-        deliveries.forEach((delivery: any) => {
+        deliveries.forEach((delivery: DriverDelivery) => {
           const project = delivery.project
 
           notifications.push({

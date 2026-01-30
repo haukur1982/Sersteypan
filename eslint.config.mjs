@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Tooling and edge-function sources (non-Next runtime)
+    "scripts/**",
+    "supabase/functions/generate-report/**",
   ]),
 ]);
 

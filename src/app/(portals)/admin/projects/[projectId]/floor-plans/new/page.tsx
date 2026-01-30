@@ -49,7 +49,7 @@ export default async function NewFloorPlanPage({ params }: Props) {
                     </p>
                 </div>
 
-                <FloorPlanUploadForm projectId={projectId} projectName={project.name} />
+                <FloorPlanUploadForm projectId={projectId} />
             </div>
         </DashboardLayout>
     )

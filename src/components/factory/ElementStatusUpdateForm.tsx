@@ -36,6 +36,26 @@ const statusConfig = {
     delivered: { icon: CheckCheck, label: 'Afhent', color: 'bg-purple-100 text-purple-800' }
 }
 
+type ElementStatus = keyof typeof statusConfig
+type PhotoStage =
+    | 'rebar'
+    | 'cast'
+    | 'curing'
+    | 'ready'
+    | 'loaded'
+    | 'before_delivery'
+    | 'after_delivery'
+
+const stageByStatus: Record<ElementStatus, PhotoStage | null> = {
+    planned: null,
+    rebar: 'rebar',
+    cast: 'cast',
+    curing: 'curing',
+    ready: 'ready',
+    loaded: 'loaded',
+    delivered: 'after_delivery',
+}
+
 // Define valid transitions
 const validTransitions: Record<string, string[]> = {
     planned: ['rebar'],
@@ -57,14 +77,15 @@ interface ElementStatusUpdateFormProps {
 
 export function ElementStatusUpdateForm({ element }: ElementStatusUpdateFormProps) {
     const router = useRouter()
-    const [selectedStatus, setSelectedStatus] = useState<string>(element.status || 'planned')
+    const [selectedStatus, setSelectedStatus] = useState<ElementStatus>(element.status || 'planned')
     const [notes, setNotes] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
 
-    const currentStatus = element.status || 'planned'
+    const currentStatus = (element.status || 'planned') as ElementStatus
     const allowedNextStatuses = validTransitions[currentStatus] || []
+    const uploadStage = stageByStatus[selectedStatus]
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -164,14 +185,16 @@ export function ElementStatusUpdateForm({ element }: ElementStatusUpdateFormProp
                         />
                     </div>
 
-                    <div className="pt-2">
-                        <Label className="mb-2 block">Myndir fyrir {statusConfig[selectedStatus as keyof typeof statusConfig]?.label}</Label>
-                        <PhotoUploadForm
-                            elementId={element.id}
-                            stage={selectedStatus as any}
-                            onUploadError={(err: string) => setError(err)}
-                        />
-                    </div>
+                    {uploadStage && (
+                        <div className="pt-2">
+                            <Label className="mb-2 block">Myndir fyrir {statusConfig[selectedStatus]?.label}</Label>
+                            <PhotoUploadForm
+                                elementId={element.id}
+                                stage={uploadStage}
+                                onUploadError={(err: string) => setError(err)}
+                            />
+                        </div>
+                    )}
                 </div>
             )}
 

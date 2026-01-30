@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import { useOfflineQueue } from '@/lib/hooks/useOfflineQueue'
-import { Wifi, WifiOff, Loader2, CheckCircle, AlertTriangle, XCircle } from 'lucide-react'
+import { WifiOff, Loader2, CheckCircle, AlertTriangle, XCircle } from 'lucide-react'
 
 export function OfflineBanner() {
   const { pendingCount, isSyncing, lastSyncResult, sync } = useOfflineQueue()
-  const [isOnline, setIsOnline] = useState(true)
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  )
   const [showSuccess, setShowSuccess] = useState(false)
 
   // Monitor online/offline status
   useEffect(() => {
-    setIsOnline(navigator.onLine)
-
     const handleOnline = () => setIsOnline(true)
     const handleOffline = () => setIsOnline(false)
 
@@ -28,9 +28,12 @@ export function OfflineBanner() {
   // Show success message briefly after sync completes
   useEffect(() => {
     if (lastSyncResult && lastSyncResult.success.length > 0 && pendingCount === 0) {
-      setShowSuccess(true)
-      const timer = setTimeout(() => setShowSuccess(false), 3000)
-      return () => clearTimeout(timer)
+      const showTimer = setTimeout(() => setShowSuccess(true), 0)
+      const hideTimer = setTimeout(() => setShowSuccess(false), 3000)
+      return () => {
+        clearTimeout(showTimer)
+        clearTimeout(hideTimer)
+      }
     }
   }, [lastSyncResult, pendingCount])
 

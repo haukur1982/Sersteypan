@@ -38,7 +38,7 @@ export default async function DriverDashboard() {
           <div className="bg-white rounded-lg border border-zinc-200 shadow-sm p-6">
             <h3 className="text-sm font-medium text-zinc-500">Afhendingar í dag</h3>
             <p className="text-3xl font-semibold text-zinc-900 mt-2">{stats.today}</p>
-            <p className="text-xs text-zinc-600 mt-1">Today's Deliveries</p>
+            <p className="text-xs text-zinc-600 mt-1">Today&apos;s Deliveries</p>
           </div>
 
           <div className="bg-white rounded-lg border border-zinc-200 shadow-sm p-6">

@@ -50,54 +50,8 @@ export function PhotoUploadForm({
     return null
   }
 
-  // Handle file selection
-  const handleFileSelect = useCallback(
-    async (files: FileList | null) => {
-      if (!files || files.length === 0) return
-
-      // Check max files limit
-      if (uploadingFiles.length + files.length > maxFiles) {
-        onUploadError?.(`Maximum ${maxFiles} photos allowed`)
-        return
-      }
-
-      const newFiles: UploadingFile[] = []
-
-      // Validate and create previews
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const error = validateFile(file)
-
-        if (error) {
-          onUploadError?.(error)
-          continue
-        }
-
-        // Create preview URL
-        const preview = URL.createObjectURL(file)
-
-        newFiles.push({
-          file,
-          preview,
-          progress: 0,
-          error: undefined
-        })
-      }
-
-      if (newFiles.length === 0) return
-
-      setUploadingFiles((prev) => [...prev, ...newFiles])
-
-      // Upload files
-      for (const uploadingFile of newFiles) {
-        await uploadFile(uploadingFile)
-      }
-    },
-    [uploadingFiles.length, maxFiles, onUploadError]
-  )
-
   // Upload a single file
-  const uploadFile = async (uploadingFile: UploadingFile) => {
+  const uploadFile = useCallback(async (uploadingFile: UploadingFile) => {
     const supabase = createClient()
 
     // Get current user
@@ -123,7 +77,7 @@ export function PhotoUploadForm({
       const filePath = `${user.id}/${elementId}/${timestamp}_${stage}.${ext}`
 
       // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('element-photos')
         .upload(filePath, uploadingFile.file, {
           cacheControl: '3600',
@@ -188,7 +142,53 @@ export function PhotoUploadForm({
 
       onUploadError?.(errorMessage)
     }
-  }
+  }, [elementId, stage, onUploadComplete, onUploadError])
+
+  // Handle file selection
+  const handleFileSelect = useCallback(
+    async (files: FileList | null) => {
+      if (!files || files.length === 0) return
+
+      // Check max files limit
+      if (uploadingFiles.length + files.length > maxFiles) {
+        onUploadError?.(`Maximum ${maxFiles} photos allowed`)
+        return
+      }
+
+      const newFiles: UploadingFile[] = []
+
+      // Validate and create previews
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const error = validateFile(file)
+
+        if (error) {
+          onUploadError?.(error)
+          continue
+        }
+
+        // Create preview URL
+        const preview = URL.createObjectURL(file)
+
+        newFiles.push({
+          file,
+          preview,
+          progress: 0,
+          error: undefined
+        })
+      }
+
+      if (newFiles.length === 0) return
+
+      setUploadingFiles((prev) => [...prev, ...newFiles])
+
+      // Upload files
+      for (const uploadingFile of newFiles) {
+        await uploadFile(uploadingFile)
+      }
+    },
+    [uploadingFiles.length, maxFiles, onUploadError, uploadFile]
+  )
 
   // Handle drag and drop
   const handleDragOver = useCallback((e: React.DragEvent) => {

@@ -32,8 +32,6 @@ interface FloorPlan {
 
 interface FloorPlanViewerProps {
     floorPlans: FloorPlan[]
-    isAdmin: boolean
-    projectId: string
 }
 
 const statusColors: Record<string, string> = {
@@ -56,7 +54,7 @@ const statusLabels: Record<string, string> = {
     delivered: 'Afhent',
 }
 
-export function FloorPlanViewer({ floorPlans, isAdmin, projectId }: FloorPlanViewerProps) {
+export function FloorPlanViewer({ floorPlans }: FloorPlanViewerProps) {
     const [currentIndex, setCurrentIndex] = useState(0)
     const [selectedElement, setSelectedElement] = useState<ElementPosition | null>(null)
 

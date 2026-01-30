@@ -38,7 +38,7 @@ export default async function FloorPlansPage({ params }: Props) {
     }
 
     // Fetch floor plans with element positions
-    const { data: floorPlans, error: floorPlansError } = await supabase
+    const { data: floorPlans } = await supabase
         .from('floor_plans')
         .select(`
             id,
@@ -118,11 +118,7 @@ export default async function FloorPlansPage({ params }: Props) {
                         )}
                     </div>
                 ) : (
-                    <FloorPlanViewer
-                        floorPlans={enrichedFloorPlans}
-                        isAdmin={isAdmin}
-                        projectId={projectId}
-                    />
+                    <FloorPlanViewer floorPlans={enrichedFloorPlans} />
                 )}
             </div>
         </DashboardLayout>

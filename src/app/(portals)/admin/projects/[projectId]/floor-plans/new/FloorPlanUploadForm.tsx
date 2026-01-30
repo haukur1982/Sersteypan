@@ -13,10 +13,9 @@ import { createClient } from '@/lib/supabase/client'
 
 interface FloorPlanUploadFormProps {
     projectId: string
-    projectName: string
 }
 
-export function FloorPlanUploadForm({ projectId, projectName }: FloorPlanUploadFormProps) {
+export function FloorPlanUploadForm({ projectId }: FloorPlanUploadFormProps) {
     const router = useRouter()
     const supabase = createClient()
     const fileInputRef = useRef<HTMLInputElement>(null)

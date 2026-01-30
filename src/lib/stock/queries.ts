@@ -1,7 +1,6 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
 
 export type TransactionType = 'adjustment' | 'production' | 'allocation' | 'return'
 

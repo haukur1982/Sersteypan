@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { ElementStatusUpdateForm } from '@/components/factory/ElementStatusUpdateForm'
 import { PhotoGallery } from '@/components/shared/PhotoGallery'
+import type { ElementPhoto } from '@/components/buyer/project/types'
 import type { Database } from '@/types/database'
 
 type ElementRow = Database['public']['Tables']['elements']['Row']
@@ -164,7 +165,7 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
         `)
         .eq('element_id', elementId)
         .order('created_at', { ascending: false })
-    const photoList = (photos ?? []) as any[]
+    const photoList = (photos ?? []) as ElementPhoto[]
 
     const statusInfo = statusConfig[elementDetail.status as keyof typeof statusConfig] || statusConfig.planned
     const typeInfo = typeConfig[elementDetail.element_type as keyof typeof typeConfig] || typeConfig.other

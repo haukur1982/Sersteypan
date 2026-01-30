@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Bell, Check, CheckCheck } from 'lucide-react'
+import { Bell, CheckCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -50,7 +50,7 @@ export function NotificationBell({ userId, notifications: initialNotifications }
     }, 60000) // 60 seconds
 
     return () => clearInterval(interval)
-  }, [])
+  }, [userId])
 
   const unreadCount = notifications.filter(n => !n.read).length
 

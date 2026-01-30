@@ -95,7 +95,7 @@ export interface OfflineAction {
 // Sync Results
 export interface ConflictAction {
   action: OfflineAction
-  currentState: any
+  currentState: unknown
   conflictReason: string
 }
 
@@ -113,6 +113,18 @@ export interface SyncResult {
 
 // IndexedDB Database Instance
 let dbInstance: IDBPDatabase | null = null
+
+type BackupEntry = {
+  id: string
+  type: OfflineActionType
+  createdAt: string
+  elementId?: string
+  deliveryId?: string
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown error'
+}
 
 /**
  * Initialize IndexedDB
@@ -197,8 +209,8 @@ function backupToLocalStorage(action: OfflineAction): void {
  */
 function removeFromLocalStorageBackup(actionId: string): void {
   try {
-    const backup = JSON.parse(localStorage.getItem(STORAGE_BACKUP_KEY) || '[]')
-    const filtered = backup.filter((item: any) => item.id !== actionId)
+    const backup = JSON.parse(localStorage.getItem(STORAGE_BACKUP_KEY) || '[]') as BackupEntry[]
+    const filtered = backup.filter((item) => item.id !== actionId)
     localStorage.setItem(STORAGE_BACKUP_KEY, JSON.stringify(filtered))
   } catch (error) {
     console.error('[Offline Queue] Error removing from localStorage:', error)
@@ -291,9 +303,9 @@ async function executeAction(action: OfflineAction): Promise<{ success: boolean;
       default:
         return { success: false, error: `Unknown action type: ${action.type}` }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Offline Queue] Error executing action:', error)
-    return { success: false, error: error.message || 'Execution failed' }
+    return { success: false, error: getErrorMessage(error) || 'Execution failed' }
   }
 }
 
@@ -301,10 +313,10 @@ async function executeAction(action: OfflineAction): Promise<{ success: boolean;
  * Detect conflicts for an action
  * (Simplified - can be enhanced with more sophisticated conflict detection)
  */
-async function detectConflict(action: OfflineAction): Promise<{
+async function detectConflict(): Promise<{
   conflict: boolean
   reason?: string
-  currentState?: any
+  currentState?: unknown
 }> {
   // For now, we rely on server-side validation in the action functions
   // They will return appropriate errors if status has changed, etc.
@@ -343,7 +355,7 @@ export async function syncPendingActions(): Promise<SyncResult> {
     for (const action of actions) {
       try {
         // Check for conflicts
-        const conflictCheck = await detectConflict(action)
+        const conflictCheck = await detectConflict()
         if (conflictCheck.conflict) {
           result.conflicts.push({
             action,
@@ -364,12 +376,12 @@ export async function syncPendingActions(): Promise<SyncResult> {
           // Failure - increment retry count
           throw new Error(execResult.error || 'Action failed')
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`[Offline Queue] Error processing action ${action.id}:`, error)
 
         // Increment retry count
         action.retryCount++
-        action.lastError = error.message || 'Unknown error'
+        action.lastError = getErrorMessage(error)
 
         if (action.retryCount >= MAX_RETRIES) {
           // Give up after max retries

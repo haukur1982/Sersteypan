@@ -84,15 +84,17 @@ export default async function FactoryDashboard() {
     try {
         const { data: stockItems } = await supabase
             .from('stock_items')
-            .select('*')
+            .select('min_quantity, quantity')
 
         if (stockItems) {
             // Count items where quantity < min_quantity
-            stockAlertsCount = stockItems.filter(
-                (item: any) => item.min_quantity && item.quantity < item.min_quantity
-            ).length
+            stockAlertsCount = stockItems.filter((item) => {
+                const minQty = item.min_quantity
+                const qty = item.quantity
+                return typeof minQty === 'number' && typeof qty === 'number' && qty < minQty
+            }).length
         }
-    } catch (error) {
+    } catch {
         // Stock table might not exist yet - that's OK
         stockAlertsCount = 0
     }
@@ -112,7 +114,6 @@ export default async function FactoryDashboard() {
     const totalElements = totalElementsResult.count || 0
 
     const recentDiaryEntries = recentDiaryResult.data || []
-    const diaryCount = recentDiaryEntries.length
     const todoCount = todoCountResult.count || 0
 
     return (

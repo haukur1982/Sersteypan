@@ -4,6 +4,12 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Database } from '@/types/database'
 
+type ElementRow = Database['public']['Tables']['elements']['Row']
+type ProjectRow = Database['public']['Tables']['projects']['Row']
+type ElementWithProject = ElementRow & {
+  project: Pick<ProjectRow, 'id' | 'name' | 'address'> | null
+}
+
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -12,7 +18,7 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  * QR format: https://app.sersteypan.is/element/{uuid} OR plain UUID
  */
 export async function lookupElementByQR(qrContent: string): Promise<{
-  element: any | null
+  element: ElementWithProject | null
   error?: string
 }> {
   const supabase = await createClient()

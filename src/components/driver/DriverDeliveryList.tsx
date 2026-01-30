@@ -5,9 +5,27 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Truck, MapPin, Package, ArrowRight, Clock } from 'lucide-react'
+import type { Database } from '@/types/database'
 
 interface DriverDeliveryListProps {
-    deliveries: any[]
+    deliveries: DriverDeliverySummary[]
+}
+
+type DeliveryRow = Database['public']['Tables']['deliveries']['Row']
+type ProjectRow = Database['public']['Tables']['projects']['Row']
+type DeliveryItemRow = Database['public']['Tables']['delivery_items']['Row']
+type ElementRow = Database['public']['Tables']['elements']['Row']
+
+type DriverDeliveryItem = DeliveryItemRow & {
+    element: Pick<ElementRow, 'id' | 'name'> | null
+}
+
+type DriverDeliverySummary = Pick<
+    DeliveryRow,
+    'id' | 'truck_registration' | 'status' | 'planned_date'
+> & {
+    project: Pick<ProjectRow, 'id' | 'name' | 'address'> | null
+    items: DriverDeliveryItem[]
 }
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -50,7 +68,9 @@ export function DriverDeliveryList({ deliveries }: DriverDeliveryListProps) {
                                         </Badge>
                                         <span className="text-xs text-zinc-500 flex items-center gap-1">
                                             <Clock className="w-3 h-3" />
-                                            {new Date(delivery.planned_date).toLocaleDateString('is-IS')}
+                                            {delivery.planned_date
+                                                ? new Date(delivery.planned_date).toLocaleDateString('is-IS')
+                                                : 'Óákveðið'}
                                         </span>
                                         <span className="text-xs font-mono text-zinc-400">
                                             {delivery.truck_registration}

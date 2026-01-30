@@ -37,7 +37,6 @@ export function LoadPageClient() {
     const [elements, setElements] = useState<LoadedElement[]>([])
     const [deliveryId, setDeliveryId] = useState<string | null>(null)
     const [projectId, setProjectId] = useState<string | null>(null)
-    const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
     const [truckRegistration, setTruckRegistration] = useState('')
@@ -51,7 +50,6 @@ export function LoadPageClient() {
             return
         }
 
-        setIsLoading(true)
         setError(null)
         setSuccess(null)
 
@@ -61,7 +59,6 @@ export function LoadPageClient() {
 
             if (lookupResult.error || !lookupResult.element) {
                 setError(lookupResult.error || 'Eining fannst ekki')
-                setIsLoading(false)
                 return
             }
 
@@ -70,7 +67,6 @@ export function LoadPageClient() {
             // Check project consistency (all elements must be from same project)
             if (projectId && element.project?.id !== projectId) {
                 setError(`Þessi eining er frá öðru verkefni. Allar einingar verða að vera frá sama verkefni.`)
-                setIsLoading(false)
                 return
             }
 
@@ -80,7 +76,6 @@ export function LoadPageClient() {
 
                 if (addResult.error) {
                     setError(addResult.error)
-                    setIsLoading(false)
                     return
                 }
 
@@ -107,7 +102,6 @@ export function LoadPageClient() {
             console.error('Error adding element:', err)
             setError('Villa við að bæta við einingu')
         } finally {
-            setIsLoading(false)
         }
     }, [elements, deliveryId, projectId])
 

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import type { Database } from '@/types/database'
 
 /**
  * Update delivery status (e.g., departed, arrived, completed)
@@ -13,7 +14,7 @@ export async function updateDeliveryStatus(
 ) {
     const supabase = await createClient()
 
-    const updateData: any = {
+    const updateData: Database['public']['Tables']['deliveries']['Update'] = {
         status,
         updated_at: new Date().toISOString()
     }

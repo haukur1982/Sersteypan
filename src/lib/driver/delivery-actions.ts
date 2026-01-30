@@ -232,6 +232,8 @@ export async function arriveAtSite(
   if (!UUID_REGEX.test(deliveryId)) {
     return { success: false, error: 'Invalid delivery ID' }
   }
+  void gpsLat
+  void gpsLng
 
   try {
     // 3. VALIDATE DELIVERY

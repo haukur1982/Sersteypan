@@ -6,12 +6,10 @@ import { createClient } from '@/lib/supabase/client'
  */
 export function useUnreadMessages(userId?: string) {
   const [unreadCount, setUnreadCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (!userId) {
-      setUnreadCount(0)
-      setIsLoading(false)
       return
     }
 
@@ -19,6 +17,7 @@ export function useUnreadMessages(userId?: string) {
 
     // Fetch initial count - only messages from OTHER users that are unread
     const fetchCount = async () => {
+      setIsLoading(true)
       const { count, error } = await supabase
         .from('project_messages')
         .select('*', { count: 'exact', head: true })
@@ -57,5 +56,8 @@ export function useUnreadMessages(userId?: string) {
     }
   }, [userId])
 
-  return { unreadCount, isLoading }
+  return {
+    unreadCount: userId ? unreadCount : 0,
+    isLoading: userId ? isLoading : false
+  }
 }
