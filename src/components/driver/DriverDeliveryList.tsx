@@ -13,10 +13,11 @@ interface DriverDeliveryListProps {
 
 type DeliveryRow = Database['public']['Tables']['deliveries']['Row']
 type ProjectRow = Database['public']['Tables']['projects']['Row']
-type DeliveryItemRow = Database['public']['Tables']['delivery_items']['Row']
 type ElementRow = Database['public']['Tables']['elements']['Row']
 
-type DriverDeliveryItem = DeliveryItemRow & {
+// Match the exact shape returned by getDriverDeliveries query
+type DriverDeliveryItem = {
+    id: string
     element: Pick<ElementRow, 'id' | 'name'> | null
 }
 
@@ -54,7 +55,8 @@ export function DriverDeliveryList({ deliveries }: DriverDeliveryListProps) {
     return (
         <div className="space-y-4">
             {deliveries.map((delivery) => {
-                const status = statusConfig[delivery.status] || statusConfig.planned
+                const statusKey = delivery.status || 'planned'
+                const status = statusConfig[statusKey] || statusConfig.planned
                 const itemCount = delivery.items?.length || 0
 
                 return (
@@ -109,10 +111,10 @@ export function DriverDeliveryList({ deliveries }: DriverDeliveryListProps) {
                             <div className="h-1 w-full bg-zinc-100">
                                 <div
                                     className={`h-full transition-all duration-500 ${delivery.status === 'completed' ? 'bg-green-500 w-full' :
-                                            delivery.status === 'arrived' ? 'bg-indigo-500 w-4/5' :
-                                                delivery.status === 'in_transit' ? 'bg-blue-500 w-3/5' :
-                                                    delivery.status === 'loading' ? 'bg-amber-500 w-2/5' :
-                                                        'bg-zinc-300 w-1/5'
+                                        delivery.status === 'arrived' ? 'bg-indigo-500 w-4/5' :
+                                            delivery.status === 'in_transit' ? 'bg-blue-500 w-3/5' :
+                                                delivery.status === 'loading' ? 'bg-amber-500 w-2/5' :
+                                                    'bg-zinc-300 w-1/5'
                                         }`}
                                 />
                             </div>

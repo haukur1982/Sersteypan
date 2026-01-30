@@ -2,26 +2,10 @@
 
 import Link from 'next/link'
 import { Truck, Calendar } from 'lucide-react'
-import type { Database } from '@/types/database'
-
-type DeliveryRow = Database['public']['Tables']['deliveries']['Row']
-type ProjectRow = Database['public']['Tables']['projects']['Row']
-type ProfileRow = Database['public']['Tables']['profiles']['Row']
-type DeliveryItemRow = Database['public']['Tables']['delivery_items']['Row']
-type ElementRow = Database['public']['Tables']['elements']['Row']
-
-type DeliveryItemSummary = DeliveryItemRow & {
-  element: Pick<ElementRow, 'id' | 'name' | 'element_type'> | null
-}
-
-type DeliverySummary = DeliveryRow & {
-  project: Pick<ProjectRow, 'id' | 'name' | 'address'> | null
-  driver: Pick<ProfileRow, 'id' | 'full_name' | 'phone'> | null
-  items: DeliveryItemSummary[]
-}
+import type { Delivery } from './types'
 
 interface DeliveriesTabProps {
-  deliveries: DeliverySummary[]
+  deliveries: Delivery[]
 }
 
 export function DeliveriesTab({ deliveries }: DeliveriesTabProps) {

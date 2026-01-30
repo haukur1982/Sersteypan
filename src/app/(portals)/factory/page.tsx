@@ -84,14 +84,14 @@ export default async function FactoryDashboard() {
     try {
         const { data: stockItems } = await supabase
             .from('stock_items')
-            .select('min_quantity, quantity')
+            .select('reorder_level, quantity_on_hand')
 
         if (stockItems) {
-            // Count items where quantity < min_quantity
+            // Count items where quantity_on_hand < reorder_level
             stockAlertsCount = stockItems.filter((item) => {
-                const minQty = item.min_quantity
-                const qty = item.quantity
-                return typeof minQty === 'number' && typeof qty === 'number' && qty < minQty
+                const reorderLevel = item.reorder_level
+                const qty = item.quantity_on_hand
+                return typeof reorderLevel === 'number' && typeof qty === 'number' && qty < reorderLevel
             }).length
         }
     } catch {

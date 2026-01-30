@@ -17,12 +17,14 @@ interface DriverDeliveryDetailProps {
 
 type DeliveryRow = Database['public']['Tables']['deliveries']['Row']
 type ProjectRow = Database['public']['Tables']['projects']['Row']
-type DeliveryItemRow = Database['public']['Tables']['delivery_items']['Row']
 type ElementRow = Database['public']['Tables']['elements']['Row']
 
 type DeliveryStatus = 'planned' | 'loading' | 'in_transit' | 'arrived' | 'completed'
 
-type DriverDeliveryItem = DeliveryItemRow & {
+// Match the exact shape returned by getDriverDeliveryDetail query
+type DriverDeliveryItem = {
+    id: string
+    load_position: string | null
     element: Pick<ElementRow, 'id' | 'name' | 'element_type'> | null
 }
 

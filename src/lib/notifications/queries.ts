@@ -90,7 +90,7 @@ export async function getUnreadNotifications(userId: string): Promise<Notificati
               type: 'element_status',
               title: `${element.name} status updated`,
               message: `Status changed from ${event.previous_status || 'none'} to ${event.status}`,
-              timestamp: event.created_at,
+              timestamp: event.created_at || new Date().toISOString(),
               read: false,
               elementId: element.id,
               projectId: project.id
@@ -132,7 +132,7 @@ export async function getUnreadNotifications(userId: string): Promise<Notificati
               type: 'element_status',
               title: `${element.name} status updated`,
               message: `${project?.name || 'Project'}: ${event.previous_status || 'new'} → ${event.status}`,
-              timestamp: event.created_at,
+              timestamp: event.created_at || new Date().toISOString(),
               read: false,
               elementId: element.id,
               projectId: project?.id
@@ -168,7 +168,7 @@ export async function getUnreadNotifications(userId: string): Promise<Notificati
             type: 'delivery',
             title: `Delivery ${delivery.status}`,
             message: `${project?.name || 'Project'} delivery status: ${delivery.status}`,
-            timestamp: delivery.created_at,
+            timestamp: delivery.created_at || new Date().toISOString(),
             read: false,
             deliveryId: delivery.id,
             projectId: project?.id

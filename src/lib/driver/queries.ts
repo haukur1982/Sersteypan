@@ -6,14 +6,14 @@ import { createClient } from '@/lib/supabase/server'
  * Get deliveries assigned to the current driver
  */
 export async function getDriverDeliveries() {
-    const supabase = await createClient()
+  const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
 
-    const { data, error } = await supabase
-        .from('deliveries')
-        .select(`
+  const { data, error } = await supabase
+    .from('deliveries')
+    .select(`
       id,
       truck_registration,
       truck_description,
@@ -38,26 +38,26 @@ export async function getDriverDeliveries() {
         )
       )
     `)
-        .eq('driver_id', user.id)
-        .order('planned_date', { ascending: false })
+    .eq('driver_id', user.id)
+    .order('planned_date', { ascending: false })
 
-    if (error) {
-        console.error('Error fetching driver deliveries:', error)
-        return []
-    }
+  if (error) {
+    console.error('Error fetching driver deliveries:', error)
+    return []
+  }
 
-    return data
+  return data
 }
 
 /**
  * Get detailed info for a specific delivery
  */
 export async function getDriverDeliveryDetail(deliveryId: string) {
-    const supabase = await createClient()
+  const supabase = await createClient()
 
-    const { data, error } = await supabase
-        .from('deliveries')
-        .select(`
+  const { data, error } = await supabase
+    .from('deliveries')
+    .select(`
       id,
       truck_registration,
       truck_description,
@@ -68,6 +68,7 @@ export async function getDriverDeliveryDetail(deliveryId: string) {
       arrived_at,
       completed_at,
       received_by_name,
+      delivery_photo_url,
       notes,
       project:projects(
         id,
@@ -85,13 +86,13 @@ export async function getDriverDeliveryDetail(deliveryId: string) {
         )
       )
     `)
-        .eq('id', deliveryId)
-        .single()
+    .eq('id', deliveryId)
+    .single()
 
-    if (error) {
-        console.error('Error fetching delivery detail:', error)
-        return null
-    }
+  if (error) {
+    console.error('Error fetching delivery detail:', error)
+    return null
+  }
 
-    return data
+  return data
 }

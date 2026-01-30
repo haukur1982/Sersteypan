@@ -77,7 +77,7 @@ interface ElementStatusUpdateFormProps {
 
 export function ElementStatusUpdateForm({ element }: ElementStatusUpdateFormProps) {
     const router = useRouter()
-    const [selectedStatus, setSelectedStatus] = useState<ElementStatus>(element.status || 'planned')
+    const [selectedStatus, setSelectedStatus] = useState<ElementStatus>((element.status as ElementStatus) || 'planned')
     const [notes, setNotes] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -125,7 +125,7 @@ export function ElementStatusUpdateForm({ element }: ElementStatusUpdateFormProp
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
                 <Label htmlFor="status">Ný staða (New Status)</Label>
-                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as ElementStatus)}>
                     <SelectTrigger id="status" className="w-full mt-1.5">
                         <SelectValue />
                     </SelectTrigger>
