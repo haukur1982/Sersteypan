@@ -148,7 +148,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                             </Button>
                         </form>
                         <Button variant="outline" asChild>
-                            <Link href={`/admin/projects/${projectId}/floor-plans/new`}>
+                            <Link href={`/admin/projects/${projectId}/floor-plans`}>
                                 <Map className="mr-2 h-4 w-4" />
                                 Hæðarteikningar
                             </Link>

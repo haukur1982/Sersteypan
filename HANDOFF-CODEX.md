@@ -1,140 +1,109 @@
-# CODEX: Sprint 4 Task
+# CODEX: Sprint 5 Task
 **Date:** Jan 30, 2026 | **Time:** 30 min
 
-## Your Mission
-Create email notification templates and Edge Function for sending emails.
+## IMPORTANT: First push your pending Sprint 4 changes!
+```bash
+git pull origin main
+git add -A && git commit -m "Add: Report API route and fixes" && git push origin main
+```
 
-## Why
-Production alerts, delivery notifications, and message alerts need email delivery.
+## Your Sprint 5 Mission
+Create floor-plans storage bucket and element positioning helpers.
 
 ## Tasks
 
-### 1. Create Email Notification Edge Function (25 min)
-Location: `supabase/functions/send-notification/index.ts`
+### 1. Add floor-plans storage bucket migration (15 min)
+Location: `supabase/migrations/011_floor_plans_storage.sql`
+
+```sql
+-- Floor plans storage bucket
+insert into storage.buckets (id, name, public)
+values ('floor-plans', 'floor-plans', true)
+on conflict (id) do nothing;
+
+-- Anyone authenticated can read floor plans
+create policy "Authenticated can read floor plans"
+on storage.objects for select
+to authenticated
+using (bucket_id = 'floor-plans');
+
+-- Admins can manage floor plans
+create policy "Admins can manage floor plans"
+on storage.objects for all
+to authenticated
+using (bucket_id = 'floor-plans' and get_user_role() = 'admin')
+with check (bucket_id = 'floor-plans' and get_user_role() = 'admin');
+```
+
+### 2. Create element positioning server action (10 min)
+Location: `src/lib/floor-plans/actions.ts`
 
 ```typescript
-import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+'use server'
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+import { createClient } from '@/lib/supabase/server'
 
-interface EmailRequest {
-  type: 'delivery_scheduled' | 'element_ready' | 'message_received'
-  recipientEmail: string
-  recipientName: string
-  data: Record<string, unknown>
+export async function getFloorPlansForProject(projectId: string) {
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('floor_plans')
+    .select(`
+      id,
+      name,
+      floor,
+      plan_image_url,
+      element_positions (
+        id,
+        element_id,
+        x_percent,
+        y_percent,
+        rotation_degrees,
+        elements (id, name, status, element_type)
+      )
+    `)
+    .eq('project_id', projectId)
+    .order('floor', { ascending: true })
+
+  if (error) throw error
+  return data
 }
 
-const templates = {
-  delivery_scheduled: {
-    subject: 'Afhending áætluð - {projectName}',
-    body: `Halló {recipientName},
+export async function saveElementPosition(
+  floorPlanId: string,
+  elementId: string,
+  xPercent: number,
+  yPercent: number,
+  rotationDegrees: number = 0
+) {
+  const supabase = await createClient()
 
-Afhending hefur verið áætluð fyrir verkefnið {projectName}.
-Áætluð dagsetning: {date}
-
-Kveðja,
-Sérsteypan`
-  },
-  element_ready: {
-    subject: 'Eining tilbúin - {elementName}',
-    body: `Halló {recipientName},
-
-Einingin {elementName} er tilbúin til afhendingar.
-Verkefni: {projectName}
-
-Kveðja,
-Sérsteypan`
-  },
-  message_received: {
-    subject: 'Ný skilaboð - Sérsteypan',
-    body: `Halló {recipientName},
-
-Þú hefur fengið ný skilaboð í Sérsteypan kerfinu.
-Frá: {senderName}
-
-Innskráðu þig til að skoða skilaboðin.
-
-Kveðja,
-Sérsteypan`
-  }
-}
-
-Deno.serve(async (req: Request) => {
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
-  }
-
-  try {
-    const { type, recipientEmail, recipientName, data }: EmailRequest = await req.json()
-
-    const template = templates[type]
-    if (!template) {
-      return new Response(JSON.stringify({ error: 'Unknown template' }), { status: 400 })
-    }
-
-    // Replace placeholders in template
-    let subject = template.subject
-    let body = template.body
-    for (const [key, value] of Object.entries({ ...data, recipientName })) {
-      subject = subject.replace(new RegExp(`{${key}}`, 'g'), String(value))
-      body = body.replace(new RegExp(`{${key}}`, 'g'), String(value))
-    }
-
-    // Send via Resend
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        from: 'Sérsteypan <noreply@sersteypan.is>',
-        to: recipientEmail,
-        subject,
-        text: body
-      })
+  const { error } = await supabase
+    .from('element_positions')
+    .upsert({
+      floor_plan_id: floorPlanId,
+      element_id: elementId,
+      x_percent: xPercent,
+      y_percent: yPercent,
+      rotation_degrees: rotationDegrees,
+    }, {
+      onConflict: 'floor_plan_id,element_id'
     })
 
-    if (!response.ok) {
-      const error = await response.text()
-      console.error('Resend error:', error)
-      return new Response(JSON.stringify({ error: 'Failed to send email' }), { status: 500 })
-    }
-
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { 'Content-Type': 'application/json' }
-    })
-
-  } catch (err) {
-    console.error('Notification error:', err)
-    return new Response(JSON.stringify({ error: 'Internal error' }), { status: 500 })
-  }
-})
-```
-
-### 2. Create deno.json for the function (2 min)
-```json
-{
-  "name": "send-notification",
-  "version": "1.0.0"
+  if (error) throw error
 }
 ```
 
-### 3. Commit and push (3 min)
+### 3. Commit and push (5 min)
 ```bash
-git add -A && git commit -m "Add: Email notification Edge Function with templates" && git push origin main
-```
-
-## Environment Variables Needed
-```
-RESEND_API_KEY (set via supabase secrets set RESEND_API_KEY=...)
+git add -A && git commit -m "Add: Floor plans storage bucket and positioning actions" && git push origin main
 ```
 
 ## Success Criteria
-- [ ] send-notification function created
-- [ ] Templates for 3 email types
-- [ ] Icelandic language content
+- [ ] Sprint 4 changes pushed first
+- [ ] 011_floor_plans_storage.sql created
+- [ ] actions.ts with getFloorPlansForProject and saveElementPosition
 - [ ] Commit and push
 
 ## When Done
-Report: "Email notification Edge Function created with 3 templates. Pushed to main."
+Report: "Floor plans storage bucket and positioning helpers created. Pushed to main."

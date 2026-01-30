@@ -1,48 +1,55 @@
-# CLAUDE: Sprint 4 Task  
+# CLAUDE: Sprint 5 Task
 **Date:** Jan 30, 2026 | **Time:** 30 min
 
 ## Your Mission
-Add Factory Dashboard stats enhancement (similar to Admin dashboard).
+Create an In-App Notification Center for real-time status alerts.
 
 ## Why
-Factory managers need at-a-glance stats for their daily operations:
-- Elements in each production stage
-- Today's production goals
-- Stock alerts
+Users need to know when:
+- Elements change status (great for buyers tracking their projects)
+- Deliveries are scheduled/completed
+- Messages are received
 
 ## Tasks
 
-### 1. Enhance Factory Dashboard (30 min)
-Location: `src/app/(portals)/factory/page.tsx`
+### 1. Create Notifications Bell Component (20 min)
+Location: `src/components/notifications/NotificationBell.tsx`
 
-Add:
-```tsx
-// Stats Cards at top:
-// - Elements in Production (rebar + cast + curing)
-// - Ready to Ship (ready status)
-// - Shipped Today (delivered today)
-// - Stock Alerts (low stock items from stock table)
+Features:
+- Bell icon in header (lucide-react `Bell`)
+- Red badge with unread count
+- Dropdown showing recent notifications
+- Click to mark as read
+- "Mark all as read" button
 
-// Production Queue with progress bars showing:
-// - Planned -> Rebar -> Cast -> Curing -> Ready
+### 2. Create Notifications Database Query (10 min)
+Location: `src/lib/notifications/queries.ts`
 
-// Today's Diary Entries preview (last 3)
+```typescript
+// Notifications are stored in a table we'll create
+// For now, generate from element_events and messages
+
+export async function getUnreadNotifications(userId: string) {
+  // Query element_events + messages for this user's company
+  // Return as notification objects
+}
 ```
 
-Use same card styling as admin dashboard for consistency.
+### 3. Add to Dashboard Layouts
+Add NotificationBell to the DashboardLayout header, next to logout.
 
 ## Key Files
 ```
-src/app/(portals)/admin/page.tsx    # Reference for stats pattern
-src/app/(portals)/factory/page.tsx  # Where to add
-src/lib/factory/queries.ts          # May need to add queries
+src/components/layout/DashboardLayout.tsx  # Add bell here
+src/components/notifications/NotificationBell.tsx  # New
+src/lib/notifications/queries.ts  # New
 ```
 
 ## Success Criteria
-- [ ] Factory dashboard has stats cards
-- [ ] Shows production pipeline counts
-- [ ] Stock alerts if low inventory
+- [ ] Bell icon visible in header
+- [ ] Shows unread count badge
+- [ ] Dropdown lists recent element status changes
 - [ ] Commit and push
 
 ## When Done
-Report: "Factory dashboard enhanced with stats cards and production overview. Pushed to main."
+Report: "Notification bell added to header with status change alerts. Pushed to main."
