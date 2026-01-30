@@ -73,7 +73,7 @@ export default async function FactoryDashboard() {
                 {/* Header */}
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                        Vinnsal (Production)
+                        Verksmiðja
                     </h1>
                     <p className="text-muted-foreground mt-2">
                         Velkomin {profile?.full_name} - Verkstjóri
