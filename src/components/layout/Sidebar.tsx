@@ -69,7 +69,7 @@ export function Sidebar({ className, user: initialUser }: SidebarProps) {
     const loading = initialUser ? false : authLoading
 
     return (
-        <aside className={cn("flex flex-col h-screen w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground", className)}>
+        <aside className={cn("hidden md:flex flex-col sticky top-0 h-screen w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground", className)}>
             {/* Logo Area */}
             <div className="flex h-16 items-center border-b border-sidebar-border px-6 flex-shrink-0">
                 <h2 className="text-lg font-bold tracking-tight text-sidebar-foreground">

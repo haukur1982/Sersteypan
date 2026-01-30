@@ -101,18 +101,19 @@
   --chart-5: hsl(180, 35%, 45%);
 
   /* ═══════════════════════════════════════
-     Sidebar: Charcoal Slate — Solid, Structural
+     Sidebar: Light Stone — Warm, Readable, Professional
+     High contrast text for factory workers
      ═══════════════════════════════════════ */
-  --sidebar: hsl(220, 15%, 10%);
-  --sidebar-foreground: hsl(40, 10%, 95%);
+  --sidebar: hsl(40, 12%, 96%);
+  --sidebar-foreground: hsl(220, 20%, 20%);
 
-  /* Sidebar Accent: Burnished Copper highlights */
+  /* Sidebar Accent: Burnished Orange highlights */
   --sidebar-primary: hsl(25, 70%, 50%);
-  --sidebar-primary-foreground: hsl(220, 15%, 10%);
+  --sidebar-primary-foreground: hsl(0, 0%, 100%);
 
-  --sidebar-accent: hsl(220, 15%, 15%);
-  --sidebar-accent-foreground: hsl(40, 10%, 95%);
-  --sidebar-border: hsl(220, 12%, 18%);
+  --sidebar-accent: hsl(40, 15%, 92%);
+  --sidebar-accent-foreground: hsl(220, 20%, 20%);
+  --sidebar-border: hsl(40, 10%, 88%);
   --sidebar-ring: hsl(25, 70%, 50%);
 }
 
