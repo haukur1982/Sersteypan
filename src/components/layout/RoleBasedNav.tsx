@@ -30,6 +30,25 @@ interface NavItem {
     englishName: string
 }
 
+// Role normalization map to handle localized or legacy role names
+const roleMap: Record<string, AuthUser['role']> = {
+    // Standard system roles
+    'admin': 'admin',
+    'factory_manager': 'factory_manager',
+    'buyer': 'buyer',
+    'driver': 'driver',
+
+    // Icelandic / Human readable variants (seen in production data)
+    'Admin': 'admin',
+    'Kerfisstjóri': 'admin',
+    'Factory Manager': 'factory_manager',
+    'Verksmiðjustjóri': 'factory_manager',
+    'Buyer': 'buyer',
+    'Kaupamadur': 'buyer',
+    'Driver': 'driver',
+    'Bílstjóri': 'driver'
+}
+
 const navigation: Record<AuthUser['role'], NavItem[]> = {
     admin: [
         { name: 'Stjórnborð', englishName: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -66,16 +85,27 @@ export function RoleBasedNav({ role, onItemClick }: { role: AuthUser['role'] | u
     const { user } = useAuth()
     const { unreadCount } = useUnreadMessages(user?.id)
 
+    const normalizedRole = (roleMap[role] || role) as AuthUser['role']
+
+    // Debug info (only visible if mapping fails)
     if (!role) return null
-    if (!navigation[role]) {
-        return <div className="px-4 py-2 text-sm text-red-500">Villa: Óþekkt hlutverk ({role})</div>
+    if (!normalizedRole || !navigation[normalizedRole]) {
+        return (
+            <div className="p-4 space-y-2">
+                <div className="text-sm text-red-500 font-medium">Villa: Óþekkt hlutverk</div>
+                <div className="text-xs text-muted-foreground font-mono bg-zinc-100 p-2 rounded">
+                    Role: "{role}"<br />
+                    Normalized: "{normalizedRole || 'null'}"
+                </div>
+            </div>
+        )
     }
 
     const isMessagesRoute = (href: string) => href.includes('/messages')
 
     return (
         <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation[role].map((item) => {
+            {navigation[normalizedRole].map((item) => {
                 // Dashboard routes should only match exactly
                 // Other routes can match their children (e.g., /factory/diary matches /factory/diary/123)
                 const isDashboard = item.href === '/factory' || item.href === '/admin' || item.href === '/buyer' || item.href === '/driver'
