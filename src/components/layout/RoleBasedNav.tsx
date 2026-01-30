@@ -14,6 +14,7 @@ import {
     QrCode,
     UserCircle,
     Wrench,
+    FlaskConical,
     type LucideIcon
 } from 'lucide-react'
 import Link from 'next/link'
@@ -56,7 +57,8 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Fyrirtæki', englishName: 'Companies', href: '/admin/companies', icon: Building },
         { name: 'Verkefni', englishName: 'Projects', href: '/admin/projects', icon: FolderKanban },
         { name: 'Notendur', englishName: 'Users', href: '/admin/users', icon: Users },
-        { name: 'Skilaboð', englishName: 'Messages', href: '/admin/messages', icon: MessageSquare }
+        { name: 'Skilaboð', englishName: 'Messages', href: '/admin/messages', icon: MessageSquare },
+        { name: '3D Lab (Exp)', englishName: '3D Research', href: '/admin/lab/3d', icon: FlaskConical }
     ],
     factory_manager: [
         { name: 'Stjórnborð', englishName: 'Dashboard', href: '/factory', icon: LayoutDashboard },

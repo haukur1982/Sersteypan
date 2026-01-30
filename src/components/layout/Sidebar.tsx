@@ -159,7 +159,7 @@ export function MobileSidebar({ user: initialUser }: { user?: AuthUser | null })
                 </div>
                 <div className="absolute bottom-0 w-full p-4 border-t border-sidebar-border bg-sidebar">
                     <UserNav user={user} />
-                    <div className="mt-2 text-xs text-center text-muted-foreground opacity-50">v1.0.1 (Menu Fix)</div>
+                    <div className="mt-2 text-xs text-center text-muted-foreground opacity-50">v1.0.2 (3D Lab)</div>
                 </div>
             </SheetContent>
         </Sheet>
