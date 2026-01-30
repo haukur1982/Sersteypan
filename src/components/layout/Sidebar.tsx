@@ -149,7 +149,13 @@ export function MobileSidebar({ user: initialUser }: { user?: AuthUser | null })
                     <SheetTitle className="text-sidebar-foreground">Sérsteypan</SheetTitle>
                 </SheetHeader>
                 <div className="py-6">
-                    <RoleBasedNav role={user?.role} onItemClick={() => setOpen(false)} />
+                    {user?.role ? (
+                        <RoleBasedNav role={user.role} onItemClick={() => setOpen(false)} />
+                    ) : (
+                        <div className="px-6 text-sm text-muted-foreground">
+                            {user ? 'Enginn aðgangur (No role)' : 'Hleður... (Loading)'}
+                        </div>
+                    )}
                 </div>
                 <div className="absolute bottom-0 w-full p-4 border-t border-sidebar-border bg-sidebar">
                     <UserNav user={user} />

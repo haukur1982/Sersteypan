@@ -66,7 +66,10 @@ export function RoleBasedNav({ role, onItemClick }: { role: AuthUser['role'] | u
     const { user } = useAuth()
     const { unreadCount } = useUnreadMessages(user?.id)
 
-    if (!role || !navigation[role]) return null
+    if (!role) return null
+    if (!navigation[role]) {
+        return <div className="px-4 py-2 text-sm text-red-500">Villa: Óþekkt hlutverk ({role})</div>
+    }
 
     const isMessagesRoute = (href: string) => href.includes('/messages')
 
