@@ -56,22 +56,22 @@ export function SupplierItemSelect({ value, onChange }: SupplierItemSelectProps)
     }
 
     if (loading) {
-        return <div className="text-sm text-muted-foreground">Loading suppliers...</div>
+        return <div className="text-sm text-muted-foreground">Hleður birgjum...</div>
     }
 
     return (
         <div className="space-y-4">
             <div className="space-y-2">
-                <Label>Supplier (Optional)</Label>
+                <Label>Birgir (Valfrjálst)</Label>
                 <Select
                     value={selectedSupplierId || 'none'}
                     onValueChange={handleSupplierChange}
                 >
                     <SelectTrigger>
-                        <SelectValue placeholder="Select supplier" />
+                        <SelectValue placeholder="Veldu birgi" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="none">No supplier</SelectItem>
+                        <SelectItem value="none">Enginn birgir</SelectItem>
                         {suppliers.map(s => (
                             <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                         ))}
@@ -81,16 +81,16 @@ export function SupplierItemSelect({ value, onChange }: SupplierItemSelectProps)
 
             {selectedSupplierId && (
                 <div className="space-y-2">
-                    <Label>Supplier Item</Label>
+                    <Label>Vara frá birgi</Label>
                     <Select
                         value={value || 'none'}
                         onValueChange={handleItemChange}
                     >
                         <SelectTrigger>
-                            <SelectValue placeholder="Select item" />
+                            <SelectValue placeholder="Veldu vöru" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="none">No specific item</SelectItem>
+                            <SelectItem value="none">Engin sértæk vara</SelectItem>
                             {supplierItems.map(item => (
                                 <SelectItem key={item.id} value={item.id}>
                                     {item.name}

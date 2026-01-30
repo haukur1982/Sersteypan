@@ -50,9 +50,9 @@ export function StockList({ items }: StockListProps) {
     const [newSupplierItemId, setNewSupplierItemId] = useState<string | undefined>()
 
     const handleAdjustQuantity = (item: StockItem, change: number) => {
-        if (confirm(`Are you sure you want to ${change > 0 ? 'add' : 'remove'} ${Math.abs(change)} items?`)) {
+        if (confirm(`Ertu viss um að þú viljir ${change > 0 ? 'bæta við' : 'fjarlægja'} ${Math.abs(change)} einingar?`)) {
             startTransition(async () => {
-                await updateStockQuantity(item.id, change, 'adjustment', 'Manual adjustment')
+                await updateStockQuantity(item.id, change, 'adjustment', 'Handvirk leiðrétting')
             })
         }
     }
@@ -87,17 +87,17 @@ export function StockList({ items }: StockListProps) {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-foreground">Inventory Items</h2>
+                <h2 className="text-xl font-semibold text-foreground">Lagerstaða</h2>
                 <Dialog open={isCreating} onOpenChange={setIsCreating}>
                     <DialogTrigger asChild>
-                        <Button className="bg-accent hover:bg-accent/90">
+                        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
                             <Plus className="w-4 h-4 mr-2" />
-                            Add New Item
+                            Skrá nýja vöru
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-md">
                         <DialogHeader>
-                            <DialogTitle>Create New Stock Item</DialogTitle>
+                            <DialogTitle>Skrá nýja vöru á lager</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                             {error && (
@@ -106,36 +106,36 @@ export function StockList({ items }: StockListProps) {
                                 </div>
                             )}
                             <div className="space-y-2">
-                                <Label>Item Name *</Label>
+                                <Label>Vöruheiti (Name) *</Label>
                                 <Input
                                     value={newItemName}
                                     onChange={e => setNewItemName(e.target.value)}
-                                    placeholder="e.g. Standard Barrier"
+                                    placeholder="t.d. Veggeining A"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label>SKU *</Label>
+                                <Label>Vörunúmer (SKU) *</Label>
                                 <Input
                                     value={newItemSku}
                                     onChange={e => setNewItemSku(e.target.value)}
-                                    placeholder="e.g. BAR-001"
+                                    placeholder="t.d. VEGG-001"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label>Category</Label>
+                                    <Label>Flokkur</Label>
                                     <Input
                                         value={newItemCategory}
                                         onChange={e => setNewItemCategory(e.target.value)}
-                                        placeholder="e.g. Concrete"
+                                        placeholder="t.d. Steypa"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Location</Label>
+                                    <Label>Staðsetning</Label>
                                     <Input
                                         value={newItemLocation}
                                         onChange={e => setNewItemLocation(e.target.value)}
-                                        placeholder="e.g. Warehouse A"
+                                        placeholder="t.d. Hillubil A"
                                     />
                                 </div>
                             </div>
@@ -150,7 +150,7 @@ export function StockList({ items }: StockListProps) {
                                 className="w-full"
                                 disabled={isPending || !newItemName || !newItemSku}
                             >
-                                {isPending ? 'Creating...' : 'Create Item'}
+                                {isPending ? 'Skráir...' : 'Skrá vöru'}
                             </Button>
                         </div>
                     </DialogContent>
@@ -161,13 +161,13 @@ export function StockList({ items }: StockListProps) {
                 <Table>
                     <TableHeader>
                         <TableRow className="bg-muted/50">
-                            <TableHead>SKU</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Location</TableHead>
-                            <TableHead>Supplier</TableHead>
-                            <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead>Vörunúmer</TableHead>
+                            <TableHead>Heiti</TableHead>
+                            <TableHead>Flokkur</TableHead>
+                            <TableHead>Staðsetning</TableHead>
+                            <TableHead>Birgir</TableHead>
+                            <TableHead className="text-right">Magn</TableHead>
+                            <TableHead className="text-right">Aðgerðir</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -194,8 +194,8 @@ export function StockList({ items }: StockListProps) {
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.quantity_on_hand <= (item.reorder_level || 0)
-                                            ? 'bg-red-500/20 text-red-400'
-                                            : 'bg-green-500/20 text-green-400'
+                                        ? 'bg-red-500/20 text-red-400'
+                                        : 'bg-green-500/20 text-green-400'
                                         }`}>
                                         {item.quantity_on_hand}
                                     </span>
@@ -224,7 +224,7 @@ export function StockList({ items }: StockListProps) {
                             <TableRow>
                                 <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                     <Box className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                                    No stock items found. Create one to get started.
+                                    Engar vörur fundust. Skráðu nýja vöru til að byrja.
                                 </TableCell>
                             </TableRow>
                         )}
