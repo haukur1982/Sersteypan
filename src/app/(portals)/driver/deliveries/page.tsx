@@ -68,7 +68,7 @@ export default async function DeliveriesPage() {
                             Allar þínar afhendingar
                         </p>
                     </div>
-                    <Link href="/driver/load">
+                    <Link href="/driver/deliveries/new">
                         <Button>
                             <Plus className="w-4 h-4 mr-2" />
                             Ný afhending
@@ -86,7 +86,7 @@ export default async function DeliveriesPage() {
                         <Card className="p-8 text-center">
                             <Truck className="w-12 h-12 mx-auto text-muted-foreground/50" />
                             <p className="text-muted-foreground mt-3">Engar virkar afhendingar</p>
-                            <Link href="/driver/load" className="mt-4 inline-block">
+                            <Link href="/driver/deliveries/new" className="mt-4 inline-block">
                                 <Button variant="outline">
                                     <Plus className="w-4 h-4 mr-2" />
                                     Byrja nýja afhendingu

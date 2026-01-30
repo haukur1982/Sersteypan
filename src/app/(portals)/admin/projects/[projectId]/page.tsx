@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { getProject } from '@/lib/projects/actions'
 import { getElementsForProject, generateQRCodesForElements } from '@/lib/elements/actions'
 import { getProjectDocuments } from '@/lib/documents/actions'
@@ -26,7 +26,8 @@ import {
     CircleDot,
     HelpCircle,
     FileText,
-    Download
+    Download,
+    FileDown
 } from 'lucide-react'
 import { DocumentUploadForm } from '@/components/documents/DocumentUploadForm'
 import type { Database } from '@/types/database'
@@ -93,6 +94,35 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         return
     }
 
+    async function handleGenerateReport() {
+        'use server'
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+        if (!supabaseUrl || !serviceRoleKey) {
+            return
+        }
+
+        const response = await fetch(`${supabaseUrl}/functions/v1/generate-report`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${serviceRoleKey}`,
+                apikey: serviceRoleKey
+            },
+            body: JSON.stringify({ type: 'project_status', project_id: projectId })
+        })
+
+        if (!response.ok) {
+            return
+        }
+
+        const data = await response.json()
+        if (data?.pdf_url) {
+            redirect(data.pdf_url)
+        }
+    }
+
     // Fetch documents for this project
     const { data: documents, error: documentsError } = await getProjectDocuments(projectId)
     const documentList = (documents ?? []) as ProjectDocumentWithProfile[]
@@ -110,6 +140,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                         <form action={handleGenerateQRCodes}>
                             <Button type="submit" variant="outline" disabled={elementIds.length === 0}>
                                 Generate QR Codes
+                            </Button>
+                        </form>
+                        <form action={handleGenerateReport}>
+                            <Button type="submit" variant="outline">
+                                <FileDown className="mr-2 h-4 w-4" />
+                                Generate Report
                             </Button>
                         </form>
                         <Button variant="outline" asChild>

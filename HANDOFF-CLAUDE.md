@@ -1,69 +1,57 @@
-# CLAUDE: 90-Minute Sprint Task
-**Date:** Jan 30, 2026 | **Time:** 90 minutes
+# CLAUDE: Sprint 2 Task
+**Date:** Jan 30, 2026 | **Time:** 30 min
 
 ## Your Mission
-Test and fix the Driver Portal delivery workflow end-to-end.
+Build the Offline Sync Banner for the Driver Portal.
 
-## Context
-- Driver Portal UI was built last night but never tested
-- Pages exist: `/driver/scan`, `/driver/load`, `/driver/deliveries`, `/driver/deliver/[id]`
-- Backend actions exist in `src/lib/driver/qr-actions.ts` and `delivery-actions.ts`
+## Why
+Drivers work in areas with spotty connectivity. When offline, they need to:
+1. See that they're offline
+2. Know actions are queued
+3. See when sync completes
 
-## Tasks (in order)
+## Tasks
 
-### 1. Test QR Scanner (15 min)
-```
-Location: src/app/(portals)/driver/scan/
-```
-- Open `/driver/scan` as a driver user
-- Check if camera permission request works
-- Test fallback to manual UUID entry
-- Fix any console errors
+### 1. Create OfflineBanner Component (15 min)
+Location: `src/components/driver/OfflineBanner.tsx`
 
-### 2. Test Load Checklist (20 min)
+```tsx
+'use client'
+import { useOfflineQueue } from '@/lib/hooks/useOfflineQueue'
+// Show: offline status, pending count, last sync time
+// Colors: yellow=offline, green=synced, red=errors
 ```
-Location: src/app/(portals)/driver/load/
-```
-- Navigate to `/driver/load`
-- Try adding elements (you'll need test element UUIDs from database)
-- Test truck registration input
-- Test "Hefja afhendingu" (Create delivery) button
-- Fix any errors in delivery creation
 
-### 3. Test Delivery Confirmation (20 min)
-```
-Location: src/app/(portals)/driver/deliver/[id]/
-```
-- Navigate to a delivery detail page
-- Test signature canvas (drawing)
-- Test photo capture/upload
-- Test "Staðfesta afhendingu" button
-- Fix any upload or confirmation errors
+Features needed:
+- Uses `useOfflineQueue()` hook (already exists)
+- Shows "Offline - X actions pending" when disconnected  
+- Shows "Syncing..." animation when reconnecting
+- Shows "All synced ✓" briefly after sync completes
+- Appears at TOP of driver layout (fixed position)
 
-### 4. Fix Any Bugs Found (25 min)
-Document and fix issues. Common problems to look for:
-- Missing RLS permissions for driver role
-- Null/undefined handling in TypeScript
-- Missing database columns referenced in code
+### 2. Add to Driver Layout (10 min)
+Location: `src/app/(portals)/driver/layout.tsx`
+
+Add the OfflineBanner at the top of the layout, above the main content.
+
+### 3. Test States (5 min)
+- Manually set `navigator.onLine = false` in devtools
+- Verify banner appears
+- Reconnect and verify it syncs
 
 ## Key Files
 ```
-src/lib/driver/qr-actions.ts      # QR scanning + element lookup
-src/lib/driver/delivery-actions.ts # Delivery lifecycle
-src/components/driver/QRScanner.tsx # Camera component
+src/lib/hooks/useOfflineQueue.ts    # Hook to use
+src/lib/offline/queue.ts            # Queue implementation
+src/app/(portals)/driver/layout.tsx # Where to add banner
 ```
 
-## Test User
-Login as driver role user (check Supabase auth.users for credentials)
-
 ## Success Criteria
-- [ ] Can scan/enter element UUID
-- [ ] Can add elements to load checklist
-- [ ] Can create delivery from load page
-- [ ] Can capture signature
-- [ ] Can upload photo
-- [ ] Can complete delivery
+- [ ] OfflineBanner component created
+- [ ] Shows offline/online status
+- [ ] Shows pending action count
+- [ ] Added to driver layout
+- [ ] Commit and push
 
 ## When Done
-- Commit and push all fixes
-- Report back: "X issues found, Y fixed, Z remaining"
+Report: "OfflineBanner built and integrated. Pushed to main."
