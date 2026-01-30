@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { getProject } from '@/lib/projects/actions'
 import { getElementsForProject, generateQRCodesForElements } from '@/lib/elements/actions'
 import { getProjectDocuments } from '@/lib/documents/actions'
@@ -27,7 +28,8 @@ import {
     HelpCircle,
     FileText,
     Download,
-    FileDown
+    FileDown,
+    Map
 } from 'lucide-react'
 import { DocumentUploadForm } from '@/components/documents/DocumentUploadForm'
 import type { Database } from '@/types/database'
@@ -84,7 +86,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     }
 
     // Fetch elements for this project
-    const { data: elements, error: elementsError} = await getElementsForProject(projectId)
+    const { data: elements, error: elementsError } = await getElementsForProject(projectId)
     const elementList = (elements ?? []) as ElementRow[]
     const elementIds = elementList.map((el) => el.id)
 
@@ -96,19 +98,16 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
     async function handleGenerateReport() {
         'use server'
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-        if (!supabaseUrl || !serviceRoleKey) {
+        const headerList = await headers()
+        const origin = headerList.get('origin') || ''
+        if (!origin) {
             return
         }
 
-        const response = await fetch(`${supabaseUrl}/functions/v1/generate-report`, {
+        const response = await fetch(`${origin}/api/generate-report`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${serviceRoleKey}`,
-                apikey: serviceRoleKey
             },
             body: JSON.stringify({ type: 'project_status', project_id: projectId })
         })
@@ -148,6 +147,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                                 Generate Report
                             </Button>
                         </form>
+                        <Button variant="outline" asChild>
+                            <Link href={`/admin/projects/${projectId}/floor-plans/new`}>
+                                <Map className="mr-2 h-4 w-4" />
+                                Hæðarteikningar
+                            </Link>
+                        </Button>
                         <Button variant="outline" asChild>
                             <Link href={`/admin/projects/${projectId}/edit`}>
                                 <Pencil className="mr-2 h-4 w-4" />

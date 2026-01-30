@@ -1,116 +1,140 @@
-# CODEX: Sprint 3 Task
+# CODEX: Sprint 4 Task
 **Date:** Jan 30, 2026 | **Time:** 30 min
 
-## IMPORTANT: First commit your Sprint 2 changes!
-```bash
-git add -A && git commit -m "Add: Generate Report button on admin project page" && git push origin main
-```
-
-## Your Sprint 3 Mission
-Create database migration for Floor Plans feature (Phase 7 prep).
+## Your Mission
+Create email notification templates and Edge Function for sending emails.
 
 ## Why
-Floor plans allow buyers to see element positions on building drawings.
-This is the next major feature after Driver Portal.
+Production alerts, delivery notifications, and message alerts need email delivery.
 
 ## Tasks
 
-### 1. Create Floor Plan Migration (20 min)
-Location: `supabase/migrations/010_floor_plans.sql`
+### 1. Create Email Notification Edge Function (25 min)
+Location: `supabase/functions/send-notification/index.ts`
 
-```sql
--- Floor Plans Feature Migration
--- Allows uploading floor plan images and placing elements
+```typescript
+import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 
--- Floor Plans Table
-CREATE TABLE IF NOT EXISTS floor_plans (
-    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    description TEXT,
-    floor_number INTEGER DEFAULT 1,
-    image_url TEXT NOT NULL,
-    width_px INTEGER,
-    height_px INTEGER,
-    scale_meters_per_px NUMERIC(10, 6),
-    is_active BOOLEAN DEFAULT true,
-    created_by UUID REFERENCES profiles(id),
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
-);
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 
--- Element Positions on Floor Plans
-CREATE TABLE IF NOT EXISTS element_positions (
-    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
-    floor_plan_id UUID NOT NULL REFERENCES floor_plans(id) ON DELETE CASCADE,
-    element_id UUID NOT NULL REFERENCES elements(id) ON DELETE CASCADE,
-    x_position INTEGER NOT NULL,  -- px from left
-    y_position INTEGER NOT NULL,  -- px from top
-    rotation_degrees INTEGER DEFAULT 0,
-    notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now(),
-    UNIQUE(floor_plan_id, element_id)
-);
+interface EmailRequest {
+  type: 'delivery_scheduled' | 'element_ready' | 'message_received'
+  recipientEmail: string
+  recipientName: string
+  data: Record<string, unknown>
+}
 
--- Indexes
-CREATE INDEX idx_floor_plans_project ON floor_plans(project_id);
-CREATE INDEX idx_element_positions_floor_plan ON element_positions(floor_plan_id);
-CREATE INDEX idx_element_positions_element ON element_positions(element_id);
+const templates = {
+  delivery_scheduled: {
+    subject: 'Afhending áætluð - {projectName}',
+    body: `Halló {recipientName},
 
--- RLS Policies
-ALTER TABLE floor_plans ENABLE ROW LEVEL SECURITY;
-ALTER TABLE element_positions ENABLE ROW LEVEL SECURITY;
+Afhending hefur verið áætluð fyrir verkefnið {projectName}.
+Áætluð dagsetning: {date}
 
--- Floor plans: same access as projects
-CREATE POLICY "Users can view floor plans for their projects"
-ON floor_plans FOR SELECT
-USING (
-    project_id IN (
-        SELECT id FROM projects WHERE company_id = get_user_company()
-    )
-    OR get_user_role() IN ('admin', 'factory_manager')
-);
+Kveðja,
+Sérsteypan`
+  },
+  element_ready: {
+    subject: 'Eining tilbúin - {elementName}',
+    body: `Halló {recipientName},
 
-CREATE POLICY "Admins can manage floor plans"
-ON floor_plans FOR ALL
-USING (get_user_role() = 'admin')
-WITH CHECK (get_user_role() = 'admin');
+Einingin {elementName} er tilbúin til afhendingar.
+Verkefni: {projectName}
 
--- Element positions: same access
-CREATE POLICY "Users can view element positions"
-ON element_positions FOR SELECT
-USING (
-    floor_plan_id IN (
-        SELECT fp.id FROM floor_plans fp
-        JOIN projects p ON fp.project_id = p.id
-        WHERE p.company_id = get_user_company()
-    )
-    OR get_user_role() IN ('admin', 'factory_manager')
-);
+Kveðja,
+Sérsteypan`
+  },
+  message_received: {
+    subject: 'Ný skilaboð - Sérsteypan',
+    body: `Halló {recipientName},
 
-CREATE POLICY "Admins can manage element positions"
-ON element_positions FOR ALL
-USING (get_user_role() = 'admin')
-WITH CHECK (get_user_role() = 'admin');
+Þú hefur fengið ný skilaboð í Sérsteypan kerfinu.
+Frá: {senderName}
+
+Innskráðu þig til að skoða skilaboðin.
+
+Kveðja,
+Sérsteypan`
+  }
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 })
+  }
+
+  try {
+    const { type, recipientEmail, recipientName, data }: EmailRequest = await req.json()
+
+    const template = templates[type]
+    if (!template) {
+      return new Response(JSON.stringify({ error: 'Unknown template' }), { status: 400 })
+    }
+
+    // Replace placeholders in template
+    let subject = template.subject
+    let body = template.body
+    for (const [key, value] of Object.entries({ ...data, recipientName })) {
+      subject = subject.replace(new RegExp(`{${key}}`, 'g'), String(value))
+      body = body.replace(new RegExp(`{${key}}`, 'g'), String(value))
+    }
+
+    // Send via Resend
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'Sérsteypan <noreply@sersteypan.is>',
+        to: recipientEmail,
+        subject,
+        text: body
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      console.error('Resend error:', error)
+      return new Response(JSON.stringify({ error: 'Failed to send email' }), { status: 500 })
+    }
+
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+  } catch (err) {
+    console.error('Notification error:', err)
+    return new Response(JSON.stringify({ error: 'Internal error' }), { status: 500 })
+  }
+})
 ```
 
-### 2. Document Typecheck (5 min)
-```bash
-npx tsc --noEmit
+### 2. Create deno.json for the function (2 min)
+```json
+{
+  "name": "send-notification",
+  "version": "1.0.0"
+}
 ```
 
-### 3. Commit migration file (5 min)
+### 3. Commit and push (3 min)
 ```bash
-git add -A && git commit -m "Add: Floor Plans migration (Phase 7 prep)" && git push origin main
+git add -A && git commit -m "Add: Email notification Edge Function with templates" && git push origin main
+```
+
+## Environment Variables Needed
+```
+RESEND_API_KEY (set via supabase secrets set RESEND_API_KEY=...)
 ```
 
 ## Success Criteria
-- [ ] Sprint 2 changes committed first
-- [ ] 010_floor_plans.sql created
-- [ ] Tables: floor_plans, element_positions
-- [ ] RLS policies added
+- [ ] send-notification function created
+- [ ] Templates for 3 email types
+- [ ] Icelandic language content
 - [ ] Commit and push
 
 ## When Done
-Report: "Sprint 2 pushed. Floor plans migration created. Pushed to main."
+Report: "Email notification Edge Function created with 3 templates. Pushed to main."

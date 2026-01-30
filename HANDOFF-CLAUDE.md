@@ -1,78 +1,48 @@
-# CLAUDE: Sprint 3 Task
+# CLAUDE: Sprint 4 Task  
 **Date:** Jan 30, 2026 | **Time:** 30 min
 
 ## Your Mission
-Create comprehensive End-to-End Testing Documentation for the application.
+Add Factory Dashboard stats enhancement (similar to Admin dashboard).
 
 ## Why
-Before demo/production, we need a testing guide that documents:
-- All user flows per portal
-- How to verify each feature works
-- Known edge cases
+Factory managers need at-a-glance stats for their daily operations:
+- Elements in each production stage
+- Today's production goals
+- Stock alerts
 
 ## Tasks
 
-### 1. Create TESTING-GUIDE.md (30 min)
-Location: Project root
+### 1. Enhance Factory Dashboard (30 min)
+Location: `src/app/(portals)/factory/page.tsx`
 
-Include:
+Add:
+```tsx
+// Stats Cards at top:
+// - Elements in Production (rebar + cast + curing)
+// - Ready to Ship (ready status)
+// - Shipped Today (delivered today)
+// - Stock Alerts (low stock items from stock table)
 
-```markdown
-# Sérsteypan - Testing Guide
+// Production Queue with progress bars showing:
+// - Planned -> Rebar -> Cast -> Curing -> Ready
 
-## Test Credentials
-(Get from Supabase Dashboard > Authentication > Users)
+// Today's Diary Entries preview (last 3)
+```
 
-## Admin Portal Tests
-1. [ ] Login as admin
-2. [ ] Create company
-3. [ ] Create project
-4. [ ] Create elements
-5. [ ] Generate QR codes
-6. [ ] Search functionality
+Use same card styling as admin dashboard for consistency.
 
-## Factory Portal Tests
-1. [ ] Login as factory_manager
-2. [ ] View production queue
-3. [ ] Update element status (planned → rebar → cast → curing → ready)
-4. [ ] Add diary entry
-5. [ ] Manage stock
-
-## Buyer Portal Tests
-1. [ ] Login as buyer
-2. [ ] View projects (only own company)
-3. [ ] View deliveries
-4. [ ] Send/receive messages
-5. [ ] Security: Cannot access other company's projects
-
-## Driver Portal Tests
-1. [ ] Login as driver
-2. [ ] Create new delivery
-3. [ ] Scan QR code (or manual entry)
-4. [ ] Add elements to load
-5. [ ] Start delivery (change to in_transit)
-6. [ ] Complete delivery with signature
-
-## Cross-Portal Tests
-1. [ ] Element status changes reflect in all portals
-2. [ ] Real-time updates work
-3. [ ] Messages work between buyer and admin
-
-## Mobile Responsiveness
-- [ ] Driver portal works on mobile
-- [ ] Signature canvas works on touch
-
-## Offline Scenarios
-- [ ] Offline banner appears when disconnected
-- [ ] Actions queue when offline
-- [ ] Sync when reconnected
+## Key Files
+```
+src/app/(portals)/admin/page.tsx    # Reference for stats pattern
+src/app/(portals)/factory/page.tsx  # Where to add
+src/lib/factory/queries.ts          # May need to add queries
 ```
 
 ## Success Criteria
-- [ ] TESTING-GUIDE.md created with all test cases
-- [ ] Includes test credentials section
-- [ ] Covers all 4 portals
+- [ ] Factory dashboard has stats cards
+- [ ] Shows production pipeline counts
+- [ ] Stock alerts if low inventory
 - [ ] Commit and push
 
 ## When Done
-Report: "TESTING-GUIDE.md created with X test cases. Pushed to main."
+Report: "Factory dashboard enhanced with stats cards and production overview. Pushed to main."

@@ -112,6 +112,7 @@ export default async function FactoryDashboard() {
     const totalElements = totalElementsResult.count || 0
 
     const recentDiaryEntries = recentDiaryResult.data || []
+    const diaryCount = recentDiaryEntries.length
     const todoCount = todoCountResult.count || 0
 
     return (
