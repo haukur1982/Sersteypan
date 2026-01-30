@@ -85,10 +85,9 @@ export function RoleBasedNav({ role, onItemClick }: { role: AuthUser['role'] | u
     const { user } = useAuth()
     const { unreadCount } = useUnreadMessages(user?.id)
 
-    const normalizedRole = (roleMap[role] || role) as AuthUser['role']
-
-    // Debug info (only visible if mapping fails)
     if (!role) return null
+
+    const normalizedRole = (roleMap[role] || role) as AuthUser['role']
     if (!normalizedRole || !navigation[normalizedRole]) {
         return (
             <div className="p-4 space-y-2">
