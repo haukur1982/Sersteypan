@@ -16,7 +16,7 @@ import {
     Building2,
     Layers
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { lookupElementByQR } from '@/lib/driver/qr-actions'
 
 interface ScannedElement {
     id: string
@@ -39,44 +39,22 @@ export function ScanPageClient() {
     const [manualSearch, setManualSearch] = useState('')
     const [showManualSearch, setShowManualSearch] = useState(false)
 
-    const supabase = createClient()
-
-    const lookupElement = async (elementId: string) => {
+    const lookupElement = async (qrContent: string) => {
         setIsLoading(true)
         setError(null)
         setScannedElement(null)
 
         try {
-            // Validate UUID format
-            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-            if (!uuidRegex.test(elementId)) {
-                setError('Ógildur QR kóði. Vinsamlegast reyndu aftur.')
+            // Use server action for lookup with proper validation and authorization
+            const result = await lookupElementByQR(qrContent)
+
+            if (result.error || !result.element) {
+                setError(result.error || 'Eining fannst ekki. Athugaðu QR kóðann.')
                 setIsLoading(false)
                 return
             }
 
-            const { data, error: fetchError } = await supabase
-                .from('elements')
-                .select(`
-          id,
-          name,
-          status,
-          project:projects(
-            id,
-            name,
-            company:companies(name)
-          )
-        `)
-                .eq('id', elementId)
-                .single()
-
-            if (fetchError || !data) {
-                setError('Eining fannst ekki. Athugaðu QR kóðann.')
-                setIsLoading(false)
-                return
-            }
-
-            setScannedElement(data as unknown as ScannedElement)
+            setScannedElement(result.element as unknown as ScannedElement)
         } catch (err) {
             console.error('Lookup error:', err)
             setError('Villa við leit. Reyndu aftur.')

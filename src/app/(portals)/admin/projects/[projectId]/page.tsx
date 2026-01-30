@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getProject } from '@/lib/projects/actions'
-import { getElementsForProject } from '@/lib/elements/actions'
+import { getElementsForProject, generateQRCodesForElements } from '@/lib/elements/actions'
 import { getProjectDocuments } from '@/lib/documents/actions'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'
@@ -85,6 +85,13 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     // Fetch elements for this project
     const { data: elements, error: elementsError} = await getElementsForProject(projectId)
     const elementList = (elements ?? []) as ElementRow[]
+    const elementIds = elementList.map((el) => el.id)
+
+    async function handleGenerateQRCodes() {
+        'use server'
+        await generateQRCodesForElements(elementIds)
+        return
+    }
 
     // Fetch documents for this project
     const { data: documents, error: documentsError } = await getProjectDocuments(projectId)
@@ -99,12 +106,19 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                         <h1 className="text-3xl font-bold tracking-tight text-zinc-900">{project.name}</h1>
                         <p className="text-zinc-600 mt-1">{project.companies?.name}</p>
                     </div>
-                    <Button variant="outline" asChild>
-                        <Link href={`/admin/projects/${projectId}/edit`}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Breyta verkefni
-                        </Link>
-                    </Button>
+                    <div className="flex gap-2">
+                        <form action={handleGenerateQRCodes}>
+                            <Button type="submit" variant="outline" disabled={elementIds.length === 0}>
+                                Generate QR Codes
+                            </Button>
+                        </form>
+                        <Button variant="outline" asChild>
+                            <Link href={`/admin/projects/${projectId}/edit`}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Breyta verkefni
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Project Details Card */}

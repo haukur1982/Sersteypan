@@ -296,6 +296,55 @@ export async function deleteElement(id: string) {
   return { success: true }
 }
 
+export async function generateQRCodesForElements(elementIds: string[]) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || profile.role !== 'admin') {
+    return { error: 'Unauthorized - Admin only' }
+  }
+
+  if (!elementIds || elementIds.length === 0) {
+    return { error: 'No elements provided' }
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return { error: 'Missing Supabase configuration' }
+  }
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/generate-qr-codes`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${serviceRoleKey}`,
+      apikey: serviceRoleKey
+    },
+    body: JSON.stringify({ element_ids: elementIds })
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('QR generation failed:', errorText)
+    return { error: 'Failed to generate QR codes' }
+  }
+
+  revalidatePath('/admin/projects')
+  return { success: true }
+}
+
 // Update element status (used by factory managers)
 export async function updateElementStatus(id: string, newStatus: string, notes?: string) {
   const supabase = await createClient()

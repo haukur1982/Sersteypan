@@ -1,69 +1,133 @@
-# Codex Handoff Brief
-**Date:** 2026-01-30 | **From:** Gemini | **Priority:** High
+# CODEX: 90-Minute Sprint Task
+**Date:** Jan 30, 2026 | **Time:** 90 minutes
 
----
+## Your Mission
+Deploy Edge Functions and create storage infrastructure.
 
-## Context
-We completed security testing. Now building Phase 6 (Driver Portal). Gemini is doing UI. Your job: backend/Edge Functions.
+## Tasks (in order)
 
-## Your Tasks
+### 1. Create Storage Buckets Migration (20 min)
+Create `supabase/migrations/009_storage_buckets.sql`:
 
-### 1. Edge Function: `generate-qr-codes` 
-**Location:** `supabase/functions/generate-qr-codes/index.ts`
+```sql
+-- Create storage buckets for QR codes and reports
+INSERT INTO storage.buckets (id, name, public)
+VALUES 
+  ('qr-codes', 'qr-codes', true),
+  ('reports', 'reports', false),
+  ('signatures', 'signatures', false),
+  ('delivery-photos', 'delivery-photos', false)
+ON CONFLICT (id) DO NOTHING;
 
-```typescript
-// Input
-{ element_ids: string[] }
+-- QR codes bucket policy (public read for printing)
+CREATE POLICY "QR codes are publicly readable"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'qr-codes');
 
-// Output
-{ qr_codes: Array<{ element_id: string, qr_url: string }> }
+CREATE POLICY "Admins can manage QR codes"
+ON storage.objects FOR ALL
+USING (bucket_id = 'qr-codes' AND auth.jwt() ->> 'role' = 'admin');
+
+-- Reports bucket policy (authenticated users)
+CREATE POLICY "Authenticated users can read reports"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'reports' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Admins can manage reports"
+ON storage.objects FOR ALL
+USING (bucket_id = 'reports' AND auth.jwt() ->> 'role' = 'admin');
+
+-- Signatures bucket policy (drivers can upload)
+CREATE POLICY "Drivers can upload signatures"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'signatures' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can read signatures"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'signatures' AND auth.role() = 'authenticated');
+
+-- Delivery photos policy
+CREATE POLICY "Drivers can upload delivery photos"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'delivery-photos' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can view delivery photos"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'delivery-photos' AND auth.role() = 'authenticated');
 ```
 
-**Requirements:**
-- Use `qrcode` npm package (already in CLAUDE.md spec)
-- QR content = element UUID (NOT human-readable name)
-- Store generated QR URL in `elements.qr_code_url`
-- Return signed URLs
-
-### 2. Edge Function: `generate-report`
-**Location:** `supabase/functions/generate-report/index.ts`
-
-```typescript
-// Input
-{ 
-  type: 'project_status' | 'delivery_manifest',
-  project_id?: string,
-  delivery_id?: string 
-}
-
-// Output
-{ pdf_url: string }
-```
-
-**Requirements:**
-- Use `@react-pdf/renderer` or similar
-- Project status: elements list with status, photos, timeline
-- Delivery manifest: elements on truck, weights, delivery address
-
-### 3. Optional: `start-delivery` and `complete-delivery`
-Currently using Server Actions. If time permits, convert to Edge Functions for better bulk ops.
-
----
-
-## Key Files to Reference
-- `CLAUDE.md` lines 1321-1359 (Edge Function specs)
-- `src/types/database.ts` (TypeScript types)
-- `supabase/migrations/` (schema reference)
-
-## How to Test
+### 2. Apply Migration to Supabase (10 min)
 ```bash
-supabase functions serve generate-qr-codes --env-file .env.local
-curl -X POST http://localhost:54321/functions/v1/generate-qr-codes \
-  -H "Authorization: Bearer <anon_key>" \
-  -d '{"element_ids": ["<uuid>"]}'
+# Option A: Supabase CLI
+supabase db push
+
+# Option B: Manual via Supabase Dashboard SQL Editor
+# Copy the SQL above and run it
 ```
 
-## Coordination
-- Gemini: Building Driver Portal UI
-- Claude: QR scanning logic, offline queue
-- You: Edge Functions, PDF generation
+### 3. Test Edge Functions Locally (20 min)
+```bash
+cd supabase/functions
+
+# Test QR generation
+supabase functions serve generate-qr-codes --env-file .env.local
+
+# In another terminal, test with curl:
+curl -X POST http://localhost:54321/functions/v1/generate-qr-codes \
+  -H "Authorization: Bearer YOUR_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"elementIds": ["element-uuid-here"]}'
+```
+
+### 4. Deploy Edge Functions to Production (20 min)
+```bash
+# Deploy QR generator
+supabase functions deploy generate-qr-codes
+
+# Deploy PDF report generator
+supabase functions deploy generate-report
+
+# Set secrets if needed
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your_key
+```
+
+### 5. Create Admin UI Button for QR Generation (20 min)
+Add a "Generate QR Codes" button to the elements page.
+
+Location: `src/app/(portals)/admin/elements/page.tsx` or create component
+
+```tsx
+async function generateQRCodes(elementIds: string[]) {
+  const response = await fetch('/api/generate-qr', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ elementIds })
+  })
+  // Handle response
+}
+```
+
+## Key Files
+```
+supabase/functions/generate-qr-codes/index.ts
+supabase/functions/generate-report/index.ts
+supabase/functions/_shared/supabaseClient.ts
+```
+
+## Environment Variables Needed
+```
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_QR_BUCKET=qr-codes
+SUPABASE_REPORTS_BUCKET=reports
+```
+
+## Success Criteria
+- [ ] Storage buckets created (qr-codes, reports, signatures, delivery-photos)
+- [ ] Edge Functions deployed and responding
+- [ ] Can generate QR code for an element
+- [ ] QR code URL saved to element record
+
+## When Done
+- Commit and push migration file
+- Report back: "Buckets created, functions deployed, QR test result: X"

@@ -96,7 +96,8 @@ export default async function DeliveriesPage() {
                     ) : (
                         <div className="space-y-3">
                             {activeDeliveries.map((delivery) => {
-                                const status = statusConfig[delivery.status] || statusConfig.planned
+                                const statusKey: string = delivery.status ?? 'planned'
+                                const status = statusConfig[statusKey] || statusConfig.planned
                                 const StatusIcon = status.icon
                                 const project = delivery.project as { id: string; name: string; address: string | null; company: { name: string } | null } | null
 
@@ -123,7 +124,7 @@ export default async function DeliveriesPage() {
                                                         {status.label}
                                                     </Badge>
                                                     <p className="text-xs text-muted-foreground mt-1">
-                                                        {new Date(delivery.created_at).toLocaleDateString('is-IS')}
+                                                        {delivery.created_at ? new Date(delivery.created_at).toLocaleDateString('is-IS') : '-'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -167,7 +168,7 @@ export default async function DeliveriesPage() {
                                                         Lokið
                                                     </Badge>
                                                     <p className="text-xs text-muted-foreground mt-1">
-                                                        {new Date(delivery.created_at).toLocaleDateString('is-IS')}
+                                                        {delivery.created_at ? new Date(delivery.created_at).toLocaleDateString('is-IS') : '-'}
                                                     </p>
                                                 </div>
                                             </div>
