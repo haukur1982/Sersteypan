@@ -1,5 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 
+const DOCUMENTS_BUCKET = 'project-documents'
+
+function parseStoragePath(fileUrl: string): { bucket: string; path: string } {
+  if (fileUrl.startsWith('http')) {
+    const match = fileUrl.match(/\/storage\/v1\/object\/(?:public\/)?([^/]+)\/(.+)$/)
+    if (match) {
+      return { bucket: match[1], path: match[2] }
+    }
+  }
+
+  return { bucket: DOCUMENTS_BUCKET, path: fileUrl }
+}
+
 /**
  * Status breakdown type for project elements
  */
@@ -178,6 +191,25 @@ export async function getProjectDetail(projectId: string) {
     return null
   }
 
+  if (data.documents && data.documents.length > 0) {
+    const signedDocuments = await Promise.all(
+      data.documents.map(async (doc) => {
+        const { bucket, path } = parseStoragePath(doc.file_url)
+        const { data: signed, error: signError } = await supabase.storage
+          .from(bucket)
+          .createSignedUrl(path, 60 * 60)
+
+        if (!signError && signed?.signedUrl) {
+          return { ...doc, file_url: signed.signedUrl }
+        }
+
+        return doc
+      })
+    )
+
+    return { ...data, documents: signedDocuments }
+  }
+
   return data
 }
 
@@ -299,6 +331,45 @@ export async function getDeliveryDetail(deliveryId: string) {
   }
 
   return data
+}
+
+/**
+ * Get all messages for the buyer's projects
+ */
+export async function getBuyerMessages() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('project_messages')
+    .select(`
+      id,
+      project_id,
+      message,
+      is_read,
+      created_at,
+      user:profiles(
+        id,
+        full_name,
+        role
+      ),
+      project:projects(
+        id,
+        name,
+        company:companies(
+          id,
+          name
+        )
+      )
+    `)
+    .order('created_at', { ascending: false })
+    .limit(100)
+
+  if (error) {
+    console.error('Error fetching buyer messages:', error)
+    throw new Error('Failed to fetch messages')
+  }
+
+  return data || []
 }
 
 /**

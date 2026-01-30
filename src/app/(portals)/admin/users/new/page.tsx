@@ -44,7 +44,10 @@ export default async function NewUserPage() {
                         <CardTitle>Notandaupplýsingar</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <form action={createUser} className="space-y-6">
+                        <form action={async (formData: FormData) => {
+                            'use server'
+                            await createUser(formData)
+                        }} className="space-y-6">
                             {/* Full Name */}
                             <div className="space-y-2">
                                 <Label htmlFor="full_name">Fullt nafn *</Label>

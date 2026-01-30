@@ -197,7 +197,7 @@ export default async function ProductionQueuePage({ searchParams }: ProductionQu
                                     return (
                                         <TableRow key={element.id} className="hover:bg-zinc-50">
                                             <TableCell className="py-4">
-                                                {element.priority > 0 ? (
+                                                {(element.priority ?? 0) > 0 ? (
                                                     <span className="font-bold text-orange-600">
                                                         {element.priority}
                                                     </span>

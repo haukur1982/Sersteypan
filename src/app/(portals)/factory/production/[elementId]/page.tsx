@@ -14,9 +14,11 @@ import {
     CheckCircle,
     Truck,
     Building,
-    Box
+    Box,
+    Image as ImageIcon
 } from 'lucide-react'
 import { ElementStatusUpdateForm } from '@/components/factory/ElementStatusUpdateForm'
+import { PhotoGallery } from '@/components/shared/PhotoGallery'
 import type { Database } from '@/types/database'
 
 type ElementRow = Database['public']['Tables']['elements']['Row']
@@ -151,6 +153,19 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
         .limit(10)
     const historyList = (history ?? []) as ElementEvent[]
 
+    // Fetch element photos
+    const { data: photos } = await supabase
+        .from('element_photos')
+        .select(`
+            *,
+            created_by:profiles!element_photos_taken_by_fkey (
+                full_name
+            )
+        `)
+        .eq('element_id', elementId)
+        .order('created_at', { ascending: false })
+    const photoList = (photos ?? []) as any[]
+
     const statusInfo = statusConfig[elementDetail.status as keyof typeof statusConfig] || statusConfig.planned
     const typeInfo = typeConfig[elementDetail.element_type as keyof typeof typeConfig] || typeConfig.other
     const StatusIcon = statusInfo.icon
@@ -190,7 +205,7 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                            <ElementStatusUpdateForm element={elementDetail} />
+                                <ElementStatusUpdateForm element={elementDetail} />
                             </CardContent>
                         </Card>
 
@@ -211,8 +226,8 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                                     <div>
                                         <p className="text-sm font-medium text-zinc-500">Forgangur</p>
                                         <p className="mt-1 text-zinc-900">
-                                        {(elementDetail.priority ?? 0) > 0 ? (
-                                            <span className="font-bold text-orange-600">{elementDetail.priority}</span>
+                                            {(elementDetail.priority ?? 0) > 0 ? (
+                                                <span className="font-bold text-orange-600">{elementDetail.priority}</span>
                                             ) : (
                                                 <span className="text-zinc-400">0</span>
                                             )}
@@ -308,7 +323,7 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                                                                 {eventStatusInfo?.label || event.status}
                                                             </Badge>
                                                             <span className="text-xs text-zinc-500">
-                                                                {new Date(event.created_at).toLocaleString('is-IS')}
+                                                                {event.created_at ? new Date(event.created_at).toLocaleString('is-IS') : '-'}
                                                             </span>
                                                         </div>
                                                         {event.profiles?.full_name && (
@@ -327,6 +342,19 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                                 </CardContent>
                             </Card>
                         )}
+
+                        {/* Photo Gallery */}
+                        <Card className="border-zinc-200">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <ImageIcon className="w-5 h-5 flex-shrink-0" />
+                                    Myndasafn (Photo Gallery)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <PhotoGallery photos={photoList} />
+                            </CardContent>
+                        </Card>
                     </div>
 
                     {/* Right Column: Project Info */}

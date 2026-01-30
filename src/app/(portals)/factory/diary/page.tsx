@@ -96,13 +96,13 @@ export default async function DiaryPage() {
                                                 <span>{entry.profiles?.full_name}</span>
                                                 <span>•</span>
                                                 <span>
-                                                    {new Date(entry.created_at).toLocaleString('is-IS')}
+                                                    {entry.created_at ? new Date(entry.created_at).toLocaleString('is-IS') : 'Óþekkt'}
                                                 </span>
                                                 {entry.updated_at && entry.updated_at !== entry.created_at && (
                                                     <>
                                                         <span>•</span>
                                                         <span className="text-xs">
-                                                            Uppfært: {new Date(entry.updated_at).toLocaleDateString('is-IS')}
+                                                            Uppfært: {entry.updated_at ? new Date(entry.updated_at).toLocaleDateString('is-IS') : 'Óþekkt'}
                                                         </span>
                                                     </>
                                                 )}

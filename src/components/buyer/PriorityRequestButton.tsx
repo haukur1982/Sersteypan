@@ -19,7 +19,7 @@ import { requestPriority } from '@/lib/buyer/actions'
 
 interface PriorityRequest {
   id: string
-  status: 'pending' | 'approved' | 'denied' | 'modified'
+  status: string | null
 }
 
 interface PriorityRequestButtonProps {

@@ -45,18 +45,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4 py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Sérsteypan
           </h1>
-          <p className="mt-2 text-sm text-zinc-600">
+          <p className="mt-2 text-sm text-muted-foreground">
             Framleiðslukerfi (Production System)
           </p>
         </div>
 
-        <Card className="border-zinc-200 shadow-sm">
+        <Card className="border-border shadow-engineered">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-semibold tracking-tight">
               Innskráning
@@ -113,28 +113,28 @@ export default function LoginPage() {
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4 border-t bg-zinc-50/50 p-6">
-            <div className="text-xs text-center text-zinc-500 w-full">
-              <p className="font-medium mb-2">Prófunarreikningar (Test accounts):</p>
-              <div className="grid grid-cols-2 gap-2 text-left bg-white p-3 rounded border border-zinc-200">
+          <CardFooter className="flex flex-col space-y-4 border-t bg-muted/30 p-6">
+            <div className="text-xs text-center text-muted-foreground w-full">
+              <p className="font-medium mb-2 text-foreground">Prófunarreikningar (Test accounts):</p>
+              <div className="grid grid-cols-2 gap-2 text-left bg-card p-3 rounded-lg border border-border">
                 <div>
-                  <span className="font-semibold block">Admin:</span>
+                  <span className="font-semibold block text-foreground">Admin:</span>
                   admin@sersteypan.test
                 </div>
                 <div>
-                  <span className="font-semibold block">Factory:</span>
+                  <span className="font-semibold block text-foreground">Factory:</span>
                   factory@sersteypan.test
                 </div>
                 <div>
-                  <span className="font-semibold block">Buyer:</span>
+                  <span className="font-semibold block text-foreground">Buyer:</span>
                   buyer@sersteypan.test
                 </div>
                 <div>
-                  <span className="font-semibold block">Driver:</span>
+                  <span className="font-semibold block text-foreground">Driver:</span>
                   driver@sersteypan.test
                 </div>
-                <div className="col-span-2 pt-1 border-t mt-1 text-center">
-                  Password: <code className="bg-zinc-100 px-1 rounded border">Password123!</code>
+                <div className="col-span-2 pt-2 border-t border-border mt-2 text-center">
+                  Password: <code className="bg-muted px-1.5 py-0.5 rounded border border-border font-mono text-foreground">Password123!</code>
                 </div>
               </div>
             </div>

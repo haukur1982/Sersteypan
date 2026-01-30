@@ -10,8 +10,8 @@ import { sendMessage } from '@/lib/buyer/actions'
 type Message = {
   id: string
   message: string
-  is_read: boolean
-  created_at: string
+  is_read: boolean | null
+  created_at: string | null
   user: {
     id: string
     full_name: string
@@ -106,7 +106,11 @@ export function MessagesTab({ messages, projectId }: MessagesTabProps) {
         <div className="space-y-4">
           <h3 className="font-medium text-zinc-900">Skilaboðasaga</h3>
           {messages
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .sort((a, b) => {
+              const aTime = a.created_at ? new Date(a.created_at).getTime() : 0
+              const bTime = b.created_at ? new Date(b.created_at).getTime() : 0
+              return bTime - aTime
+            })
             .map((msg) => (
               <div
                 key={msg.id}
@@ -127,12 +131,14 @@ export function MessagesTab({ messages, projectId }: MessagesTabProps) {
                     </p>
                   </div>
                   <time className="text-xs text-zinc-500 whitespace-nowrap">
-                    {new Date(msg.created_at).toLocaleDateString('is-IS', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
+                    {msg.created_at
+                      ? new Date(msg.created_at).toLocaleDateString('is-IS', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                      : 'Óþekkt'}
                   </time>
                 </div>
               </div>

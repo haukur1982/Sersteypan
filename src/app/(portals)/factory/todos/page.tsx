@@ -19,8 +19,8 @@ export default async function TodosPage() {
     const todoList = (todos ?? []) as TodoItem[]
 
     // Separate completed and pending todos
-    const pendingTodos = todoList.filter((todo) => !todo.is_completed)
-    const completedTodos = todoList.filter((todo) => todo.is_completed)
+    const pendingTodos = todoList.filter((todo) => todo.is_completed !== true)
+    const completedTodos = todoList.filter((todo) => todo.is_completed === true)
 
     return (
         <DashboardLayout>
@@ -73,7 +73,7 @@ export default async function TodosPage() {
                                             <div className="flex-shrink-0 pt-0.5">
                                                 <TodoCheckbox
                                                     todoId={todo.id}
-                                                    isCompleted={todo.is_completed}
+                                                    isCompleted={todo.is_completed === true}
                                                 />
                                             </div>
 
@@ -96,7 +96,7 @@ export default async function TodosPage() {
                                                                     {new Date(todo.due_date).toLocaleDateString('is-IS')}
                                                                 </Badge>
                                                             )}
-                                                            {todo.priority > 0 && (
+                                                            {(todo.priority ?? 0) > 0 && (
                                                                 <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">
                                                                     Forgangur {todo.priority}
                                                                 </Badge>
@@ -140,7 +140,7 @@ export default async function TodosPage() {
                                             <div className="flex-shrink-0 pt-0.5">
                                                 <TodoCheckbox
                                                     todoId={todo.id}
-                                                    isCompleted={todo.is_completed}
+                                                    isCompleted={todo.is_completed === true}
                                                 />
                                             </div>
 
@@ -157,7 +157,9 @@ export default async function TodosPage() {
                                                             </p>
                                                         )}
                                                         <p className="text-xs text-zinc-500 mt-2">
-                                                            Lokið: {new Date(todo.completed_at).toLocaleDateString('is-IS')}
+                                                            Lokið: {todo.completed_at
+                                                                ? new Date(todo.completed_at).toLocaleDateString('is-IS')
+                                                                : 'Óþekkt'}
                                                         </p>
                                                     </div>
 

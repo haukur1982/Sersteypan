@@ -46,6 +46,11 @@ export default async function EditTodoPage({ params }: EditTodoPageProps) {
         .order('name', { ascending: true })
     const projectList = (projects ?? []) as ProjectOption[]
 
+    async function handleUpdate(formData: FormData) {
+        'use server'
+        await updateTodoItem(todoId, formData)
+    }
+
     return (
         <DashboardLayout>
             <div className="space-y-6 max-w-3xl mx-auto">
@@ -72,7 +77,7 @@ export default async function EditTodoPage({ params }: EditTodoPageProps) {
                         <CardTitle>Breyta verkefni</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <form action={updateTodoItem.bind(null, todoId)} className="space-y-6">
+                        <form action={handleUpdate} className="space-y-6">
                             {/* Title */}
                             <div>
                                 <Label htmlFor="title">
@@ -199,7 +204,9 @@ export default async function EditTodoPage({ params }: EditTodoPageProps) {
                         <div className="text-sm text-zinc-600 space-y-1">
                             <p>
                                 <span className="font-medium">Búið til:</span>{' '}
-                                {new Date(todo.created_at).toLocaleString('is-IS')}
+                                {todo.created_at
+                                    ? new Date(todo.created_at).toLocaleString('is-IS')
+                                    : 'Óþekkt'}
                             </p>
                             {todo.updated_at && todo.updated_at !== todo.created_at && (
                                 <p>
@@ -207,7 +214,7 @@ export default async function EditTodoPage({ params }: EditTodoPageProps) {
                                     {new Date(todo.updated_at).toLocaleString('is-IS')}
                                 </p>
                             )}
-                            {todo.is_completed && todo.completed_at && (
+                            {todo.is_completed === true && todo.completed_at && (
                                 <p>
                                     <span className="font-medium">Lokið:</span>{' '}
                                     {new Date(todo.completed_at).toLocaleString('is-IS')}

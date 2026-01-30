@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import type { AuthUser } from '@/lib/providers/AuthProvider'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
@@ -79,7 +80,7 @@ export async function getUser() {
     id: user.id,
     email: user.email!,
     fullName: profile.full_name,
-    role: profile.role,
+    role: profile.role as AuthUser['role'],
     companyId: profile.company_id,
   }
 }

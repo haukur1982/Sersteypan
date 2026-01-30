@@ -7,24 +7,7 @@ import { ElementStatusBadge } from '../ElementStatusBadge'
 import { PriorityRequestButton } from '../PriorityRequestButton'
 import { ElementDetailDialog } from '../ElementDetailDialog'
 import { Search, SlidersHorizontal } from 'lucide-react'
-import type { Database } from '@/types/database'
-
-type Element = {
-  id: string
-  name: string
-  element_type: string
-  drawing_reference: string | null
-  floor: number | null
-  position_description: string | null
-  status: Database['public']['Tables']['elements']['Row']['status']
-  priority: number | null
-  created_at: string
-  photos: Database['public']['Tables']['element_photos']['Row'][]
-  events: Array<Database['public']['Tables']['element_events']['Row'] & {
-    created_by?: Pick<Database['public']['Tables']['profiles']['Row'], 'id' | 'full_name'> | null
-  }>
-  priority_requests: Array<Database['public']['Tables']['priority_requests']['Row']>
-}
+import type { Element } from './types'
 
 interface ElementsTabProps {
   elements: Element[]

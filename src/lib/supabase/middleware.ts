@@ -64,6 +64,49 @@ export async function updateSession(request: NextRequest) {
             return NextResponse.redirect(redirectUrl)
         }
 
+        // If user is authenticated, verify they have access to the portal
+        if (user && isProtectedRoute) {
+            // Get user profile to determine role
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single()
+
+            if (profile) {
+                const role = profile.role as 'admin' | 'factory_manager' | 'buyer' | 'driver'
+                const pathname = request.nextUrl.pathname
+
+                // Define which roles can access which portals
+                const rolePortalAccess: Record<string, string[]> = {
+                    admin: ['/admin', '/factory', '/buyer', '/driver'], // Admin has full access
+                    factory_manager: ['/factory'],
+                    buyer: ['/buyer'],
+                    driver: ['/driver'],
+                }
+
+                const allowedPortals = rolePortalAccess[role] || []
+                const currentPortal = '/' + pathname.split('/')[1] // e.g., '/admin', '/factory', etc.
+
+                // Check if user has access to this portal
+                const hasAccess = allowedPortals.some(portal => currentPortal.startsWith(portal))
+
+                if (!hasAccess) {
+                    // Redirect to their default portal
+                    const dashboardMap: Record<string, string> = {
+                        admin: '/admin',
+                        factory_manager: '/factory',
+                        buyer: '/buyer',
+                        driver: '/driver',
+                    }
+
+                    const redirectUrl = request.nextUrl.clone()
+                    redirectUrl.pathname = dashboardMap[role] || '/login'
+                    return NextResponse.redirect(redirectUrl)
+                }
+            }
+        }
+
         // If accessing login while authenticated, redirect to appropriate dashboard
         if (request.nextUrl.pathname === '/login' && user) {
             // Get user profile to determine role

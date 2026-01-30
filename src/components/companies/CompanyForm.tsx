@@ -85,7 +85,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                         <Input
                             id="name"
                             name="name"
-                            defaultValue={initialData?.name}
+                            defaultValue={initialData?.name ?? ''}
                             required
                             placeholder="e.g. Sérsteypan ehf."
                             disabled={loading}
@@ -99,7 +99,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                             <Input
                                 id="kennitala"
                                 name="kennitala"
-                                defaultValue={initialData?.kennitala}
+                                defaultValue={initialData?.kennitala ?? ''}
                                 placeholder="000000-0000"
                                 disabled={loading}
                                 className="border-zinc-300"
@@ -110,7 +110,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                             <Input
                                 id="contact_phone"
                                 name="contact_phone"
-                                defaultValue={initialData?.contact_phone}
+                                defaultValue={initialData?.contact_phone ?? ''}
                                 placeholder="+354 000 0000"
                                 disabled={loading}
                                 className="border-zinc-300"
@@ -123,7 +123,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                         <Input
                             id="address"
                             name="address"
-                            defaultValue={initialData?.address}
+                            defaultValue={initialData?.address ?? ''}
                             disabled={loading}
                             className="border-zinc-300"
                         />
@@ -135,7 +135,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                             <Input
                                 id="city"
                                 name="city"
-                                defaultValue={initialData?.city}
+                                defaultValue={initialData?.city ?? ''}
                                 disabled={loading}
                                 className="border-zinc-300"
                             />
@@ -145,7 +145,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                             <Input
                                 id="postal_code"
                                 name="postal_code"
-                                defaultValue={initialData?.postal_code}
+                                defaultValue={initialData?.postal_code ?? ''}
                                 disabled={loading}
                                 className="border-zinc-300"
                             />
@@ -158,7 +158,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                             <Input
                                 id="contact_name"
                                 name="contact_name"
-                                defaultValue={initialData?.contact_name}
+                                defaultValue={initialData?.contact_name ?? ''}
                                 required
                                 disabled={loading}
                                 className="border-zinc-300 focus:border-blue-500"
@@ -170,7 +170,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                                 id="contact_email"
                                 name="contact_email"
                                 type="email"
-                                defaultValue={initialData?.contact_email}
+                                defaultValue={initialData?.contact_email ?? ''}
                                 required
                                 disabled={loading}
                                 className="border-zinc-300 focus:border-blue-500"
@@ -183,7 +183,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                         <Textarea
                             id="notes"
                             name="notes"
-                            defaultValue={initialData?.notes}
+                            defaultValue={initialData?.notes ?? ''}
                             disabled={loading}
                             className="border-zinc-300 min-h-[100px]"
                         />

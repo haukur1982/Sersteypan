@@ -102,7 +102,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     id="name"
                                     name="name"
                                     placeholder="t.d. F-13"
-                                    defaultValue={initialData?.name}
+                                    defaultValue={initialData?.name ?? ''}
                                     required
                                     disabled={loading}
                                     className="border-zinc-300 focus:ring-blue-500"
@@ -158,7 +158,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     id="drawing_reference"
                                     name="drawing_reference"
                                     placeholder="t.d. TEI-001"
-                                    defaultValue={initialData?.drawing_reference}
+                                    defaultValue={initialData?.drawing_reference ?? ''}
                                     disabled={loading}
                                     className="border-zinc-300"
                                 />
@@ -172,7 +172,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     name="floor"
                                     type="number"
                                     placeholder="t.d. 3"
-                                    defaultValue={initialData?.floor}
+                                    defaultValue={initialData?.floor ?? ''}
                                     disabled={loading}
                                     className="border-zinc-300"
                                 />
@@ -185,7 +185,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     id="position_description"
                                     name="position_description"
                                     placeholder="t.d. Norðurveggur, íbúð 301"
-                                    defaultValue={initialData?.position_description}
+                                    defaultValue={initialData?.position_description ?? ''}
                                     disabled={loading}
                                     className="border-zinc-300"
                                 />
@@ -205,7 +205,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     name="length_mm"
                                     type="number"
                                     placeholder="6000"
-                                    defaultValue={initialData?.length_mm}
+                                    defaultValue={initialData?.length_mm ?? ''}
                                     disabled={loading}
                                     className="border-zinc-300"
                                 />
@@ -217,7 +217,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     name="width_mm"
                                     type="number"
                                     placeholder="1200"
-                                    defaultValue={initialData?.width_mm}
+                                    defaultValue={initialData?.width_mm ?? ''}
                                     disabled={loading}
                                     className="border-zinc-300"
                                 />
@@ -229,7 +229,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     name="height_mm"
                                     type="number"
                                     placeholder="200"
-                                    defaultValue={initialData?.height_mm}
+                                    defaultValue={initialData?.height_mm ?? ''}
                                     disabled={loading}
                                     className="border-zinc-300"
                                 />
@@ -242,7 +242,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     type="number"
                                     step="0.01"
                                     placeholder="2500"
-                                    defaultValue={initialData?.weight_kg}
+                                    defaultValue={initialData?.weight_kg ?? ''}
                                     disabled={loading}
                                     className="border-zinc-300"
                                 />
@@ -297,7 +297,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     name="production_notes"
                                     rows={3}
                                     placeholder="Athugasemdir um framleiðslu..."
-                                    defaultValue={initialData?.production_notes}
+                                    defaultValue={initialData?.production_notes ?? ''}
                                     disabled={loading}
                                     className="border-zinc-300"
                                 />
@@ -311,7 +311,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     name="delivery_notes"
                                     rows={3}
                                     placeholder="Athugasemdir um afhendingu..."
-                                    defaultValue={initialData?.delivery_notes}
+                                    defaultValue={initialData?.delivery_notes ?? ''}
                                     disabled={loading}
                                     className="border-zinc-300"
                                 />

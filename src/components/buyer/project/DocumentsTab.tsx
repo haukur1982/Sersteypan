@@ -8,7 +8,7 @@ type Document = {
   file_url: string
   file_type: string | null
   file_size_bytes: number | null
-  created_at: string
+  created_at: string | null
 }
 
 interface DocumentsTabProps {
@@ -63,7 +63,9 @@ export function DocumentsTab({ documents }: DocumentsTabProps) {
                   <span>{formatFileSize(doc.file_size_bytes)}</span>
                   <span className="flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
-                    {new Date(doc.created_at).toLocaleDateString('is-IS')}
+                    {doc.created_at
+                      ? new Date(doc.created_at).toLocaleDateString('is-IS')
+                      : 'Óþekkt'}
                   </span>
                 </div>
               </div>

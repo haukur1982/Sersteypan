@@ -81,6 +81,9 @@ export async function globalSearch(query: string): Promise<{ data?: SearchResult
 
     projects = data || []
   } else if (profile.role === 'buyer') {
+    if (!profile.company_id) {
+      return { data: { companies: [], projects: [], elements: [] } }
+    }
     // Buyers only see their company's projects
     const { data } = await supabase
       .from('projects')
@@ -125,6 +128,9 @@ export async function globalSearch(query: string): Promise<{ data?: SearchResult
 
     elements = data || []
   } else if (profile.role === 'buyer') {
+    if (!profile.company_id) {
+      return { data: { companies: [], projects: [], elements: [] } }
+    }
     // Buyers only see elements from their company's projects
     const { data: buyerProjects } = await supabase
       .from('projects')

@@ -116,7 +116,42 @@ export async function sendMessage(formData: FormData) {
 
     // 4. Revalidate
     revalidatePath(`/buyer/projects/${projectId}`)
+    revalidatePath('/buyer/messages')
 
+    return { success: true }
+  } catch (err) {
+    console.error('Unexpected error:', err)
+    return { error: 'An unexpected error occurred' }
+  }
+}
+
+/**
+ * Mark messages as read
+ */
+export async function markMessagesAsRead(messageIds: string[]) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Unauthorized' }
+  }
+
+  if (!messageIds || messageIds.length === 0) {
+    return { error: 'No messages to mark as read' }
+  }
+
+  try {
+    const { error } = await supabase
+      .from('project_messages')
+      .update({ is_read: true })
+      .in('id', messageIds)
+
+    if (error) {
+      console.error('Error marking messages as read:', error)
+      return { error: 'Failed to mark messages as read' }
+    }
+
+    revalidatePath('/buyer/messages')
     return { success: true }
   } catch (err) {
     console.error('Unexpected error:', err)

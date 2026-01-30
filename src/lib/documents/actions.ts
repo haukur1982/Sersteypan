@@ -3,6 +3,19 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
+const DOCUMENTS_BUCKET = 'project-documents'
+
+function parseStoragePath(fileUrl: string): { bucket: string; path: string } {
+  if (fileUrl.startsWith('http')) {
+    const match = fileUrl.match(/\/storage\/v1\/object\/(?:public\/)?([^/]+)\/(.+)$/)
+    if (match) {
+      return { bucket: match[1], path: match[2] }
+    }
+  }
+
+  return { bucket: DOCUMENTS_BUCKET, path: fileUrl }
+}
+
 // Get documents for a project
 export async function getProjectDocuments(projectId: string) {
   const supabase = await createClient()
@@ -29,7 +42,22 @@ export async function getProjectDocuments(projectId: string) {
     return { error: 'Failed to fetch documents' }
   }
 
-  return { success: true, data }
+  const signedDocuments = await Promise.all(
+    (data || []).map(async (doc) => {
+      const { bucket, path } = parseStoragePath(doc.file_url)
+      const { data: signed, error: signError } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(path, 60 * 60)
+
+      if (!signError && signed?.signedUrl) {
+        return { ...doc, file_url: signed.signedUrl }
+      }
+
+      return doc
+    })
+  )
+
+  return { success: true, data: signedDocuments }
 }
 
 // Upload document
@@ -91,7 +119,7 @@ export async function uploadDocument(projectId: string, formData: FormData) {
   // Upload to Supabase Storage
   const { error: uploadError } = await supabase
     .storage
-    .from('documents')
+    .from(DOCUMENTS_BUCKET)
     .upload(fileName, file, {
       cacheControl: '3600',
       upsert: false
@@ -101,12 +129,6 @@ export async function uploadDocument(projectId: string, formData: FormData) {
     console.error('Error uploading file:', uploadError)
     return { error: `Failed to upload file: ${uploadError.message}` }
   }
-
-  // Get public URL
-  const { data: { publicUrl } } = supabase
-    .storage
-    .from('documents')
-    .getPublicUrl(fileName)
 
   // Determine file type category
   let fileType = 'other'
@@ -122,7 +144,7 @@ export async function uploadDocument(projectId: string, formData: FormData) {
       project_id: projectId,
       name: file.name,
       description: description || null,
-      file_url: publicUrl,
+      file_url: fileName,
       file_type: fileType,
       file_size_bytes: file.size,
       uploaded_by: user.id
@@ -131,7 +153,7 @@ export async function uploadDocument(projectId: string, formData: FormData) {
   if (dbError) {
     console.error('Error creating document record:', dbError)
     // Try to delete the uploaded file
-    await supabase.storage.from('documents').remove([fileName])
+    await supabase.storage.from(DOCUMENTS_BUCKET).remove([fileName])
     return { error: 'Failed to save document metadata' }
   }
 
@@ -174,14 +196,13 @@ export async function deleteDocument(documentId: string, projectId: string) {
   }
 
   // Extract file path from URL
-  const urlParts = document.file_url.split('/documents/')
-  const filePath = urlParts[urlParts.length - 1]
+  const { bucket, path } = parseStoragePath(document.file_url)
 
   // Delete from storage
   const { error: storageError } = await supabase
     .storage
-    .from('documents')
-    .remove([filePath])
+    .from(bucket)
+    .remove([path])
 
   if (storageError) {
     console.error('Error deleting file from storage:', storageError)

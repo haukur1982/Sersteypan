@@ -62,7 +62,10 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
                         <CardTitle>Notandaupplýsingar</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <form action={updateUser.bind(null, userId)} className="space-y-6">
+                        <form action={async (formData: FormData) => {
+                            'use server'
+                            await updateUser(userId, formData)
+                        }} className="space-y-6">
                             {/* Full Name */}
                             <div className="space-y-2">
                                 <Label htmlFor="full_name">Fullt nafn *</Label>
@@ -173,7 +176,10 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
                         <CardTitle className="text-red-900">Hættulegt svæði</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <form action={deactivateUser.bind(null, userId)}>
+                        <form action={async () => {
+                            'use server'
+                            await deactivateUser(userId)
+                        }}>
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="font-medium text-zinc-900">Gera notanda óvirkan</p>

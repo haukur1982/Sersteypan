@@ -170,7 +170,7 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="py-4 text-muted-foreground">
-                                                    {element.priority > 0 ? (
+                                                    {(element.priority ?? 0) > 0 ? (
                                                         <span className="font-medium text-orange-600">{element.priority}</span>
                                                     ) : (
                                                         <span className="text-muted-foreground/50">0</span>

@@ -24,6 +24,7 @@ import {
     CheckCheck
 } from 'lucide-react'
 import { updateElementStatus } from '@/lib/elements/actions'
+import { PhotoUploadForm } from '@/components/shared/PhotoUploadForm'
 
 const statusConfig = {
     planned: { icon: Clock, label: 'Skipulagt', color: 'bg-gray-100 text-gray-800' },
@@ -150,16 +151,27 @@ export function ElementStatusUpdateForm({ element }: ElementStatusUpdateFormProp
             </div>
 
             {selectedStatus !== currentStatus && (
-                <div>
-                    <Label htmlFor="notes">Athugasemdir (Notes) - Valfrjálst</Label>
-                    <Textarea
-                        id="notes"
-                        placeholder="T.d. gæðaathugun lokið, smávægilegir gallar..."
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        className="mt-1.5"
-                        rows={3}
-                    />
+                <div className="space-y-4">
+                    <div>
+                        <Label htmlFor="notes">Athugasemdir (Notes) - Valfrjálst</Label>
+                        <Textarea
+                            id="notes"
+                            placeholder="T.d. gæðaathugun lokið, smávægilegir gallar..."
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            className="mt-1.5"
+                            rows={3}
+                        />
+                    </div>
+
+                    <div className="pt-2">
+                        <Label className="mb-2 block">Myndir fyrir {statusConfig[selectedStatus as keyof typeof statusConfig]?.label}</Label>
+                        <PhotoUploadForm
+                            elementId={element.id}
+                            stage={selectedStatus as any}
+                            onUploadError={(err: string) => setError(err)}
+                        />
+                    </div>
                 </div>
             )}
 

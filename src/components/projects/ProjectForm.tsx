@@ -90,7 +90,7 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                             id="name"
                             name="name"
                             placeholder="t.d. Eddufell 6"
-                            defaultValue={initialData?.name}
+                            defaultValue={initialData?.name ?? ''}
                             required
                             disabled={loading}
                             className="border-zinc-300 focus:border-blue-500 focus:ring-blue-500"
@@ -140,7 +140,7 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                             name="description"
                             placeholder="Lýsing á verkefninu..."
                             rows={3}
-                            defaultValue={initialData?.description}
+                            defaultValue={initialData?.description ?? ''}
                             disabled={loading}
                             className="border-zinc-300 focus:border-blue-500 focus:ring-blue-500"
                         />
@@ -153,7 +153,7 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                             id="address"
                             name="address"
                             placeholder="t.d. Eddufellsvegur 6, 112 Reykjavík"
-                            defaultValue={initialData?.address}
+                            defaultValue={initialData?.address ?? ''}
                             disabled={loading}
                             className="border-zinc-300"
                         />
@@ -167,7 +167,7 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                                 id="start_date"
                                 name="start_date"
                                 type="date"
-                                defaultValue={initialData?.start_date}
+                                defaultValue={initialData?.start_date ?? ''}
                                 disabled={loading}
                                 className="border-zinc-300"
                             />
@@ -180,7 +180,7 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                                 id="expected_end_date"
                                 name="expected_end_date"
                                 type="date"
-                                defaultValue={initialData?.expected_end_date}
+                                defaultValue={initialData?.expected_end_date ?? ''}
                                 disabled={loading}
                                 className="border-zinc-300"
                             />
@@ -195,7 +195,7 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                             name="notes"
                             placeholder="Athugasemdir..."
                             rows={3}
-                            defaultValue={initialData?.notes}
+                            defaultValue={initialData?.notes ?? ''}
                             disabled={loading}
                             className="border-zinc-300"
                         />

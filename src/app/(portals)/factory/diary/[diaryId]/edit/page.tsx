@@ -76,7 +76,10 @@ export default async function EditDiaryEntryPage({ params }: EditDiaryEntryPageP
                         <CardTitle>Breyta færslu</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <form action={updateDiaryEntry.bind(null, diaryId)} className="space-y-6">
+                        <form action={async (formData: FormData) => {
+                            'use server'
+                            await updateDiaryEntry(diaryId, formData)
+                        }} className="space-y-6">
                             {/* Entry Date */}
                             <div>
                                 <Label htmlFor="entry_date">
@@ -186,12 +189,12 @@ export default async function EditDiaryEntryPage({ params }: EditDiaryEntryPageP
                             </p>
                             <p>
                                 <span className="font-medium">Búið til:</span>{' '}
-                                {new Date(entry.created_at).toLocaleString('is-IS')}
+                                {entry.created_at ? new Date(entry.created_at).toLocaleString('is-IS') : 'Óþekkt'}
                             </p>
                             {entry.updated_at && entry.updated_at !== entry.created_at && (
                                 <p>
                                     <span className="font-medium">Síðast uppfært:</span>{' '}
-                                    {new Date(entry.updated_at).toLocaleString('is-IS')}
+                                    {entry.updated_at ? new Date(entry.updated_at).toLocaleString('is-IS') : 'Óþekkt'}
                                 </p>
                             )}
                         </div>

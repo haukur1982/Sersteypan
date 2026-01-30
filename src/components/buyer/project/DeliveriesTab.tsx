@@ -1,4 +1,5 @@
-import { getBuyerDeliveries } from '@/lib/buyer/queries'
+'use client'
+
 import Link from 'next/link'
 import { Truck, Calendar } from 'lucide-react'
 import type { Database } from '@/types/database'
@@ -20,18 +21,11 @@ type DeliverySummary = DeliveryRow & {
 }
 
 interface DeliveriesTabProps {
-  projectId: string
+  deliveries: any[]
 }
 
-export async function DeliveriesTab({ projectId }: DeliveriesTabProps) {
-  const allDeliveries = (await getBuyerDeliveries()) as DeliverySummary[]
-
-  // Filter deliveries for this project
-  const deliveries = allDeliveries.filter(
-    (d) => d.project?.id === projectId
-  )
-
-  if (deliveries.length === 0) {
+export function DeliveriesTab({ deliveries }: DeliveriesTabProps) {
+  if (!deliveries || deliveries.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-zinc-200 shadow-sm px-6 py-12 text-center">
         <Truck className="w-12 h-12 text-zinc-300 mx-auto mb-3" />
@@ -43,6 +37,22 @@ export async function DeliveriesTab({ projectId }: DeliveriesTabProps) {
     )
   }
 
+  const statusColors: Record<string, string> = {
+    planned: 'bg-zinc-100 text-zinc-800',
+    loading: 'bg-amber-100 text-amber-800',
+    in_transit: 'bg-blue-100 text-blue-800',
+    delivered: 'bg-green-100 text-green-800',
+    cancelled: 'bg-red-100 text-red-800'
+  }
+
+  const statusLabels: Record<string, string> = {
+    planned: 'Áætlað',
+    loading: 'Í hleðslu',
+    in_transit: 'Á leiðinni',
+    delivered: 'Afhent',
+    cancelled: 'Afturkallað'
+  }
+
   return (
     <div className="space-y-4">
       {deliveries.map((delivery) => {
@@ -50,22 +60,6 @@ export async function DeliveriesTab({ projectId }: DeliveriesTabProps) {
         const statusKey = delivery.status && delivery.status in statusColors
           ? delivery.status
           : 'planned'
-
-        const statusColors = {
-          planned: 'bg-zinc-100 text-zinc-800',
-          loading: 'bg-amber-100 text-amber-800',
-          in_transit: 'bg-blue-100 text-blue-800',
-          delivered: 'bg-green-100 text-green-800',
-          cancelled: 'bg-red-100 text-red-800'
-        }
-
-        const statusLabels = {
-          planned: 'Áætlað',
-          loading: 'Í hleðslu',
-          in_transit: 'Á leiðinni',
-          delivered: 'Afhent',
-          cancelled: 'Afturkallað'
-        }
 
         return (
           <Link
@@ -110,9 +104,8 @@ export async function DeliveriesTab({ projectId }: DeliveriesTabProps) {
                 </div>
 
                 <span
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    statusColors[statusKey]
-                  }`}
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[statusKey]
+                    }`}
                 >
                   {statusLabels[statusKey]}
                 </span>

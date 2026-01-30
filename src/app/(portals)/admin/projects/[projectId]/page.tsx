@@ -191,7 +191,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="py-4 text-zinc-600">
-                                                    {element.priority > 0 ? (
+                                                    {(element.priority ?? 0) > 0 ? (
                                                         <span className="font-medium text-orange-600">{element.priority}</span>
                                                     ) : (
                                                         <span className="text-zinc-400">0</span>
@@ -269,7 +269,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                                                             </p>
                                                         )}
                                                         <p className="text-xs text-zinc-400">
-                                                            {doc.profiles?.full_name} • {new Date(doc.created_at).toLocaleDateString('is-IS')}
+                                                            {doc.profiles?.full_name} • {doc.created_at ? new Date(doc.created_at).toLocaleDateString('is-IS') : 'Óþekkt'}
                                                         </p>
                                                     </div>
                                                 </div>

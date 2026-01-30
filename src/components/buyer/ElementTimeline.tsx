@@ -2,14 +2,12 @@ import { ElementStatusBadge } from './ElementStatusBadge'
 import { formatDistanceToNow } from 'date-fns'
 import { is } from 'date-fns/locale'
 
-type ElementStatus = 'planned' | 'rebar' | 'cast' | 'curing' | 'ready' | 'loaded' | 'delivered' | 'issue'
-
 interface ElementEvent {
   id: string
-  status: ElementStatus
-  previous_status: ElementStatus | null
+  status: string | null
+  previous_status: string | null
   notes: string | null
-  created_at: string
+  created_at: string | null
   created_by: {
     id: string
     full_name: string
@@ -35,15 +33,17 @@ export function ElementTimeline({ events }: ElementTimelineProps) {
   }
 
   // Sort events by date (newest first)
-  const sortedEvents = [...events].sort((a, b) =>
-    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  )
+  const sortedEvents = [...events].sort((a, b) => {
+    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0
+    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0
+    return bTime - aTime
+  })
 
   return (
     <div className="space-y-4">
       {sortedEvents.map((event, index) => {
         const isLatest = index === 0
-        const createdAt = new Date(event.created_at)
+        const createdAt = event.created_at ? new Date(event.created_at) : null
 
         return (
           <div
@@ -78,13 +78,12 @@ export function ElementTimeline({ events }: ElementTimelineProps) {
                 </div>
 
                 <time
-                  dateTime={createdAt.toISOString()}
+                  dateTime={createdAt ? createdAt.toISOString() : undefined}
                   className="text-sm text-zinc-500 whitespace-nowrap"
                 >
-                  {formatDistanceToNow(createdAt, {
-                    addSuffix: true,
-                    locale: is
-                  })}
+                  {createdAt
+                    ? formatDistanceToNow(createdAt, { addSuffix: true, locale: is })
+                    : 'Óþekkt'}
                 </time>
               </div>
 
@@ -102,13 +101,15 @@ export function ElementTimeline({ events }: ElementTimelineProps) {
               )}
 
               <p className="text-xs text-zinc-400">
-                {createdAt.toLocaleDateString('is-IS', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
+                {createdAt
+                  ? createdAt.toLocaleDateString('is-IS', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+                  : 'Óþekkt'}
               </p>
             </div>
           </div>

@@ -12,11 +12,15 @@ import {
     Package,
     Truck,
     QrCode,
-    UserCircle
+    UserCircle,
+    Wrench
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { useUnreadMessages } from '@/lib/hooks/useUnreadMessages'
+import { useAuth } from '@/lib/hooks/useAuth'
 import type { AuthUser } from '@/lib/hooks/useAuth'
 
 interface NavItem {
@@ -39,7 +43,9 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Framleiðsla', englishName: 'Production', href: '/factory/production', icon: Factory },
         { name: 'Dagbók', englishName: 'Diary', href: '/factory/diary', icon: BookOpen },
         { name: 'Verkefnalisti', englishName: 'Tasks', href: '/factory/todos', icon: CheckSquare },
-        { name: 'Lager', englishName: 'Stock', href: '/factory/stock', icon: Package }
+        { name: 'Lager', englishName: 'Stock', href: '/factory/stock', icon: Package },
+        { name: 'Viðgerðir', englishName: 'Fix in Factory', href: '/factory/fix-in-factory', icon: Wrench },
+        { name: 'Skilaboð', englishName: 'Messages', href: '/factory/messages', icon: MessageSquare }
     ],
     buyer: [
         { name: 'Yfirlit', englishName: 'Dashboard', href: '/buyer', icon: LayoutDashboard },
@@ -57,13 +63,24 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
 
 export function RoleBasedNav({ role, onItemClick }: { role: AuthUser['role'] | undefined, onItemClick?: () => void }) {
     const pathname = usePathname()
+    const { user } = useAuth()
+    const { unreadCount } = useUnreadMessages(user?.id)
 
     if (!role || !navigation[role]) return null
+
+    const isMessagesRoute = (href: string) => href.includes('/messages')
 
     return (
         <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation[role].map((item) => {
-                const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`)
+                // Dashboard routes should only match exactly
+                // Other routes can match their children (e.g., /factory/diary matches /factory/diary/123)
+                const isDashboard = item.href === '/factory' || item.href === '/admin' || item.href === '/buyer' || item.href === '/driver'
+                const isActive = isDashboard
+                    ? pathname === item.href
+                    : pathname === item.href || pathname?.startsWith(`${item.href}/`)
+
+                const showBadge = isMessagesRoute(item.href) && unreadCount > 0
 
                 return (
                     <Link
@@ -72,20 +89,28 @@ export function RoleBasedNav({ role, onItemClick }: { role: AuthUser['role'] | u
                         onClick={onItemClick}
                         title={item.englishName}
                         className={cn(
-                            'group flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                            'group flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all',
                             isActive
-                                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                                : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                                ? 'bg-sidebar-accent text-white border-l-[3px] border-sidebar-primary pl-2.5 shadow-sm'
+                                : 'text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground border-l-[3px] border-transparent'
                         )}
                     >
                         <item.icon
                             className={cn(
                                 'h-5 w-5 flex-shrink-0',
-                                isActive ? 'text-sidebar-accent-foreground' : 'text-muted-foreground group-hover:text-sidebar-accent-foreground'
+                                isActive ? 'text-sidebar-accent-foreground' : 'text-sidebar-foreground/85 group-hover:text-sidebar-accent-foreground'
                             )}
                             aria-hidden="true"
                         />
-                        {item.name}
+                        <span className="flex-1">{item.name}</span>
+                        {showBadge && (
+                            <Badge
+                                variant="default"
+                                className="ml-auto bg-red-600 text-white text-xs px-1.5 py-0 h-5 min-w-[20px] flex items-center justify-center"
+                            >
+                                {unreadCount > 99 ? '99+' : unreadCount}
+                            </Badge>
+                        )}
                     </Link>
                 )
             })}

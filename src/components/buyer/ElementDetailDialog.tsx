@@ -10,27 +10,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ElementStatusBadge } from './ElementStatusBadge'
 import { ElementTimeline } from './ElementTimeline'
+import { PhotoGallery } from '@/components/shared/PhotoGallery'
 import { Clock, Image as ImageIcon, Flag } from 'lucide-react'
-import Image from 'next/image'
-import type { Database } from '@/types/database'
-
-type Element = {
-  id: string
-  name: string
-  element_type: string
-  drawing_reference: string | null
-  floor: number | null
-  position_description: string | null
-  status: Database['public']['Tables']['elements']['Row']['status']
-  priority: number | null
-  photos: Database['public']['Tables']['element_photos']['Row'][]
-  events: Array<Database['public']['Tables']['element_events']['Row'] & {
-    created_by?: Pick<Database['public']['Tables']['profiles']['Row'], 'id' | 'full_name'> | null
-  }>
-  priority_requests: Array<Database['public']['Tables']['priority_requests']['Row'] & {
-    requested_by?: Pick<Database['public']['Tables']['profiles']['Row'], 'id' | 'full_name'> | null
-  }>
-}
+import type { Element } from '@/components/buyer/project/types'
 
 interface ElementDetailDialogProps {
   element: Element
@@ -44,25 +26,6 @@ export function ElementDetailDialog({
   onOpenChange
 }: ElementDetailDialogProps) {
   const priorityValue = element.priority ?? 0
-
-  // Group photos by stage
-  const photosByStage = (element.photos || []).reduce(
-    (acc, photo) => {
-      const stage = photo.stage || 'other'
-      if (!acc[stage]) acc[stage] = []
-      acc[stage].push(photo)
-      return acc
-    },
-    {} as Record<string, Database['public']['Tables']['element_photos']['Row'][]>
-  )
-
-  const stageLabels: Record<string, string> = {
-    rebar: 'Járnabinding',
-    cast: 'Steyptu',
-    ready: 'Tilbúið',
-    before_delivery: 'Fyrir afhendingu',
-    after_delivery: 'Eftir afhendingu'
-  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -133,46 +96,7 @@ export function ElementDetailDialog({
             </TabsContent>
 
             <TabsContent value="photos" className="mt-4">
-              {(element.photos || []).length === 0 ? (
-                <div className="text-center py-12">
-                  <ImageIcon className="w-12 h-12 text-zinc-300 mx-auto mb-3" />
-                  <p className="text-zinc-500 font-medium">Engar myndir</p>
-                  <p className="text-sm text-zinc-400 mt-1">
-                    Engar myndir hafa verið teknar af þessari einingu
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {Object.entries(photosByStage).map(([stage, photos]) => (
-                    <div key={stage}>
-                      <h4 className="font-medium text-zinc-900 mb-3">
-                        {stageLabels[stage] || stage}
-                      </h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        {photos.map((photo) => (
-                          <div
-                            key={photo.id}
-                            className="group relative aspect-square rounded-lg overflow-hidden border border-zinc-200"
-                          >
-                            <Image
-                              src={photo.photo_url}
-                              alt={photo.caption || 'Element photo'}
-                              fill
-                              sizes="(max-width: 640px) 50vw, 33vw"
-                              className="object-cover transition-transform group-hover:scale-105"
-                            />
-                            {photo.caption && (
-                              <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-2 text-xs">
-                                {photo.caption}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <PhotoGallery photos={element.photos || []} />
             </TabsContent>
 
             <TabsContent value="priority" className="mt-4">
@@ -238,7 +162,9 @@ export function ElementDetailDialog({
                             )}
                           </div>
                           <div className="text-right text-xs text-zinc-500">
-                            {new Date(request.created_at).toLocaleDateString('is-IS')}
+                            {request.created_at
+                              ? new Date(request.created_at).toLocaleDateString('is-IS')
+                              : 'Óþekkt'}
                           </div>
                         </div>
                       </div>
