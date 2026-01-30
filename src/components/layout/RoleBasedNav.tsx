@@ -13,7 +13,8 @@ import {
     Truck,
     QrCode,
     UserCircle,
-    Wrench
+    Wrench,
+    type LucideIcon
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -26,7 +27,7 @@ import type { AuthUser } from '@/lib/hooks/useAuth'
 interface NavItem {
     name: string
     href: string
-    icon: React.ElementType
+    icon: LucideIcon
     englishName: string
 }
 
