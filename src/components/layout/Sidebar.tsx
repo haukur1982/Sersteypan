@@ -18,6 +18,19 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
+
+interface Notification {
+    id: string
+    type: 'element_status' | 'delivery' | 'message'
+    title: string
+    message: string
+    timestamp: string
+    read: boolean
+    elementId?: string
+    deliveryId?: string
+    projectId?: string
+}
 
 // UserNav component for the bottom user menu
 function UserNav({ user }: { user: AuthUser | null }) {
@@ -59,9 +72,10 @@ function UserNav({ user }: { user: AuthUser | null }) {
 export interface SidebarProps {
     className?: string;
     user?: AuthUser | null;
+    notifications?: Notification[];
 }
 
-export function Sidebar({ className, user: initialUser }: SidebarProps) {
+export function Sidebar({ className, user: initialUser, notifications = [] }: SidebarProps) {
     const { user: authUser, loading: authLoading } = useAuth()
 
     // Prioritize passed user, fall back to auth hook
@@ -71,10 +85,13 @@ export function Sidebar({ className, user: initialUser }: SidebarProps) {
     return (
         <aside className={cn("hidden md:flex flex-col sticky top-0 h-screen w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground", className)}>
             {/* Logo Area */}
-            <div className="flex h-16 items-center border-b border-sidebar-border px-6 flex-shrink-0">
+            <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-6 flex-shrink-0">
                 <h2 className="text-lg font-bold tracking-tight text-sidebar-foreground">
                     Sérsteypan
                 </h2>
+                {user && (
+                    <NotificationBell userId={user.id} notifications={notifications} />
+                )}
             </div>
 
             {/* Nav Items */}

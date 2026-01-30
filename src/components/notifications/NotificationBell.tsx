@@ -13,7 +13,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { formatDistanceToNow } from 'date-fns'
-import { is } from 'date-fns/locale'
 
 interface Notification {
   id: string
@@ -148,8 +147,7 @@ export function NotificationBell({ userId, notifications: initialNotifications }
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {formatDistanceToNow(new Date(notification.timestamp), {
-                        addSuffix: true,
-                        locale: is
+                        addSuffix: true
                       })}
                     </p>
                   </div>
