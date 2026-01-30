@@ -1,57 +1,78 @@
-# CLAUDE: Sprint 2 Task
+# CLAUDE: Sprint 3 Task
 **Date:** Jan 30, 2026 | **Time:** 30 min
 
 ## Your Mission
-Build the Offline Sync Banner for the Driver Portal.
+Create comprehensive End-to-End Testing Documentation for the application.
 
 ## Why
-Drivers work in areas with spotty connectivity. When offline, they need to:
-1. See that they're offline
-2. Know actions are queued
-3. See when sync completes
+Before demo/production, we need a testing guide that documents:
+- All user flows per portal
+- How to verify each feature works
+- Known edge cases
 
 ## Tasks
 
-### 1. Create OfflineBanner Component (15 min)
-Location: `src/components/driver/OfflineBanner.tsx`
+### 1. Create TESTING-GUIDE.md (30 min)
+Location: Project root
 
-```tsx
-'use client'
-import { useOfflineQueue } from '@/lib/hooks/useOfflineQueue'
-// Show: offline status, pending count, last sync time
-// Colors: yellow=offline, green=synced, red=errors
-```
+Include:
 
-Features needed:
-- Uses `useOfflineQueue()` hook (already exists)
-- Shows "Offline - X actions pending" when disconnected  
-- Shows "Syncing..." animation when reconnecting
-- Shows "All synced ✓" briefly after sync completes
-- Appears at TOP of driver layout (fixed position)
+```markdown
+# Sérsteypan - Testing Guide
 
-### 2. Add to Driver Layout (10 min)
-Location: `src/app/(portals)/driver/layout.tsx`
+## Test Credentials
+(Get from Supabase Dashboard > Authentication > Users)
 
-Add the OfflineBanner at the top of the layout, above the main content.
+## Admin Portal Tests
+1. [ ] Login as admin
+2. [ ] Create company
+3. [ ] Create project
+4. [ ] Create elements
+5. [ ] Generate QR codes
+6. [ ] Search functionality
 
-### 3. Test States (5 min)
-- Manually set `navigator.onLine = false` in devtools
-- Verify banner appears
-- Reconnect and verify it syncs
+## Factory Portal Tests
+1. [ ] Login as factory_manager
+2. [ ] View production queue
+3. [ ] Update element status (planned → rebar → cast → curing → ready)
+4. [ ] Add diary entry
+5. [ ] Manage stock
 
-## Key Files
-```
-src/lib/hooks/useOfflineQueue.ts    # Hook to use
-src/lib/offline/queue.ts            # Queue implementation
-src/app/(portals)/driver/layout.tsx # Where to add banner
+## Buyer Portal Tests
+1. [ ] Login as buyer
+2. [ ] View projects (only own company)
+3. [ ] View deliveries
+4. [ ] Send/receive messages
+5. [ ] Security: Cannot access other company's projects
+
+## Driver Portal Tests
+1. [ ] Login as driver
+2. [ ] Create new delivery
+3. [ ] Scan QR code (or manual entry)
+4. [ ] Add elements to load
+5. [ ] Start delivery (change to in_transit)
+6. [ ] Complete delivery with signature
+
+## Cross-Portal Tests
+1. [ ] Element status changes reflect in all portals
+2. [ ] Real-time updates work
+3. [ ] Messages work between buyer and admin
+
+## Mobile Responsiveness
+- [ ] Driver portal works on mobile
+- [ ] Signature canvas works on touch
+
+## Offline Scenarios
+- [ ] Offline banner appears when disconnected
+- [ ] Actions queue when offline
+- [ ] Sync when reconnected
 ```
 
 ## Success Criteria
-- [ ] OfflineBanner component created
-- [ ] Shows offline/online status
-- [ ] Shows pending action count
-- [ ] Added to driver layout
+- [ ] TESTING-GUIDE.md created with all test cases
+- [ ] Includes test credentials section
+- [ ] Covers all 4 portals
 - [ ] Commit and push
 
 ## When Done
-Report: "OfflineBanner built and integrated. Pushed to main."
+Report: "TESTING-GUIDE.md created with X test cases. Pushed to main."

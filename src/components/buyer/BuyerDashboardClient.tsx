@@ -270,6 +270,58 @@ export function BuyerDashboardClient({
         )}
       </div>
 
+      {/* Recent Deliveries */}
+      <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-zinc-200 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-zinc-900">
+            Nýlegar afhendingar
+          </h2>
+          <Link href="/buyer/deliveries" className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
+            Sjá allar <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+        {initialDeliveries.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <Truck className="w-12 h-12 text-zinc-300 mx-auto mb-3" />
+            <p className="text-zinc-500 font-medium">Engar afhendingar</p>
+            <p className="text-sm text-zinc-400 mt-1">
+              Engar afhendingar hafa verið áætlaðar
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-zinc-200">
+            {initialDeliveries.slice(0, 5).map((delivery) => {
+              const statusConfig: Record<string, { color: string; label: string }> = {
+                planned: { color: 'bg-zinc-100 text-zinc-700', label: 'Áætluð' },
+                loading: { color: 'bg-yellow-100 text-yellow-700', label: 'Í hleðslu' },
+                in_transit: { color: 'bg-blue-100 text-blue-700', label: 'Á leiðinni' },
+                arrived: { color: 'bg-purple-100 text-purple-700', label: 'Komin' },
+                completed: { color: 'bg-green-100 text-green-700', label: 'Afhent' },
+              }
+              const status = statusConfig[delivery.status || 'planned'] || statusConfig.planned
+
+              return (
+                <Link
+                  key={delivery.id}
+                  href={`/buyer/deliveries/${delivery.id}`}
+                  className="flex items-center justify-between px-6 py-4 hover:bg-zinc-50 transition-colors"
+                >
+                  <div>
+                    <p className="font-medium text-zinc-900">
+                      {delivery.project?.name || 'Óþekkt verkefni'}
+                    </p>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1 ${status.color}`}>
+                      {status.label}
+                    </span>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-zinc-400" />
+                </Link>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
     </div>
   )
 }
