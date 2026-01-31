@@ -14,9 +14,13 @@ import {
     Loader2,
     ArrowRight,
     Building2,
-    Layers
+    Layers,
+    Box
 } from 'lucide-react'
 import { lookupElementByQR } from '@/lib/driver/qr-actions'
+import { useFeature } from '@/lib/hooks/useFeature'
+import { Scene } from '@/components/lab/Scene'
+import { ParametricWall } from '@/components/lab/ParametricWall'
 
 interface ScannedElement {
     id: string
@@ -89,39 +93,52 @@ export function ScanPageClient() {
     }
 
     const canLoad = scannedElement?.status === 'ready'
+    const hasVisualPilot = useFeature('visual_pilot')
+    const [visualConfirmed, setVisualConfirmed] = useState(false)
+
+    // Reset visual confirmation when scanning new element
+    const handleReset = () => {
+        setScannedElement(null)
+        setError(null)
+        setVisualConfirmed(false)
+    }
 
     return (
         <div className="space-y-6">
-            {/* Scanner Section */}
-            <QRScanner
-                onScan={handleScan}
-                onError={(err) => setError(err)}
-            />
-
-            {/* Manual Search Toggle */}
-            <div className="text-center">
-                <button
-                    onClick={() => setShowManualSearch(!showManualSearch)}
-                    className="text-sm text-zinc-600 underline hover:text-zinc-900"
-                >
-                    {showManualSearch ? 'Fela handvirka leit' : 'Handvirk leit (ef QR er skemmdur)'}
-                </button>
-            </div>
-
-            {/* Manual Search Form */}
-            {showManualSearch && (
-                <form onSubmit={handleManualSearch} className="flex gap-2">
-                    <Input
-                        placeholder="Sláðu inn einingarnúmer (UUID)"
-                        value={manualSearch}
-                        onChange={(e) => setManualSearch(e.target.value)}
-                        className="flex-1"
+            {/* Scanner Section - Only show when no element scanned for clean UI */}
+            {!scannedElement && (
+                <>
+                    <QRScanner
+                        onScan={handleScan}
+                        onError={(err) => setError(err)}
                     />
-                    <Button type="submit" disabled={isLoading}>
-                        <Search className="w-4 h-4 mr-2" />
-                        Leita
-                    </Button>
-                </form>
+
+                    {/* Manual Search Toggle */}
+                    <div className="text-center">
+                        <button
+                            onClick={() => setShowManualSearch(!showManualSearch)}
+                            className="text-sm text-zinc-600 underline hover:text-zinc-900"
+                        >
+                            {showManualSearch ? 'Fela handvirka leit' : 'Handvirk leit (ef QR er skemmdur)'}
+                        </button>
+                    </div>
+
+                    {/* Manual Search Form */}
+                    {showManualSearch && (
+                        <form onSubmit={handleManualSearch} className="flex gap-2">
+                            <Input
+                                placeholder="Sláðu inn einingarnúmer (UUID)"
+                                value={manualSearch}
+                                onChange={(e) => setManualSearch(e.target.value)}
+                                className="flex-1"
+                            />
+                            <Button type="submit" disabled={isLoading}>
+                                <Search className="w-4 h-4 mr-2" />
+                                Leita
+                            </Button>
+                        </form>
+                    )}
+                </>
             )}
 
             {/* Loading State */}
@@ -147,80 +164,131 @@ export function ScanPageClient() {
 
             {/* Scanned Element Result */}
             {scannedElement && (
-                <Card className="p-6 border-2 border-green-200 bg-green-50/50">
-                    <div className="flex items-start gap-4">
-                        <div className="p-3 bg-green-100 rounded-full">
-                            <CheckCircle className="w-8 h-8 text-green-600" />
-                        </div>
-                        <div className="flex-1 space-y-3">
-                            <div>
-                                <p className="text-sm text-zinc-500">Eining fundin</p>
-                                <h3 className="text-2xl font-bold text-zinc-900">
-                                    {scannedElement.name}
-                                </h3>
+                <div className="space-y-4">
+
+                    {/* 3D VISUAL VERIFICATION (PILOT ONLY) */}
+                    {hasVisualPilot && (
+                        <Card className="overflow-hidden border-2 border-primary shadow-lg">
+                            <div className="p-4 bg-primary text-primary-foreground flex justify-between items-center">
+                                <span className="font-semibold text-sm">⚠️ VISUAL VERIFICATION REQUIRED</span>
+                                <Box className="w-5 h-5 text-white/80" />
                             </div>
 
-                            <div className="flex flex-wrap gap-4 text-sm">
-                                {scannedElement.project && (
-                                    <>
-                                        <div className="flex items-center gap-1 text-zinc-600">
-                                            <Layers className="w-4 h-4" />
-                                            <span>{scannedElement.project.name}</span>
-                                        </div>
-                                        {scannedElement.project.company && (
-                                            <div className="flex items-center gap-1 text-zinc-600">
-                                                <Building2 className="w-4 h-4" />
-                                                <span>{scannedElement.project.company.name}</span>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
+                            <div className="h-64 bg-zinc-100 relative">
+                                <Scene>
+                                    <ParametricWall
+                                        width={3.2}
+                                        height={2.4}
+                                        thickness={0.2}
+                                        status={scannedElement.status as any}
+                                    />
+                                </Scene>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm text-zinc-600">Staða:</span>
-                                <span className={`px-2.5 py-0.5 rounded-full text-sm font-medium ${getStatusLabel(scannedElement.status).color}`}>
-                                    {getStatusLabel(scannedElement.status).label}
-                                </span>
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex flex-col gap-2 pt-4">
-                                {canLoad ? (
+                            <div className="p-4 space-y-4">
+                                <div className="text-sm font-medium text-center text-zinc-600">
+                                    Does the item match this model?
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
                                     <Button
-                                        size="lg"
-                                        className="w-full"
+                                        variant="outline"
+                                        className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
                                         onClick={() => {
-                                            // TODO: Add to current delivery or create new
-                                            router.push(`/driver/load?element=${scannedElement.id}`)
+                                            setError('Visual ID Mismatch Report Sent. Loading Blocked.')
+                                            setScannedElement(null)
                                         }}
                                     >
-                                        <Package className="w-5 h-5 mr-2" />
-                                        Hlaða á bíl
-                                        <ArrowRight className="w-5 h-5 ml-2" />
+                                        <XCircle className="w-4 h-4 mr-2" />
+                                        NO MATCH
                                     </Button>
-                                ) : (
-                                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                                        <p className="font-medium">Ekki hægt að hlaða</p>
-                                        <p>Eining þarf að vera &quot;Tilbúið&quot; til að hlaða á bíl.</p>
-                                        <p>Núverandi staða: {getStatusLabel(scannedElement.status).label}</p>
-                                    </div>
-                                )}
-
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        setScannedElement(null)
-                                        setError(null)
-                                    }}
-                                >
-                                    Skanna aðra einingu
-                                </Button>
+                                    <Button
+                                        className={`transition-all ${visualConfirmed ? 'bg-green-600 hover:bg-green-700' : 'bg-zinc-800 hover:bg-zinc-900'}`}
+                                        onClick={() => setVisualConfirmed(true)}
+                                    >
+                                        <CheckCircle className="w-4 h-4 mr-2" />
+                                        {visualConfirmed ? 'CONFIRMED' : 'YES, MATCHES'}
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                </Card>
+                        </Card>
+                    )}
+
+                    {/* Standard details - Hidden until confirmed if Pilot is active */}
+                    {(!hasVisualPilot || visualConfirmed) && (
+                        <Card className="p-6 border-2 border-green-200 bg-green-50/50 animate-in fade-in slide-in-from-bottom-4">
+                            <div className="flex items-start gap-4">
+                                <div className="p-3 bg-green-100 rounded-full">
+                                    <CheckCircle className="w-8 h-8 text-green-600" />
+                                </div>
+                                <div className="flex-1 space-y-3">
+                                    <div>
+                                        <p className="text-sm text-zinc-500">Eining fundin</p>
+                                        <h3 className="text-2xl font-bold text-zinc-900">
+                                            {scannedElement.name}
+                                        </h3>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-4 text-sm">
+                                        {scannedElement.project && (
+                                            <>
+                                                <div className="flex items-center gap-1 text-zinc-600">
+                                                    <Layers className="w-4 h-4" />
+                                                    <span>{scannedElement.project.name}</span>
+                                                </div>
+                                                {scannedElement.project.company && (
+                                                    <div className="flex items-center gap-1 text-zinc-600">
+                                                        <Building2 className="w-4 h-4" />
+                                                        <span>{scannedElement.project.company.name}</span>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-zinc-600">Staða:</span>
+                                        <span className={`px-2.5 py-0.5 rounded-full text-sm font-medium ${getStatusLabel(scannedElement.status).color}`}>
+                                            {getStatusLabel(scannedElement.status).label}
+                                        </span>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex flex-col gap-2 pt-4">
+                                        {canLoad ? (
+                                            <Button
+                                                size="lg"
+                                                className="w-full"
+                                                onClick={() => {
+                                                    // TODO: Add to current delivery or create new
+                                                    router.push(`/driver/load?element=${scannedElement.id}`)
+                                                }}
+                                            >
+                                                <Package className="w-5 h-5 mr-2" />
+                                                Hlaða á bíl
+                                                <ArrowRight className="w-5 h-5 ml-2" />
+                                            </Button>
+                                        ) : (
+                                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                                                <p className="font-medium">Ekki hægt að hlaða</p>
+                                                <p>Eining þarf að vera &quot;Tilbúið&quot; til að hlaða á bíl.</p>
+                                                <p>Núverandi staða: {getStatusLabel(scannedElement.status).label}</p>
+                                            </div>
+                                        )}
+
+                                        <Button
+                                            variant="outline"
+                                            onClick={handleReset}
+                                        >
+                                            Skanna aðra einingu
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                    )}
+                </div>
             )}
         </div>
     )
 }
+

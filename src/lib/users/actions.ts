@@ -30,6 +30,7 @@ export async function getUsers() {
     .from('profiles')
     .select(`
       *,
+      preferences,
       companies (
         id,
         name
@@ -70,6 +71,7 @@ export async function getUser(userId: string) {
     .from('profiles')
     .select(`
       *,
+      preferences,
       companies (
         id,
         name
@@ -288,5 +290,54 @@ export async function deactivateUser(userId: string) {
   // Revalidate users list
   revalidatePath('/admin/users')
 
+  return { success: true }
+}
+
+// Toggle a feature flag for a user
+export async function toggleFeatureFlag(userId: string, key: string, value: boolean) {
+  const supabase = await createClient()
+
+  // Get current user (must be admin)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!adminProfile || adminProfile.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  // Fetch target user's current preferences
+  const { data: targetProfile, error: fetchError } = await supabase
+    .from('profiles')
+    .select('preferences')
+    .eq('id', userId)
+    .single()
+
+  if (fetchError || !targetProfile) {
+    return { error: 'User not found' }
+  }
+
+  const currentPrefs = (targetProfile.preferences || {}) as Record<string, any>
+  const newPrefs = { ...currentPrefs, [key]: value }
+
+  // Update
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({
+      preferences: newPrefs,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', userId)
+
+  if (updateError) {
+    return { error: 'Update failed' }
+  }
+
+  revalidatePath('/admin/users')
   return { success: true }
 }

@@ -9,6 +9,7 @@ export interface AuthUser {
   fullName: string
   role: 'admin' | 'factory_manager' | 'buyer' | 'driver'
   companyId: string | null
+  preferences: Record<string, any>
 }
 
 interface AuthContextType {
@@ -37,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Fetch profile data
           const { data: profile } = await supabase
             .from('profiles')
-            .select('full_name, email, role, company_id')
+            .select('full_name, email, role, company_id, preferences')
             .eq('id', authUser.id)
             .single()
 
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               fullName: profile.full_name,
               role: profile.role as AuthUser['role'],
               companyId: profile.company_id,
+              preferences: (profile.preferences || {}) as Record<string, any>,
             })
           }
         }
@@ -66,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('full_name, email, role, company_id')
+            .select('full_name, email, role, company_id, preferences')
             .eq('id', session.user.id)
             .single()
 
@@ -77,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               fullName: profile.full_name,
               role: profile.role as AuthUser['role'],
               companyId: profile.company_id,
+              preferences: (profile.preferences || {}) as Record<string, any>,
             })
           }
         } else {

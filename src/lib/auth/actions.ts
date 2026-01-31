@@ -68,7 +68,7 @@ export async function getUser() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, email, role, company_id')
+    .select('full_name, email, role, company_id, preferences')
     .eq('id', user.id)
     .single()
 
@@ -82,5 +82,6 @@ export async function getUser() {
     fullName: profile.full_name,
     role: profile.role as AuthUser['role'],
     companyId: profile.company_id,
+    preferences: (profile.preferences || {}) as Record<string, any>,
   }
 }

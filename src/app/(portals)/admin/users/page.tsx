@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Pencil } from 'lucide-react'
 import Link from 'next/link'
+import { FeatureToggler } from './FeatureToggler'
 import type { Database } from '@/types/database'
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
@@ -72,10 +73,13 @@ export default async function UsersPage() {
                                     Fyrirtæki (Company)
                                 </TableHead>
                                 <TableHead className="font-medium text-xs text-zinc-500 uppercase tracking-wider py-4">
+                                    Aðgerðir (Features)
+                                </TableHead>
+                                <TableHead className="font-medium text-xs text-zinc-500 uppercase tracking-wider py-4">
                                     Staða (Status)
                                 </TableHead>
                                 <TableHead className="w-[100px] text-right font-medium text-xs text-zinc-500 uppercase tracking-wider py-4">
-                                    Aðgerðir
+                                    Breyta
                                 </TableHead>
                             </TableRow>
                         </TableHeader>
@@ -99,6 +103,14 @@ export default async function UsersPage() {
                                             </TableCell>
                                             <TableCell className="py-4 text-zinc-600">
                                                 {user.companies?.name || '-'}
+                                            </TableCell>
+                                            <TableCell className="py-4">
+                                                <FeatureToggler
+                                                    userId={user.id}
+                                                    featureKey="visual_pilot"
+                                                    initialValue={(user.preferences as any)?.visual_pilot || false}
+                                                    label="Visual Pilot"
+                                                />
                                             </TableCell>
                                             <TableCell className="py-4">
                                                 {user.is_active ? (
