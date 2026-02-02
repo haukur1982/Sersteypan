@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { RoleBasedNav } from './RoleBasedNav'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { cn } from '@/lib/utils'
@@ -112,12 +113,32 @@ export interface SidebarProps {
     user?: AuthUser | null;
 }
 
+/**
+ * Detect user role from URL path
+ * This provides immediate navigation without waiting for auth
+ * Safe because middleware already protects routes based on actual auth
+ */
+function getRoleFromPath(pathname: string): AuthUser['role'] | null {
+    if (pathname.startsWith('/admin')) return 'admin'
+    if (pathname.startsWith('/factory')) return 'factory_manager'
+    if (pathname.startsWith('/buyer')) return 'buyer'
+    if (pathname.startsWith('/driver')) return 'driver'
+    return null
+}
+
 export function Sidebar({ className, user: initialUser }: SidebarProps) {
-    const { user: authUser, loading: authLoading } = useAuth()
+    const pathname = usePathname()
+    const { user: authUser } = useAuth()
 
     // Prioritize passed user, fall back to auth hook
     const user = initialUser ?? authUser
-    const loading = initialUser ? false : authLoading
+
+    // Get role from URL path as fallback (shows nav immediately)
+    const pathRole = getRoleFromPath(pathname)
+    const effectiveRole = user?.role ?? pathRole
+
+    // Never show loading skeleton - use path-based role for immediate nav
+    const loading = false
 
     // Fetch notifications client-side (doesn't block server render)
     const { notifications } = useNotifications(user?.id)
@@ -145,7 +166,7 @@ export function Sidebar({ className, user: initialUser }: SidebarProps) {
                         <div className="h-10 bg-zinc-100 rounded animate-pulse" />
                     </div>
                 ) : (
-                    <RoleBasedNav role={user?.role} />
+                    <RoleBasedNav role={effectiveRole ?? undefined} />
                 )}
             </div>
 
@@ -171,13 +192,15 @@ export function Sidebar({ className, user: initialUser }: SidebarProps) {
 }
 
 export function MobileSidebar({ user: initialUser }: { user?: AuthUser | null }) {
+    const pathname = usePathname()
     const { user: authUser } = useAuth()
     const [open, setOpen] = React.useState(false)
 
     const user = initialUser ?? authUser
 
-    // Avoid hydration mismatch by not rendering until mounted (or assume button serves as placeholder)
-    // For simplicity, we assume this is client-side
+    // Get role from URL path as fallback (shows nav immediately)
+    const pathRole = getRoleFromPath(pathname)
+    const effectiveRole = user?.role ?? pathRole
 
     return (
         <Sheet open={open} onOpenChange={setOpen}>
@@ -192,11 +215,11 @@ export function MobileSidebar({ user: initialUser }: { user?: AuthUser | null })
                     <SheetTitle className="text-sidebar-foreground">Sérsteypan</SheetTitle>
                 </SheetHeader>
                 <div className="py-6">
-                    {user?.role ? (
-                        <RoleBasedNav role={user.role} onItemClick={() => setOpen(false)} />
+                    {effectiveRole ? (
+                        <RoleBasedNav role={effectiveRole} onItemClick={() => setOpen(false)} />
                     ) : (
                         <div className="px-6 text-sm text-muted-foreground">
-                            {user ? 'Enginn aðgangur (No role)' : 'Hleður... (Loading)'}
+                            Enginn aðgangur (No access)
                         </div>
                     )}
                 </div>
