@@ -468,6 +468,39 @@ export type Database = {
           },
         ]
       }
+      element_types: {
+        Row: {
+          id: string
+          key: string
+          label_is: string
+          label_en: string
+          sort_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          label_is: string
+          label_en: string
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          label_is?: string
+          label_en?: string
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       elements: {
         Row: {
           batch_number: string | null

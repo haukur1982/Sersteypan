@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { validateElementCreate, formatZodError } from '@/lib/schemas'
+import { ElementTypeSelect } from '@/components/elements/ElementTypeSelect'
 import type { Database } from '@/types/database'
 
 type ElementRow = Database['public']['Tables']['elements']['Row']
@@ -232,21 +233,12 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                             {/* Element Type */}
                             <div className="space-y-2">
                                 <Label htmlFor="element_type">Tegund (Type) *</Label>
-                                <Select value={selectedElementType} onValueChange={setSelectedElementType} disabled={loading}>
-                                    <SelectTrigger className="border-zinc-300 focus:ring-blue-500">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="wall">Veggur (Wall)</SelectItem>
-                                        <SelectItem value="filigran">Filigran (Floor Slab)</SelectItem>
-                                        <SelectItem value="staircase">Stigi (Staircase)</SelectItem>
-                                        <SelectItem value="balcony">Svalir (Balcony)</SelectItem>
-                                        <SelectItem value="ceiling">Þak (Ceiling)</SelectItem>
-                                        <SelectItem value="column">Súla (Column)</SelectItem>
-                                        <SelectItem value="beam">Bita (Beam)</SelectItem>
-                                        <SelectItem value="other">Annað (Other)</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <ElementTypeSelect
+                                    value={selectedElementType}
+                                    onValueChange={setSelectedElementType}
+                                    disabled={loading}
+                                    className="border-zinc-300 focus:ring-blue-500"
+                                />
                             </div>
 
                             {/* Drawing Reference */}

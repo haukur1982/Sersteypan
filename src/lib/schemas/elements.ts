@@ -13,10 +13,31 @@ import {
  * Element (concrete piece) validation schemas
  */
 
+// Default element types (fallback when database is not available)
+// These are kept for backward compatibility and static validation
+export const DEFAULT_ELEMENT_TYPES = [
+  'wall', 'filigran', 'staircase', 'balcony', 'ceiling', 'column', 'beam', 'other'
+] as const
+
 export const elementTypeSchema = z.enum(
-  ['wall', 'filigran', 'staircase', 'balcony', 'ceiling', 'column', 'beam', 'other'],
+  DEFAULT_ELEMENT_TYPES,
   { message: 'Ógild tegund einingar' }
 )
+
+/**
+ * Create a dynamic element type schema from database types
+ * Use this when you have fetched types from the database
+ */
+export function createElementTypeSchema(validTypes: string[]) {
+  if (validTypes.length === 0) {
+    // Fallback to default if no types provided
+    return elementTypeSchema
+  }
+  return z.string().refine(
+    (val) => validTypes.includes(val),
+    { message: 'Ógild tegund einingar' }
+  )
+}
 
 export const elementStatusSchema = z.enum(
   ['planned', 'rebar', 'cast', 'curing', 'ready', 'loaded', 'delivered'],

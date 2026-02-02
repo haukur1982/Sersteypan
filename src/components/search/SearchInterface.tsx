@@ -8,17 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Search, Building, FolderKanban, Box, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-
-const typeConfig = {
-    wall: { label: 'Veggur' },
-    filigran: { label: 'Filigran' },
-    staircase: { label: 'Stigi' },
-    balcony: { label: 'Svalir' },
-    ceiling: { label: 'Þak' },
-    column: { label: 'Súla' },
-    beam: { label: 'Bita' },
-    other: { label: 'Annað' }
-}
+import { useElementTypes, getElementTypeLabelIs } from '@/components/elements/ElementTypeSelect'
 
 const statusConfig = {
     planned: { label: 'Skipulagt', color: 'bg-zinc-100 text-zinc-600' },
@@ -40,6 +30,12 @@ export function SearchInterface() {
         elements: []
     })
     const [error, setError] = useState<string | null>(null)
+
+    // Fetch element types from database
+    const { types: elementTypes } = useElementTypes()
+
+    // Helper to get element type label
+    const getTypeLabel = (key: string) => getElementTypeLabelIs(key, elementTypes) || key
 
     useEffect(() => {
         const delayDebounce = setTimeout(async () => {
@@ -185,7 +181,7 @@ export function SearchInterface() {
                             </h2>
                             <div className="space-y-2">
                                 {results.elements.map((element) => {
-                                    const typeInfo = typeConfig[element.element_type as keyof typeof typeConfig] || typeConfig.other
+                                    const typeLabel = getTypeLabel(element.element_type)
                                     const statusInfo = statusConfig[element.status as keyof typeof statusConfig] || statusConfig.planned
 
                                     return (
@@ -202,7 +198,7 @@ export function SearchInterface() {
                                                     </p>
                                                     <div className="flex gap-2 mt-2">
                                                         <Badge variant="secondary" className="text-xs">
-                                                            {typeInfo.label}
+                                                            {typeLabel}
                                                         </Badge>
                                                         {element.floor && (
                                                             <Badge variant="secondary" className="text-xs">
