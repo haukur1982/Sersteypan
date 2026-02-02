@@ -162,20 +162,7 @@ export function Sidebar({ className, user: initialUser }: SidebarProps) {
                 ) : (
                     <>
                         <UserNav user={user} />
-                        <div className="mt-2 pt-2 border-t border-white/10 text-[10px] items-center space-y-1 font-mono text-zinc-400 select-all">
-                            <p>U: {user ? 'OK' : 'NULL'}</p>
-                            <p>R: {user?.role || 'NONE'}</p>
-                            <p>L: {loading ? 'YES' : 'NO'}</p>
-                            <p className="text-[8px] opacity-50 truncate">{user?.id}</p>
-                            {!user && (
-                                <a
-                                    href="/auth/signout"
-                                    className="mt-2 block w-full text-center bg-red-500/20 hover:bg-red-500/30 text-red-400 text-[10px] py-1 rounded border border-red-500/50 transition-colors"
-                                >
-                                    RESET SESSION (LINK)
-                                </a>
-                            )}
-                        </div>
+
                     </>
                 )}
             </div>
