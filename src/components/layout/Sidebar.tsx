@@ -167,6 +167,19 @@ export function Sidebar({ className, user: initialUser }: SidebarProps) {
                             <p>R: {user?.role || 'NONE'}</p>
                             <p>L: {loading ? 'YES' : 'NO'}</p>
                             <p className="text-[8px] opacity-50 truncate">{user?.id}</p>
+                            {!user && (
+                                <button
+                                    onClick={async () => {
+                                        const { createClient } = await import('@/lib/supabase/client')
+                                        const supabase = createClient()
+                                        await supabase.auth.signOut()
+                                        window.location.href = '/login'
+                                    }}
+                                    className="mt-2 w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 text-[10px] py-1 rounded border border-red-500/50 transition-colors"
+                                >
+                                    RESET SESSION (FIX ME)
+                                </button>
+                            )}
                         </div>
                     </>
                 )}
