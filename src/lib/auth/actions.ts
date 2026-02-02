@@ -91,7 +91,7 @@ export async function getUser() {
       id: user.id,
       email: user.email!,
       fullName: 'GHOST USER (Profile Missing)',
-      role: 'admin', // Defaulting to admin for this dev user to recover system
+      role: 'admin' as AuthUser['role'], // Defaulting to admin for this dev user to recover system
       companyId: null,
       preferences: {} as UserPreferences,
     }
