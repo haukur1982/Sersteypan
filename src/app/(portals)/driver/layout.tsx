@@ -1,15 +1,16 @@
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { OfflineBanner } from '@/components/driver/OfflineBanner'
+import { getUser } from '@/lib/auth/actions'
 
-export default function DriverLayout({
+export default async function DriverLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // Middleware handles auth and role-based access
-  // Sidebar/Header fetch user client-side to avoid SSR cookie timing issues
+  const user = await getUser()
+
   return (
-    <DashboardLayout>
+    <DashboardLayout user={user || undefined}>
       <OfflineBanner />
       {children}
     </DashboardLayout>

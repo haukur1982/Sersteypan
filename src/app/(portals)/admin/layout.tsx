@@ -1,14 +1,21 @@
 import DashboardLayout from '@/components/layout/DashboardLayout'
+import { getUser } from '@/lib/auth/actions'
+import { redirect } from 'next/navigation'
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children
 }: {
   children: React.ReactNode
 }) {
-  // Middleware handles auth and role-based access
-  // Sidebar/Header fetch user client-side to avoid SSR cookie timing issues
+  const user = await getUser()
+
+  if (!user || user.role !== 'admin') {
+    // Middleware handles security, but we redirect if data missing
+    redirect('/login')
+  }
+
   return (
-    <DashboardLayout>
+    <DashboardLayout user={user}>
       {children}
     </DashboardLayout>
   )
