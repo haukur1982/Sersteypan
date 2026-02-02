@@ -1,4 +1,4 @@
-import { getUser } from '@/lib/auth/actions'
+import { getServerUser } from '@/lib/auth/getServerUser'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { OfflineBanner } from '@/components/driver/OfflineBanner'
 
@@ -9,7 +9,7 @@ export default async function DriverLayout({
 }) {
   // Middleware handles auth and role-based access
   // Layout just fetches user for rendering purposes
-  const user = await getUser()
+  const user = await getServerUser()
 
   return (
     <DashboardLayout user={user}>
