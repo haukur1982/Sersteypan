@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { formatZodError, validateUserCreate, validateUserUpdate } from '@/lib/schemas'
 
 // Get all users (admin only)
 export async function getUsers() {
@@ -30,7 +31,6 @@ export async function getUsers() {
     .from('profiles')
     .select(`
       *,
-      preferences,
       companies (
         id,
         name
@@ -71,7 +71,6 @@ export async function getUser(userId: string) {
     .from('profiles')
     .select(`
       *,
-      preferences,
       companies (
         id,
         name
@@ -109,36 +108,28 @@ export async function createUser(formData: FormData) {
     return { error: 'Unauthorized - Admin only' }
   }
 
-  // Extract form data
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-  const full_name = formData.get('full_name') as string
-  const phone = formData.get('phone') as string
-  const role = formData.get('role') as string
-  const company_id = formData.get('company_id') as string
-
-  if (!email || !password || !full_name || !role) {
-    return { error: 'Email, password, full name, and role are required' }
+  // Extract and validate form data
+  const rawData = {
+    ...Object.fromEntries(formData),
+    company_id: (formData.get('company_id') as string) || undefined
   }
 
-  // Validate role
-  const validRoles = ['admin', 'factory_manager', 'buyer', 'driver']
-  if (!validRoles.includes(role)) {
-    return { error: 'Invalid role' }
+  const validation = validateUserCreate(rawData)
+
+  if (!validation.success) {
+    const { error, errors } = formatZodError(validation.error)
+    return { error, errors }
   }
 
-  // For buyers, company_id is required
-  if (role === 'buyer' && !company_id) {
-    return { error: 'Company is required for buyers' }
-  }
+  const validatedData = validation.data
 
   // Create auth user using admin API
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email: email.trim(),
-    password,
+    email: validatedData.email.trim(),
+    password: validatedData.password,
     email_confirm: true, // Auto-confirm email
     user_metadata: {
-      full_name: full_name.trim()
+      full_name: validatedData.full_name
     }
   })
 
@@ -156,11 +147,11 @@ export async function createUser(formData: FormData) {
     .from('profiles')
     .insert({
       id: authData.user.id,
-      email: email.trim(),
-      full_name: full_name.trim(),
-      phone: phone?.trim() || null,
-      role,
-      company_id: role === 'buyer' ? company_id : null,
+      email: validatedData.email.trim(),
+      full_name: validatedData.full_name,
+      phone: validatedData.phone || null,
+      role: validatedData.role,
+      company_id: validatedData.role === 'buyer' ? validatedData.company_id : null,
       is_active: true
     })
 
@@ -199,36 +190,31 @@ export async function updateUser(userId: string, formData: FormData) {
     return { error: 'Unauthorized - Admin only' }
   }
 
-  // Extract form data
-  const full_name = formData.get('full_name') as string
-  const phone = formData.get('phone') as string
-  const role = formData.get('role') as string
-  const company_id = formData.get('company_id') as string
+  // Extract and validate form data
+  const rawData = {
+    ...Object.fromEntries(formData),
+    id: userId,
+    company_id: (formData.get('company_id') as string) || undefined
+  }
+
+  const validation = validateUserUpdate(rawData)
+
+  if (!validation.success) {
+    const { error, errors } = formatZodError(validation.error)
+    return { error, errors }
+  }
+
+  const validatedData = validation.data
   const is_active = formData.get('is_active') === 'true'
-
-  if (!full_name || !role) {
-    return { error: 'Full name and role are required' }
-  }
-
-  // Validate role
-  const validRoles = ['admin', 'factory_manager', 'buyer', 'driver']
-  if (!validRoles.includes(role)) {
-    return { error: 'Invalid role' }
-  }
-
-  // For buyers, company_id is required
-  if (role === 'buyer' && !company_id) {
-    return { error: 'Company is required for buyers' }
-  }
 
   // Update profile
   const { error: updateError } = await supabase
     .from('profiles')
     .update({
-      full_name: full_name.trim(),
-      phone: phone?.trim() || null,
-      role,
-      company_id: role === 'buyer' ? company_id : null,
+      full_name: validatedData.full_name,
+      phone: validatedData.phone || null,
+      role: validatedData.role,
+      company_id: validatedData.role === 'buyer' ? validatedData.company_id : null,
       is_active,
       updated_at: new Date().toISOString()
     })
@@ -322,14 +308,14 @@ export async function toggleFeatureFlag(userId: string, key: string, value: bool
     return { error: 'User not found' }
   }
 
-  const currentPrefs = (targetProfile.preferences || {}) as Record<string, any>
+  const currentPrefs = (targetProfile.preferences || {}) as Record<string, unknown>
   const newPrefs = { ...currentPrefs, [key]: value }
 
   // Update
   const { error: updateError } = await supabase
     .from('profiles')
     .update({
-      preferences: newPrefs,
+      preferences: newPrefs as unknown as Record<string, boolean | string | number | null>,
       updated_at: new Date().toISOString()
     })
     .eq('id', userId)

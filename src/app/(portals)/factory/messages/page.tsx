@@ -1,5 +1,4 @@
 import { getUser } from '@/lib/auth/actions'
-import { redirect } from 'next/navigation'
 import { getFactoryMessages } from '@/lib/factory/queries'
 import { MessagesClient } from './MessagesClient'
 
@@ -9,12 +8,8 @@ export const metadata = {
 }
 
 export default async function FactoryMessagesPage() {
+  // Layout handles auth, we just need user data for display
   const user = await getUser()
-
-  if (!user || user.role !== 'factory_manager') {
-    redirect('/login')
-  }
-
   const messages = await getFactoryMessages()
 
   return (
@@ -26,7 +21,7 @@ export default async function FactoryMessagesPage() {
         </p>
       </div>
 
-      <MessagesClient messages={messages} currentUserId={user.id} />
+      <MessagesClient messages={messages} currentUserId={user?.id || ''} />
     </div>
   )
 }

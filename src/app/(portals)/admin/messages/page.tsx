@@ -1,5 +1,4 @@
 import { getUser } from '@/lib/auth/actions'
-import { redirect } from 'next/navigation'
 import { getAdminMessages } from '@/lib/admin/queries'
 import { MessagesClient } from './MessagesClient'
 
@@ -9,12 +8,8 @@ export const metadata = {
 }
 
 export default async function AdminMessagesPage() {
+  // Layout handles auth, we just need user data for display
   const user = await getUser()
-
-  if (!user || user.role !== 'admin') {
-    redirect('/login')
-  }
-
   const messages = await getAdminMessages()
 
   return (
@@ -26,7 +21,7 @@ export default async function AdminMessagesPage() {
         </p>
       </div>
 
-      <MessagesClient messages={messages} currentUserId={user.id} />
+      <MessagesClient messages={messages} currentUserId={user?.id || ''} />
     </div>
   )
 }

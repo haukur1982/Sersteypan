@@ -3,6 +3,22 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import type { Database } from '@/types/database'
+import {
+  type PaginationParams,
+  type PaginatedResult,
+  calculateRange,
+  buildPaginationMeta,
+} from '@/lib/utils/pagination'
+import {
+  validateProjectCreate,
+  validateProjectUpdate,
+  formatZodError
+} from '@/lib/schemas'
+
+type ProjectRow = Database['public']['Tables']['projects']['Row']
+type CompanyRow = Database['public']['Tables']['companies']['Row']
+type ProjectWithCompany = ProjectRow & { companies?: Pick<CompanyRow, 'id' | 'name'> | null }
 
 // Types for form data
 export interface ProjectFormData {
@@ -38,34 +54,31 @@ export async function createProject(formData: FormData) {
   }
 
   // Extract and validate form data
-  const name = formData.get('name') as string
-  const company_id = formData.get('company_id') as string
+  const rawData = Object.fromEntries(formData)
 
-  if (!name || !company_id) {
-    return { error: 'Name and company are required' }
+  const validation = validateProjectCreate(rawData)
+
+  if (!validation.success) {
+    const { error, errors } = formatZodError(validation.error)
+    return { error, errors }
   }
+
+  const validatedData = validation.data
 
   // Validate company exists
   const { data: company } = await supabase
     .from('companies')
     .select('id')
-    .eq('id', company_id)
+    .eq('id', validatedData.company_id)
     .single()
 
   if (!company) {
-    return { error: 'Invalid company selected' }
+    return { error: 'Valið fyrirtæki fannst ekki' }
   }
 
   // Prepare project data
   const projectData = {
-    name: name.trim(),
-    company_id,
-    description: (formData.get('description') as string)?.trim() || null,
-    address: (formData.get('address') as string)?.trim() || null,
-    status: (formData.get('status') as string) || 'planning',
-    start_date: (formData.get('start_date') as string) || null,
-    expected_end_date: (formData.get('expected_end_date') as string) || null,
-    notes: (formData.get('notes') as string)?.trim() || null,
+    ...validatedData,
     created_by: user.id
   }
 
@@ -116,6 +129,88 @@ export async function getProjects() {
   }
 
   return { success: true, data }
+}
+
+// Get projects with pagination
+export async function getProjectsPaginated(
+  pagination: PaginationParams,
+  filters?: {
+    status?: string
+    companyId?: string
+    search?: string
+  }
+): Promise<PaginatedResult<ProjectWithCompany>> {
+  const supabase = await createClient()
+
+  // Get current user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Not authenticated' }
+  }
+
+  // Build base query for count
+  let countQuery = supabase
+    .from('projects')
+    .select('*', { count: 'exact', head: true })
+
+  // Apply filters
+  if (filters?.status) {
+    countQuery = countQuery.eq('status', filters.status)
+  }
+  if (filters?.companyId) {
+    countQuery = countQuery.eq('company_id', filters.companyId)
+  }
+  if (filters?.search) {
+    countQuery = countQuery.ilike('name', `%${filters.search}%`)
+  }
+
+  const { count, error: countError } = await countQuery
+
+  if (countError) {
+    console.error('Error counting projects:', countError)
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Failed to fetch projects' }
+  }
+
+  const total = count || 0
+  const [from, to] = calculateRange(pagination.page, pagination.limit)
+
+  // Fetch paginated data with company info
+  let dataQuery = supabase
+    .from('projects')
+    .select(`
+      *,
+      companies (
+        id,
+        name
+      )
+    `)
+    .order('name', { ascending: true })
+    .range(from, to)
+
+  // Apply same filters
+  if (filters?.status) {
+    dataQuery = dataQuery.eq('status', filters.status)
+  }
+  if (filters?.companyId) {
+    dataQuery = dataQuery.eq('company_id', filters.companyId)
+  }
+  if (filters?.search) {
+    dataQuery = dataQuery.ilike('name', `%${filters.search}%`)
+  }
+
+  const { data, error } = await dataQuery
+
+  if (error) {
+    console.error('Error fetching projects:', error)
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Failed to fetch projects' }
+  }
+
+  return {
+    data: (data || []) as ProjectWithCompany[],
+    pagination: buildPaginationMeta(total, pagination.page, pagination.limit),
+  }
 }
 
 // Get a single project by ID
@@ -170,34 +265,36 @@ export async function updateProject(id: string, formData: FormData) {
   }
 
   // Extract and validate form data
-  const name = formData.get('name') as string
-  const company_id = formData.get('company_id') as string
-
-  if (!name || !company_id) {
-    return { error: 'Name and company are required' }
+  const rawData = {
+    ...Object.fromEntries(formData),
+    id
   }
 
-  // Validate company exists
-  const { data: company } = await supabase
-    .from('companies')
-    .select('id')
-    .eq('id', company_id)
-    .single()
+  const validation = validateProjectUpdate(rawData)
 
-  if (!company) {
-    return { error: 'Invalid company selected' }
+  if (!validation.success) {
+    const { error, errors } = formatZodError(validation.error)
+    return { error, errors }
+  }
+
+  const validatedData = validation.data
+
+  // Validate company exists if changed
+  if (validatedData.company_id) {
+    const { data: company } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('id', validatedData.company_id)
+      .single()
+
+    if (!company) {
+      return { error: 'Valið fyrirtæki fannst ekki' }
+    }
   }
 
   // Prepare update data
   const updateData = {
-    name: name.trim(),
-    company_id,
-    description: (formData.get('description') as string)?.trim() || null,
-    address: (formData.get('address') as string)?.trim() || null,
-    status: (formData.get('status') as string) || 'planning',
-    start_date: (formData.get('start_date') as string) || null,
-    expected_end_date: (formData.get('expected_end_date') as string) || null,
-    notes: (formData.get('notes') as string)?.trim() || null,
+    ...validatedData,
     updated_at: new Date().toISOString()
   }
 

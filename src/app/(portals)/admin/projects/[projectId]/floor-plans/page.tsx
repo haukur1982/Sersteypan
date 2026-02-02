@@ -1,7 +1,6 @@
 import { getUser } from '@/lib/auth/actions'
-import { redirect, notFound } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { FloorPlanViewer } from './FloorPlanViewer'
 import Link from 'next/link'
 import { ArrowLeft, Plus } from 'lucide-react'
@@ -13,17 +12,8 @@ interface Props {
 
 export default async function FloorPlansPage({ params }: Props) {
     const { projectId } = await params
+    // Layout handles auth, we just need user data for display
     const user = await getUser()
-
-    if (!user) {
-        redirect('/login')
-    }
-
-    // Both admin and buyer can view floor plans
-    if (!['admin', 'buyer'].includes(user.role)) {
-        redirect('/login')
-    }
-
     const supabase = await createClient()
 
     // Fetch project
@@ -74,12 +64,11 @@ export default async function FloorPlansPage({ params }: Props) {
         }))
     }))
 
-    const isAdmin = user.role === 'admin'
+    const isAdmin = user?.role === 'admin'
     const backUrl = isAdmin ? `/admin/projects/${projectId}` : `/buyer/projects/${projectId}`
 
     return (
-        <DashboardLayout>
-            <div className="space-y-6">
+        <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link
@@ -121,6 +110,5 @@ export default async function FloorPlansPage({ params }: Props) {
                     <FloorPlanViewer floorPlans={enrichedFloorPlans} />
                 )}
             </div>
-        </DashboardLayout>
     )
 }

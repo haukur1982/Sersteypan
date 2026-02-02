@@ -11,6 +11,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { validateCompanyCreate, formatZodError } from '@/lib/schemas'
 import type { Database } from '@/types/database'
 
 interface CompanyFormProps {
@@ -21,31 +22,86 @@ interface CompanyFormProps {
 export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps) {
     const router = useRouter()
     const [error, setError] = useState<string | null>(null)
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
     const [loading, setLoading] = useState(false)
+
+    // Client-side validation on blur
+    function validateField(name: string, value: string | undefined) {
+        const formValues = getFormValues()
+        // Update with the current field value
+        if (name in formValues) {
+            (formValues as Record<string, unknown>)[name] = value
+        }
+
+        const result = validateCompanyCreate(formValues)
+        if (!result.success) {
+            const { errors } = formatZodError(result.error)
+            if (errors[name]) {
+                setFieldErrors(prev => ({ ...prev, [name]: errors[name] }))
+            } else {
+                setFieldErrors(prev => {
+                    const newErrors = { ...prev }
+                    delete newErrors[name]
+                    return newErrors
+                })
+            }
+        } else {
+            setFieldErrors(prev => {
+                const newErrors = { ...prev }
+                delete newErrors[name]
+                return newErrors
+            })
+        }
+    }
+
+    function getFormValues() {
+        const form = document.getElementById('company-form') as HTMLFormElement | null
+        if (!form) return {}
+
+        const formData = new FormData(form)
+        return {
+            name: formData.get('name') as string || '',
+            kennitala: formData.get('kennitala') as string || '',
+            address: formData.get('address') as string || undefined,
+            postal_code: formData.get('postal_code') as string || undefined,
+            city: formData.get('city') as string || undefined,
+            phone: formData.get('phone') as string || undefined,
+            email: formData.get('email') as string || undefined,
+            contact_name: formData.get('contact_name') as string || undefined,
+            contact_email: formData.get('contact_email') as string || undefined,
+            contact_phone: formData.get('contact_phone') as string || undefined,
+            notes: formData.get('notes') as string || undefined,
+        }
+    }
+
+    // Validate before submit
+    function validateForm(): boolean {
+        const formValues = getFormValues()
+        const result = validateCompanyCreate(formValues)
+
+        if (!result.success) {
+            const { error, errors } = formatZodError(result.error)
+            setError(error)
+            setFieldErrors(errors)
+            return false
+        }
+
+        setFieldErrors({})
+        return true
+    }
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault()
         setError(null)
+
+        // Client-side validation first
+        if (!validateForm()) {
+            return
+        }
+
         setLoading(true)
 
         const formData = new FormData(event.currentTarget)
-
-        // Add is_active manually since checkboxes don't submit if unchecked
-        // But basic form submission usually sends 'on' if checked. 
-        // The action expects 'true' string.
-        // Let's handle it by verifying what FormData gives us.
-        // Actually, controlled checkbox is safer or just letting the action handle existence.
-        // Action says: formData.get('is_active') === 'true'
-        // Standard checkbox sends value if checked. We need to ensure we send 'true' or 'false'.
-        // We can interact with Checkbox via name, but shadcn Checkbox is a bit different. No, standard input works inside.
-
-        // However, shadcn Checkbox is a primitive that might strictly control this.
-        // Let's use a hidden input for form submission if using non-native checkbox?
-        // Or just use the 'name' prop on shadcn Checkbox.
-        // The shadcn Checkbox uses Radix UI Primitive which doesn't render a native input by default unless using 'Form' component controller.
-        // Since we are using native form submission, we might need a hidden input or use standard input type="checkbox" styled.
-        // The brief says "Use shadcn/ui ... checkbox".
-        // I will use a hidden input synced with state to ensure FormData picks it up correctly, or append to FormData.
 
         try {
             let result
@@ -57,20 +113,29 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
 
             if (result?.error) {
                 setError(result.error)
+                // Set field errors from server response if available
+                if ('errors' in result && result.errors) {
+                    setFieldErrors(result.errors as Record<string, string>)
+                }
                 setLoading(false)
             } else {
-                // Server action handles redirect
                 router.refresh()
             }
         } catch (err: unknown) {
             const redirectError = err as { message?: string } | null
-            // Ignore redirect errors (Next.js throws these when redirecting)
-            // Real validation errors come through result.error above
             if (!redirectError?.message?.includes('NEXT_REDIRECT')) {
                 setError('An unexpected error occurred')
                 setLoading(false)
             }
         }
+    }
+
+    function FieldError({ name }: { name: string }) {
+        const errorMessage = fieldErrors[name]
+        if (!errorMessage) return null
+        return (
+            <p className="text-sm text-red-600 mt-1">{errorMessage}</p>
+        )
     }
 
     return (
@@ -89,8 +154,10 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                             required
                             placeholder="e.g. Sérsteypan ehf."
                             disabled={loading}
-                            className="border-zinc-300 focus:border-blue-500 focus:ring-blue-500"
+                            onBlur={(e) => validateField('name', e.target.value)}
+                            className={`border-zinc-300 focus:border-blue-500 focus:ring-blue-500 ${fieldErrors.name ? 'border-red-500 ring-offset-2 ring-red-500' : ''}`}
                         />
+                        <FieldError name="name" />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -102,10 +169,14 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                                 defaultValue={initialData?.kennitala ?? ''}
                                 placeholder="000000-0000"
                                 disabled={loading}
-                                className="border-zinc-300"
+                                onBlur={(e) => validateField('kennitala', e.target.value)}
+                                className={`border-zinc-300 ${fieldErrors.kennitala ? 'border-red-500' : ''}`}
                             />
+                            <FieldError name="kennitala" />
                         </div>
                         <div className="space-y-2">
+                            {/* This input is named contact_phone in the DB and form, but often companies have a main phone too. 
+                                The schema has both checks. I'm binding this input to 'contact_phone' error key. */}
                             <Label htmlFor="contact_phone">Símanúmer (Phone)</Label>
                             <Input
                                 id="contact_phone"
@@ -113,8 +184,10 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                                 defaultValue={initialData?.contact_phone ?? ''}
                                 placeholder="+354 000 0000"
                                 disabled={loading}
-                                className="border-zinc-300"
+                                onBlur={(e) => validateField('contact_phone', e.target.value)}
+                                className={`border-zinc-300 ${fieldErrors.contact_phone ? 'border-red-500' : ''}`}
                             />
+                            <FieldError name="contact_phone" />
                         </div>
                     </div>
 
@@ -125,6 +198,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                             name="address"
                             defaultValue={initialData?.address ?? ''}
                             disabled={loading}
+                            onBlur={(e) => validateField('address', e.target.value)}
                             className="border-zinc-300"
                         />
                     </div>
@@ -137,6 +211,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                                 name="city"
                                 defaultValue={initialData?.city ?? ''}
                                 disabled={loading}
+                                onBlur={(e) => validateField('city', e.target.value)}
                                 className="border-zinc-300"
                             />
                         </div>
@@ -147,8 +222,10 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                                 name="postal_code"
                                 defaultValue={initialData?.postal_code ?? ''}
                                 disabled={loading}
-                                className="border-zinc-300"
+                                onBlur={(e) => validateField('postal_code', e.target.value)}
+                                className={`border-zinc-300 ${fieldErrors.postal_code ? 'border-red-500' : ''}`}
                             />
+                            <FieldError name="postal_code" />
                         </div>
                     </div>
 
@@ -161,6 +238,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                                 defaultValue={initialData?.contact_name ?? ''}
                                 required
                                 disabled={loading}
+                                onBlur={(e) => validateField('contact_name', e.target.value)}
                                 className="border-zinc-300 focus:border-blue-500"
                             />
                         </div>
@@ -173,8 +251,10 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                                 defaultValue={initialData?.contact_email ?? ''}
                                 required
                                 disabled={loading}
-                                className="border-zinc-300 focus:border-blue-500"
+                                onBlur={(e) => validateField('contact_email', e.target.value)}
+                                className={`border-zinc-300 focus:border-blue-500 ${fieldErrors.contact_email ? 'border-red-500' : ''}`}
                             />
+                            <FieldError name="contact_email" />
                         </div>
                     </div>
 

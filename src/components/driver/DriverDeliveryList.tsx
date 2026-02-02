@@ -60,7 +60,7 @@ export function DriverDeliveryList({ deliveries }: DriverDeliveryListProps) {
                 const itemCount = delivery.items?.length || 0
 
                 return (
-                    <Card key={delivery.id} className="border-zinc-200 hover:border-zinc-300 transition-colors shadow-sm overflow-hidden">
+                    <Card key={delivery.id} className="relative border-zinc-200 hover:border-zinc-300 transition-colors shadow-sm overflow-hidden group">
                         <CardContent className="p-0">
                             <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="space-y-3">
@@ -118,6 +118,14 @@ export function DriverDeliveryList({ deliveries }: DriverDeliveryListProps) {
                                         }`}
                                 />
                             </div>
+
+                            {/* Full card click overlay for mobile usability */}
+                            <Link
+                                href={`/driver/deliveries/${delivery.id}`}
+                                className="absolute inset-0 z-10"
+                            >
+                                <span className="sr-only">Sjá nánar um afhendingu</span>
+                            </Link>
                         </CardContent>
                     </Card>
                 )

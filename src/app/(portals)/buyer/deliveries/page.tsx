@@ -1,7 +1,4 @@
-import { getUser } from '@/lib/auth/actions'
-import { redirect } from 'next/navigation'
 import { getBuyerDeliveries } from '@/lib/buyer/queries'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import Link from 'next/link'
 import { Truck, Calendar, ArrowRight } from 'lucide-react'
 import type { Database } from '@/types/database'
@@ -23,16 +20,6 @@ type DeliverySummary = DeliveryRow & {
 }
 
 export default async function DeliveriesListPage() {
-  const user = await getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  if (user.role !== 'buyer') {
-    redirect('/login')
-  }
-
   const deliveries = (await getBuyerDeliveries()) as DeliverySummary[]
 
   // Group deliveries by status
@@ -59,8 +46,7 @@ export default async function DeliveriesListPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-zinc-900">Afhendingar</h1>
           <p className="text-zinc-600 mt-1">
@@ -163,8 +149,7 @@ export default async function DeliveriesListPage() {
             )}
           </div>
         )}
-      </div>
-    </DashboardLayout>
+    </div>
   )
 }
 

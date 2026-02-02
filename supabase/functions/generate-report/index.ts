@@ -1,7 +1,10 @@
 import { serve } from 'https://deno.land/std@0.192.0/http/server.ts'
-import { pdf, Document, Page, Text, View, StyleSheet } from 'npm:@react-pdf/renderer@3.4.5'
 import { createServiceClient } from '../_shared/supabaseClient.ts'
 import { corsHeaders } from '../_shared/cors.ts'
+import { verifyAuth, hasRole, isValidUUID, checkRateLimit } from '../_shared/auth.ts'
+
+// Using jsPDF which doesn't require JSX
+import { jsPDF } from 'npm:jspdf@2.5.2'
 
 type RequestBody = {
   type: 'project_status' | 'delivery_manifest'
@@ -9,14 +12,9 @@ type RequestBody = {
   delivery_id?: string
 }
 
-const styles = StyleSheet.create({
-  page: { padding: 24, fontSize: 11 },
-  title: { fontSize: 16, marginBottom: 8 },
-  section: { marginTop: 12 },
-  row: { flexDirection: 'row', borderBottom: '1 solid #eee', paddingVertical: 6 },
-  col: { flex: 1 },
-  label: { color: '#666' }
-})
+// Configuration
+const RATE_LIMIT_REQUESTS = 10 // Requests per window
+const RATE_LIMIT_WINDOW_MS = 60000 // 1 minute
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -24,15 +22,61 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json() as RequestBody
+    // Verify authentication
+    const auth = await verifyAuth(req)
+    if (!auth.success) {
+      return new Response(
+        JSON.stringify({ error: auth.error }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Check role - admin, factory_manager, and buyer can generate reports
+    if (!hasRole(auth, ['admin', 'factory_manager', 'buyer'])) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient permissions. Admin, factory manager, or buyer role required.' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Rate limiting
+    const rateLimitKey = `report:${auth.userId}`
+    const { allowed, remaining } = checkRateLimit(rateLimitKey, RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW_MS)
+    if (!allowed) {
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'X-RateLimit-Remaining': '0',
+            'Retry-After': '60',
+          },
+        }
+      )
+    }
+
+    const body = (await req.json()) as RequestBody
     const supabase = createServiceClient()
     const bucket = Deno.env.get('SUPABASE_REPORTS_BUCKET') ?? 'reports'
-    const expiresIn = 60 * 60 * 24 * 30
+    const expiresIn = 60 * 60 * 24 * 30 // 30 days
+
+    const doc = new jsPDF()
+    let filePath = ''
 
     if (body.type === 'project_status') {
       if (!body.project_id) {
         return new Response(
           JSON.stringify({ error: 'project_id is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Validate UUID format
+      if (!isValidUUID(body.project_id)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid project_id format' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -44,7 +88,10 @@ serve(async (req) => {
         .single()
 
       if (projectError || !project) {
-        throw new Error(projectError?.message ?? 'Project not found')
+        return new Response(
+          JSON.stringify({ error: 'Project not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
       }
 
       const { data: elements } = await supabase
@@ -53,49 +100,36 @@ serve(async (req) => {
         .eq('project_id', body.project_id)
         .order('created_at', { ascending: false })
 
-      const doc = (
-        <Document>
-          <Page size="A4" style={styles.page}>
-            <Text style={styles.title}>Project Status Report</Text>
-            <Text>Project: {project.name}</Text>
-            <Text>Address: {project.address ?? '-'}</Text>
-            <Text>Status: {project.status ?? '-'}</Text>
-            <Text>Generated: {new Date().toLocaleString('is-IS')}</Text>
+      // Build PDF
+      doc.setFontSize(18)
+      doc.text('Project Status Report', 20, 20)
 
-            <View style={styles.section}>
-              <Text style={{ marginBottom: 6 }}>Elements</Text>
-              {(elements ?? []).map((el) => (
-                <View key={el.id} style={styles.row}>
-                  <Text style={styles.col}>{el.name}</Text>
-                  <Text style={styles.col}>Status: {el.status ?? '-'}</Text>
-                  <Text style={styles.col}>Priority: {el.priority ?? 0}</Text>
-                  <Text style={styles.col}>Weight: {el.weight_kg ?? '-'} kg</Text>
-                </View>
-              ))}
-            </View>
-          </Page>
-        </Document>
-      )
+      doc.setFontSize(12)
+      doc.text(`Project: ${project.name}`, 20, 35)
+      doc.text(`Address: ${project.address ?? '-'}`, 20, 42)
+      doc.text(`Status: ${project.status ?? '-'}`, 20, 49)
+      doc.text(`Generated: ${new Date().toLocaleString('is-IS')}`, 20, 56)
 
-      const buffer = await pdf(doc).toBuffer()
-      const filePath = `project_status/${project.id}/${Date.now()}.pdf`
+      doc.setFontSize(14)
+      doc.text('Elements', 20, 70)
 
-      const uploadRes = await supabase.storage
-        .from(bucket)
-        .upload(filePath, buffer, { contentType: 'application/pdf', upsert: false })
+      let yPos = 80
+      doc.setFontSize(10)
 
-      if (uploadRes.error) {
-        throw new Error(uploadRes.error.message)
+      for (const el of elements ?? []) {
+        if (yPos > 270) {
+          doc.addPage()
+          yPos = 20
+        }
+        doc.text(
+          `${el.name} | Status: ${el.status ?? '-'} | Priority: ${el.priority ?? 0} | Weight: ${el.weight_kg ?? '-'} kg`,
+          20,
+          yPos
+        )
+        yPos += 7
       }
 
-      const { data: signedUrl } = await supabase.storage
-        .from(bucket)
-        .createSignedUrl(filePath, expiresIn)
-
-      return new Response(
-        JSON.stringify({ pdf_url: signedUrl?.signedUrl }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      filePath = `project_status/${project.id}/${Date.now()}.pdf`
     }
 
     if (body.type === 'delivery_manifest') {
@@ -106,9 +140,18 @@ serve(async (req) => {
         )
       }
 
+      // Validate UUID format
+      if (!isValidUUID(body.delivery_id)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid delivery_id format' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const { data: delivery, error: deliveryError } = await supabase
         .from('deliveries')
-        .select(`
+        .select(
+          `
           id,
           truck_registration,
           planned_date,
@@ -117,65 +160,95 @@ serve(async (req) => {
             id,
             element:elements (id, name, element_type, weight_kg)
           )
-        `)
+        `
+        )
         .eq('id', body.delivery_id)
         .single()
 
       if (deliveryError || !delivery) {
-        throw new Error(deliveryError?.message ?? 'Delivery not found')
+        return new Response(
+          JSON.stringify({ error: 'Delivery not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
       }
 
-      const doc = (
-        <Document>
-          <Page size="A4" style={styles.page}>
-            <Text style={styles.title}>Delivery Manifest</Text>
-            <Text>Project: {delivery.project?.name ?? '-'}</Text>
-            <Text>Address: {delivery.project?.address ?? '-'}</Text>
-            <Text>Truck: {delivery.truck_registration ?? '-'}</Text>
-            <Text>Planned: {delivery.planned_date ?? '-'}</Text>
-            <Text>Generated: {new Date().toLocaleString('is-IS')}</Text>
+      // Type the nested relations
+      type ProjectRelation = { name?: string; address?: string } | null
+      type ElementRelation = { name?: string; element_type?: string; weight_kg?: number } | null
+      type DeliveryItem = { id: string; element: ElementRelation }
 
-            <View style={styles.section}>
-              <Text style={{ marginBottom: 6 }}>Items</Text>
-              {(delivery.items ?? []).map((item) => (
-                <View key={item.id} style={styles.row}>
-                  <Text style={styles.col}>{item.element?.name ?? '-'}</Text>
-                  <Text style={styles.col}>Type: {item.element?.element_type ?? '-'}</Text>
-                  <Text style={styles.col}>Weight: {item.element?.weight_kg ?? '-'} kg</Text>
-                </View>
-              ))}
-            </View>
-          </Page>
-        </Document>
-      )
+      const project = delivery.project as ProjectRelation
+      const items = (delivery.items ?? []) as DeliveryItem[]
 
-      const buffer = await pdf(doc).toBuffer()
-      const filePath = `delivery_manifest/${delivery.id}/${Date.now()}.pdf`
+      // Build PDF
+      doc.setFontSize(18)
+      doc.text('Delivery Manifest', 20, 20)
 
-      const uploadRes = await supabase.storage
-        .from(bucket)
-        .upload(filePath, buffer, { contentType: 'application/pdf', upsert: false })
+      doc.setFontSize(12)
+      doc.text(`Project: ${project?.name ?? '-'}`, 20, 35)
+      doc.text(`Address: ${project?.address ?? '-'}`, 20, 42)
+      doc.text(`Truck: ${delivery.truck_registration ?? '-'}`, 20, 49)
+      doc.text(`Planned: ${delivery.planned_date ?? '-'}`, 20, 56)
+      doc.text(`Generated: ${new Date().toLocaleString('is-IS')}`, 20, 63)
 
-      if (uploadRes.error) {
-        throw new Error(uploadRes.error.message)
+      doc.setFontSize(14)
+      doc.text('Items', 20, 77)
+
+      let yPos = 87
+      doc.setFontSize(10)
+
+      for (const item of items) {
+        if (yPos > 270) {
+          doc.addPage()
+          yPos = 20
+        }
+        const el = item.element
+        doc.text(
+          `${el?.name ?? '-'} | Type: ${el?.element_type ?? '-'} | Weight: ${el?.weight_kg ?? '-'} kg`,
+          20,
+          yPos
+        )
+        yPos += 7
       }
 
-      const { data: signedUrl } = await supabase.storage
-        .from(bucket)
-        .createSignedUrl(filePath, expiresIn)
+      filePath = `delivery_manifest/${delivery.id}/${Date.now()}.pdf`
+    }
 
+    if (!filePath) {
       return new Response(
-        JSON.stringify({ pdf_url: signedUrl?.signedUrl }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Invalid report type. Must be "project_status" or "delivery_manifest".' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    // Convert to buffer and upload
+    const pdfOutput = doc.output('arraybuffer')
+    const buffer = new Uint8Array(pdfOutput)
+
+    const uploadRes = await supabase.storage
+      .from(bucket)
+      .upload(filePath, buffer, { contentType: 'application/pdf', upsert: false })
+
+    if (uploadRes.error) {
+      throw new Error(uploadRes.error.message)
+    }
+
+    const { data: signedUrl } = await supabase.storage.from(bucket).createSignedUrl(filePath, expiresIn)
+
     return new Response(
-      JSON.stringify({ error: 'Invalid type' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ pdf_url: signedUrl?.signedUrl }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'X-RateLimit-Remaining': String(remaining),
+        },
+      }
     )
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Report generation error:', message)
     return new Response(
       JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

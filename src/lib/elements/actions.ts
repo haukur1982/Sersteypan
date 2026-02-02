@@ -4,24 +4,41 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/types/database'
+import {
+  type PaginationParams,
+  type PaginatedResult,
+  calculateRange,
+  buildPaginationMeta,
+} from '@/lib/utils/pagination'
+import {
+  validateElementCreate,
+  validateElementStatusUpdate,
+  isValidStatusTransition,
+  formatZodError,
+  parseNumber
+} from '@/lib/schemas'
 
-// Types for form data
-export interface ElementFormData {
-  project_id: string
-  building_id?: string
-  name: string
-  element_type: 'wall' | 'filigran' | 'staircase' | 'balcony' | 'ceiling' | 'column' | 'beam' | 'other'
-  drawing_reference?: string
-  floor?: number
-  position_description?: string
-  length_mm?: number
-  width_mm?: number
-  height_mm?: number
-  weight_kg?: number
-  status: string
-  priority: number
-  production_notes?: string
-  delivery_notes?: string
+type ElementRow = Database['public']['Tables']['elements']['Row']
+
+// Parse FormData into an object for validation
+function parseElementFormData(formData: FormData) {
+  const floorValue = formData.get('floor')
+  return {
+    name: formData.get('name') as string || '',
+    project_id: formData.get('project_id') as string || '',
+    element_type: formData.get('element_type') as string || 'other',
+    status: formData.get('status') as string || 'planned',
+    priority: parseNumber(formData.get('priority')) ?? 0,
+    floor: floorValue ? String(floorValue) : undefined,
+    position_description: formData.get('position_description') as string || undefined,
+    length_mm: parseNumber(formData.get('length_mm')),
+    width_mm: parseNumber(formData.get('width_mm')),
+    height_mm: parseNumber(formData.get('height_mm')),
+    weight_kg: parseNumber(formData.get('weight_kg')),
+    drawing_reference: formData.get('drawing_reference') as string || undefined,
+    batch_number: formData.get('batch_number') as string || undefined,
+    production_notes: formData.get('production_notes') as string || undefined,
+  }
 }
 
 // Create a new element
@@ -45,42 +62,44 @@ export async function createElement(formData: FormData) {
     return { error: 'Unauthorized - Admin only' }
   }
 
-  // Extract and validate form data
-  const name = formData.get('name') as string
-  const project_id = formData.get('project_id') as string
-  const element_type = formData.get('element_type') as string
+  // Parse and validate form data with Zod
+  const rawData = parseElementFormData(formData)
+  const validation = validateElementCreate(rawData)
 
-  if (!name || !project_id || !element_type) {
-    return { error: 'Name, project, and element type are required' }
+  if (!validation.success) {
+    const { error, errors } = formatZodError(validation.error)
+    return { error, errors }
   }
+
+  const validatedData = validation.data
 
   // Validate project exists
   const { data: project } = await supabase
     .from('projects')
     .select('id')
-    .eq('id', project_id)
+    .eq('id', validatedData.project_id)
     .single()
 
   if (!project) {
-    return { error: 'Invalid project selected' }
+    return { error: 'Ógilt verkefni valið' }
   }
 
   // Prepare element data
   const elementData = {
-    project_id,
+    project_id: validatedData.project_id,
     building_id: (formData.get('building_id') as string) || null,
-    name: name.trim(),
-    element_type,
-    drawing_reference: (formData.get('drawing_reference') as string)?.trim() || null,
-    floor: formData.get('floor') ? parseInt(formData.get('floor') as string) : null,
-    position_description: (formData.get('position_description') as string)?.trim() || null,
-    length_mm: formData.get('length_mm') ? parseInt(formData.get('length_mm') as string) : null,
-    width_mm: formData.get('width_mm') ? parseInt(formData.get('width_mm') as string) : null,
-    height_mm: formData.get('height_mm') ? parseInt(formData.get('height_mm') as string) : null,
-    weight_kg: formData.get('weight_kg') ? parseFloat(formData.get('weight_kg') as string) : null,
-    status: (formData.get('status') as string) || 'planned',
-    priority: formData.get('priority') ? parseInt(formData.get('priority') as string) : 0,
-    production_notes: (formData.get('production_notes') as string)?.trim() || null,
+    name: validatedData.name,
+    element_type: validatedData.element_type,
+    drawing_reference: validatedData.drawing_reference || null,
+    floor: validatedData.floor || null,
+    position_description: validatedData.position_description || null,
+    length_mm: validatedData.length_mm || null,
+    width_mm: validatedData.width_mm || null,
+    height_mm: validatedData.height_mm || null,
+    weight_kg: validatedData.weight_kg || null,
+    status: validatedData.status,
+    priority: validatedData.priority,
+    production_notes: validatedData.production_notes || null,
     delivery_notes: (formData.get('delivery_notes') as string)?.trim() || null,
     created_by: user.id
   }
@@ -94,15 +113,15 @@ export async function createElement(formData: FormData) {
 
   if (error) {
     console.error('Error creating element:', error)
-    return { error: 'Failed to create element. Please try again.' }
+    return { error: 'Villa við að búa til einingu. Reyndu aftur.' }
   }
 
   // Revalidate the elements list page
   revalidatePath('/admin/projects')
-  revalidatePath(`/admin/projects/${project_id}`)
+  revalidatePath(`/admin/projects/${validatedData.project_id}`)
 
   // Redirect to project detail page
-  redirect(`/admin/projects/${project_id}`)
+  redirect(`/admin/projects/${validatedData.project_id}`)
 }
 
 // Get all elements for a project
@@ -129,6 +148,87 @@ export async function getElementsForProject(projectId: string) {
   }
 
   return { success: true, data }
+}
+
+// Get elements for a project with pagination
+export async function getElementsForProjectPaginated(
+  projectId: string,
+  pagination: PaginationParams,
+  filters?: {
+    status?: string
+    elementType?: string
+    search?: string
+  }
+): Promise<PaginatedResult<ElementRow>> {
+  const supabase = await createClient()
+
+  // Get current user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Not authenticated' }
+  }
+
+  // Build base query
+  let query = supabase
+    .from('elements')
+    .select('*', { count: 'exact' })
+    .eq('project_id', projectId)
+
+  // Apply filters
+  if (filters?.status) {
+    query = query.eq('status', filters.status)
+  }
+  if (filters?.elementType) {
+    query = query.eq('element_type', filters.elementType)
+  }
+  if (filters?.search) {
+    query = query.ilike('name', `%${filters.search}%`)
+  }
+
+  // Get total count first
+  const { count, error: countError } = await query
+
+  if (countError) {
+    console.error('Error counting elements:', countError)
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Failed to fetch elements' }
+  }
+
+  const total = count || 0
+  const [from, to] = calculateRange(pagination.page, pagination.limit)
+
+  // Fetch paginated data
+  let dataQuery = supabase
+    .from('elements')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('priority', { ascending: false })
+    .order('name', { ascending: true })
+    .range(from, to)
+
+  // Apply same filters
+  if (filters?.status) {
+    dataQuery = dataQuery.eq('status', filters.status)
+  }
+  if (filters?.elementType) {
+    dataQuery = dataQuery.eq('element_type', filters.elementType)
+  }
+  if (filters?.search) {
+    dataQuery = dataQuery.ilike('name', `%${filters.search}%`)
+  }
+
+  const { data, error } = await dataQuery
+
+  if (error) {
+    console.error('Error fetching elements:', error)
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Failed to fetch elements' }
+  }
+
+  return {
+    data: data || [],
+    pagination: buildPaginationMeta(total, pagination.page, pagination.limit),
+  }
 }
 
 // Get a single element by ID
@@ -299,46 +399,59 @@ export async function deleteElement(id: string) {
 export async function generateQRCodesForElements(elementIds: string[]) {
   const supabase = await createClient()
 
+  // Get current user and session
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'Not authenticated' }
   }
 
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) {
+    return { error: 'No valid session' }
+  }
+
+  // Check role - admin or factory_manager can generate QR codes
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.role !== 'admin') {
-    return { error: 'Unauthorized - Admin only' }
+  if (!profile || !['admin', 'factory_manager'].includes(profile.role)) {
+    return { error: 'Unauthorized - Admin or Factory Manager only' }
   }
 
   if (!elementIds || elementIds.length === 0) {
     return { error: 'No elements provided' }
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  // Validate batch size (matches Edge Function limit)
+  if (elementIds.length > 50) {
+    return { error: 'Maximum 50 elements per request' }
+  }
 
-  if (!supabaseUrl || !serviceRoleKey) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !anonKey) {
     return { error: 'Missing Supabase configuration' }
   }
 
+  // Use user's access token for authentication (not service role key)
   const response = await fetch(`${supabaseUrl}/functions/v1/generate-qr-codes`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${serviceRoleKey}`,
-      apikey: serviceRoleKey
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: anonKey,
     },
-    body: JSON.stringify({ element_ids: elementIds })
+    body: JSON.stringify({ element_ids: elementIds }),
   })
 
   if (!response.ok) {
-    const errorText = await response.text()
-    console.error('QR generation failed:', errorText)
-    return { error: 'Failed to generate QR codes' }
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+    console.error('QR generation failed:', errorData)
+    return { error: errorData.error || 'Failed to generate QR codes' }
   }
 
   revalidatePath('/admin/projects')
@@ -366,7 +479,19 @@ export async function updateElementStatus(id: string, newStatus: string, notes?:
     return { error: 'Unauthorized - Admin or Factory Manager only' }
   }
 
-  // Get element to find project_id
+  // Validate input with Zod
+  const validation = validateElementStatusUpdate({
+    element_id: id,
+    new_status: newStatus,
+    notes: notes
+  })
+
+  if (!validation.success) {
+    const { error } = formatZodError(validation.error)
+    return { error }
+  }
+
+  // Get element to find project_id and current status
   const { data: element } = await supabase
     .from('elements')
     .select('project_id, status')
@@ -374,7 +499,16 @@ export async function updateElementStatus(id: string, newStatus: string, notes?:
     .single()
 
   if (!element) {
-    return { error: 'Element not found' }
+    return { error: 'Eining fannst ekki' }
+  }
+
+  const currentStatus = element.status || 'planned'
+
+  // Validate status transition (state machine)
+  if (!isValidStatusTransition(currentStatus, newStatus)) {
+    return {
+      error: `Ekki er hægt að breyta stöðu úr "${currentStatus}" í "${newStatus}"`
+    }
   }
 
   // Prepare update data
@@ -392,7 +526,7 @@ export async function updateElementStatus(id: string, newStatus: string, notes?:
 
   if (error) {
     console.error('Error updating element status:', error)
-    return { error: 'Failed to update status. Please try again.' }
+    return { error: 'Villa við að uppfæra stöðu. Reyndu aftur.' }
   }
 
   // Revalidate pages

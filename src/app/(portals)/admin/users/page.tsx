@@ -1,5 +1,4 @@
 import { getUsers } from '@/lib/users/actions'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import {
     Table,
@@ -32,8 +31,7 @@ export default async function UsersPage() {
     const userList = (users ?? []) as UserWithCompany[]
 
     return (
-        <DashboardLayout>
-            <div className="space-y-6">
+        <div className="space-y-6">
                 {/* Header */}
                 <div className="flex justify-between items-center">
                     <div>
@@ -108,7 +106,7 @@ export default async function UsersPage() {
                                                 <FeatureToggler
                                                     userId={user.id}
                                                     featureKey="visual_pilot"
-                                                    initialValue={(user.preferences as any)?.visual_pilot || false}
+                                                    initialValue={(user.preferences as Record<string, unknown>)?.visual_pilot === true}
                                                     label="Visual Pilot"
                                                 />
                                             </TableCell>
@@ -142,8 +140,7 @@ export default async function UsersPage() {
                             )}
                         </TableBody>
                     </Table>
-                </Card>
-            </div>
-        </DashboardLayout>
+            </Card>
+        </div>
     )
 }

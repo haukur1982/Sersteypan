@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -172,8 +171,7 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
     const StatusIcon = statusInfo.icon
 
     return (
-        <DashboardLayout>
-            <div className="space-y-6 max-w-5xl mx-auto">
+        <div className="space-y-6 max-w-5xl mx-auto">
                 {/* Header with back button */}
                 <div className="flex items-center gap-3">
                     <Button variant="ghost" size="icon" asChild>
@@ -439,7 +437,6 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                         </Card>
                     </div>
                 </div>
-            </div>
-        </DashboardLayout>
+        </div>
     )
 }

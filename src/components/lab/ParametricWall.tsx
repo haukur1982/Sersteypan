@@ -1,8 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { useFrame } from '@react-three/fiber'
-import { Mesh, BoxGeometry } from 'three'
+import { Mesh } from 'three'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 

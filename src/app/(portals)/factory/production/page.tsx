@@ -1,8 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
-import DashboardLayout from '@/components/layout/DashboardLayout'
+import { getProductionQueuePaginated } from '@/lib/factory/actions'
+import { parsePaginationParams } from '@/lib/utils/pagination'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Pagination } from '@/components/ui/pagination'
 import Link from 'next/link'
 import {
     Table,
@@ -22,14 +23,6 @@ import {
     Pencil,
     ArrowLeft
 } from 'lucide-react'
-import type { Database } from '@/types/database'
-
-type ElementRow = Database['public']['Tables']['elements']['Row']
-type ProjectRow = Database['public']['Tables']['projects']['Row']
-type CompanyRow = Database['public']['Tables']['companies']['Row']
-type ProductionElement = Pick<ElementRow, 'id' | 'name' | 'element_type' | 'status' | 'priority' | 'floor' | 'created_at'> & {
-    projects?: (Pick<ProjectRow, 'id' | 'name'> & { companies?: Pick<CompanyRow, 'name'> | null }) | null
-}
 
 const statusConfig = {
     planned: { icon: Clock, label: 'Skipulagt', color: 'bg-gray-100 text-gray-800' },
@@ -52,50 +45,35 @@ const typeConfig = {
 }
 
 interface ProductionQueuePageProps {
-    searchParams: Promise<{
-        status?: string
-    }>
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export default async function ProductionQueuePage({ searchParams }: ProductionQueuePageProps) {
-    const supabase = await createClient()
     const params = await searchParams
-    const statusFilter = params.status
+    const urlSearchParams = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+        if (typeof value === 'string') {
+            urlSearchParams.set(key, value)
+        }
+    })
 
-    // Build query
-    let query = supabase
-        .from('elements')
-        .select(`
-            id,
-            name,
-            element_type,
-            status,
-            priority,
-            floor,
-            created_at,
-            projects (
-                id,
-                name,
-                companies (
-                    name
-                )
-            )
-        `)
-        .order('priority', { ascending: false })
-        .order('created_at', { ascending: true })
+    const pagination = parsePaginationParams(urlSearchParams, { limit: 25 })
+    const statusFilter = typeof params.status === 'string' ? params.status : undefined
+    const search = typeof params.search === 'string' ? params.search : undefined
 
-    // Apply status filter if present
-    if (statusFilter && Object.keys(statusConfig).includes(statusFilter)) {
-        query = query.eq('status', statusFilter)
-    }
+    // Validate status filter
+    const validStatus = statusFilter && Object.keys(statusConfig).includes(statusFilter)
+        ? statusFilter
+        : undefined
 
-    const { data: elements, error } = await query
-    const elementList = (elements ?? []) as ProductionElement[]
+    const { data: elements, pagination: paginationMeta, error } = await getProductionQueuePaginated(
+        pagination,
+        { status: validStatus, search }
+    )
 
     return (
-        <DashboardLayout>
-            <div className="space-y-6">
-                {/* Header with back button */}
+        <div className="space-y-6">
+            {/* Header with back button */}
                 <div className="flex items-center justify-between">
                     <div>
                         <div className="flex items-center gap-3 mb-2">
@@ -105,18 +83,23 @@ export default async function ProductionQueuePage({ searchParams }: ProductionQu
                                 </Link>
                             </Button>
                             <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
-                                {statusFilter ? 'Sía einingar' : 'Vinnuröð'} (Production Queue)
+                                {validStatus ? 'Sía einingar' : 'Vinnuröð'} (Production Queue)
                             </h1>
                         </div>
-                        {statusFilter && (
-                            <div className="ml-12">
-                                <Badge variant="secondary" className={statusConfig[statusFilter as keyof typeof statusConfig]?.color}>
-                                    {statusConfig[statusFilter as keyof typeof statusConfig]?.label}
+                        <div className="ml-12 flex items-center gap-2">
+                            {validStatus && (
+                                <Badge variant="secondary" className={statusConfig[validStatus as keyof typeof statusConfig]?.color}>
+                                    {statusConfig[validStatus as keyof typeof statusConfig]?.label}
                                 </Badge>
-                            </div>
-                        )}
+                            )}
+                            {paginationMeta.total > 0 && (
+                                <span className="text-sm text-zinc-600">
+                                    — {paginationMeta.total} einingar samtals
+                                </span>
+                            )}
+                        </div>
                     </div>
-                    {statusFilter && (
+                    {validStatus && (
                         <Button variant="outline" asChild>
                             <Link href="/factory/production">
                                 Sjá allt
@@ -126,7 +109,7 @@ export default async function ProductionQueuePage({ searchParams }: ProductionQu
                 </div>
 
                 {/* Status filter buttons */}
-                {!statusFilter && (
+                {!validStatus && (
                     <Card className="p-4 border-zinc-200">
                         <p className="text-sm font-medium text-zinc-700 mb-3">Sía eftir stöðu:</p>
                         <div className="flex flex-wrap gap-2">
@@ -154,8 +137,8 @@ export default async function ProductionQueuePage({ searchParams }: ProductionQu
                 {/* Error State */}
                 {error && (
                     <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-                        <p className="text-sm text-red-800 font-medium">⚠️ Villa við að sækja einingar:</p>
-                        <p className="text-xs text-red-600 mt-1 font-mono">{error.message}</p>
+                        <p className="text-sm text-red-800 font-medium">Villa við að sækja einingar:</p>
+                        <p className="text-xs text-red-600 mt-1">{error}</p>
                     </div>
                 )}
 
@@ -188,8 +171,8 @@ export default async function ProductionQueuePage({ searchParams }: ProductionQu
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {elementList.length > 0 ? (
-                                elementList.map((element) => {
+                            {elements.length > 0 ? (
+                                elements.map((element) => {
                                     const statusInfo = statusConfig[element.status as keyof typeof statusConfig] || statusConfig.planned
                                     const typeInfo = typeConfig[element.element_type as keyof typeof typeConfig] || typeConfig.other
                                     const StatusIcon = statusInfo.icon
@@ -245,8 +228,8 @@ export default async function ProductionQueuePage({ searchParams }: ProductionQu
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={7} className="h-32 text-center text-zinc-500">
-                                        {statusFilter
-                                            ? `Engar einingar með stöðu "${statusConfig[statusFilter as keyof typeof statusConfig]?.label}"`
+                                        {validStatus
+                                            ? `Engar einingar með stöðu "${statusConfig[validStatus as keyof typeof statusConfig]?.label}"`
                                             : 'Engar einingar fundust'}
                                     </TableCell>
                                 </TableRow>
@@ -255,13 +238,16 @@ export default async function ProductionQueuePage({ searchParams }: ProductionQu
                     </Table>
                 </Card>
 
-                {/* Summary */}
-                {elementList.length > 0 && (
-                    <div className="text-sm text-zinc-600 text-center">
-                        {elementList.length} {elementList.length === 1 ? 'eining' : 'einingar'} fundust
-                    </div>
+                {/* Pagination */}
+                {paginationMeta.totalPages > 1 && (
+                    <Pagination
+                        currentPage={paginationMeta.page}
+                        totalPages={paginationMeta.totalPages}
+                        baseUrl="/factory/production"
+                        searchParams={validStatus ? { status: validStatus } : undefined}
+                        className="mt-4"
+                    />
                 )}
             </div>
-        </DashboardLayout>
     )
 }

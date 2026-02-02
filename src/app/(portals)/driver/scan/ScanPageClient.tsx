@@ -14,13 +14,10 @@ import {
     Loader2,
     ArrowRight,
     Building2,
-    Layers,
-    Box
+    Layers
 } from 'lucide-react'
 import { lookupElementByQR } from '@/lib/driver/qr-actions'
 import { useFeature } from '@/lib/hooks/useFeature'
-import { Scene } from '@/components/lab/Scene'
-import { ParametricWall } from '@/components/lab/ParametricWall'
 
 interface ScannedElement {
     id: string
@@ -59,6 +56,12 @@ export function ScanPageClient() {
             }
 
             setScannedElement(result.element as unknown as ScannedElement)
+
+            // VISUAL PILOT: Redirect to visual verification if enabled
+            if (hasVisualPilot) {
+                router.push(`/driver/visual-id/${result.element.id}`)
+                return
+            }
         } catch (err) {
             console.error('Lookup error:', err)
             setError('Villa við leit. Reyndu aftur.')
@@ -114,27 +117,37 @@ export function ScanPageClient() {
                     />
 
                     {/* Manual Search Toggle */}
-                    <div className="text-center">
-                        <button
+                    <div className="pt-4 text-center">
+                        <Button
+                            variant="outline"
                             onClick={() => setShowManualSearch(!showManualSearch)}
-                            className="text-sm text-zinc-600 underline hover:text-zinc-900"
+                            className="w-full h-12 text-base font-medium border-zinc-300 text-zinc-700 hover:bg-zinc-100 transition-colors"
                         >
-                            {showManualSearch ? 'Fela handvirka leit' : 'Handvirk leit (ef QR er skemmdur)'}
-                        </button>
+                            <Search className="w-5 h-5 mr-2 text-zinc-500" />
+                            {showManualSearch ? 'Fela handvirka leit' : 'Slá inn númer handvirkt'}
+                        </Button>
+                        <p className="text-xs text-zinc-500 mt-2">Notaðu þetta ef QR kóðinn er ólesanlegur</p>
                     </div>
 
                     {/* Manual Search Form */}
                     {showManualSearch && (
-                        <form onSubmit={handleManualSearch} className="flex gap-2">
+                        <form onSubmit={handleManualSearch} className="flex flex-col gap-3 pt-2 bg-zinc-50 p-4 rounded-lg border border-zinc-200">
                             <Input
-                                placeholder="Sláðu inn einingarnúmer (UUID)"
+                                placeholder="Einingarnúmer (t.d. W-101)..."
                                 value={manualSearch}
                                 onChange={(e) => setManualSearch(e.target.value)}
-                                className="flex-1"
+                                className="h-12 text-lg"
+                                autoFocus
                             />
-                            <Button type="submit" disabled={isLoading}>
-                                <Search className="w-4 h-4 mr-2" />
-                                Leita
+                            <Button type="submit" disabled={isLoading} className="h-12 text-base bg-blue-600 hover:bg-blue-700">
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                        Leita...
+                                    </>
+                                ) : (
+                                    'Leita að einingu'
+                                )}
                             </Button>
                         </form>
                     )}
@@ -166,52 +179,8 @@ export function ScanPageClient() {
             {scannedElement && (
                 <div className="space-y-4">
 
-                    {/* 3D VISUAL VERIFICATION (PILOT ONLY) */}
-                    {hasVisualPilot && (
-                        <Card className="overflow-hidden border-2 border-primary shadow-lg">
-                            <div className="p-4 bg-primary text-primary-foreground flex justify-between items-center">
-                                <span className="font-semibold text-sm">⚠️ VISUAL VERIFICATION REQUIRED</span>
-                                <Box className="w-5 h-5 text-white/80" />
-                            </div>
+                    {/* 3D VISUAL VERIFICATION (PILOT ONLY) - REPLACED BY /driver/visual-id/[id] PAGE */}
 
-                            <div className="h-64 bg-zinc-100 relative">
-                                <Scene>
-                                    <ParametricWall
-                                        width={3.2}
-                                        height={2.4}
-                                        thickness={0.2}
-                                        status={scannedElement.status as any}
-                                    />
-                                </Scene>
-                            </div>
-
-                            <div className="p-4 space-y-4">
-                                <div className="text-sm font-medium text-center text-zinc-600">
-                                    Does the item match this model?
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Button
-                                        variant="outline"
-                                        className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
-                                        onClick={() => {
-                                            setError('Visual ID Mismatch Report Sent. Loading Blocked.')
-                                            setScannedElement(null)
-                                        }}
-                                    >
-                                        <XCircle className="w-4 h-4 mr-2" />
-                                        NO MATCH
-                                    </Button>
-                                    <Button
-                                        className={`transition-all ${visualConfirmed ? 'bg-green-600 hover:bg-green-700' : 'bg-zinc-800 hover:bg-zinc-900'}`}
-                                        onClick={() => setVisualConfirmed(true)}
-                                    >
-                                        <CheckCircle className="w-4 h-4 mr-2" />
-                                        {visualConfirmed ? 'CONFIRMED' : 'YES, MATCHES'}
-                                    </Button>
-                                </div>
-                            </div>
-                        </Card>
-                    )}
 
                     {/* Standard details - Hidden until confirmed if Pilot is active */}
                     {(!hasVisualPilot || visualConfirmed) && (

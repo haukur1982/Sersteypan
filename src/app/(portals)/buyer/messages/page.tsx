@@ -1,5 +1,4 @@
 import { getUser } from '@/lib/auth/actions'
-import { redirect } from 'next/navigation'
 import { getBuyerMessages } from '@/lib/buyer/queries'
 import { MessagesClient } from './MessagesClient'
 
@@ -9,12 +8,8 @@ export const metadata = {
 }
 
 export default async function BuyerMessagesPage() {
+  // Layout handles auth, we just need user data for display
   const user = await getUser()
-
-  if (!user || user.role !== 'buyer') {
-    redirect('/login')
-  }
-
   const messages = await getBuyerMessages()
 
   return (
@@ -26,7 +21,7 @@ export default async function BuyerMessagesPage() {
         </p>
       </div>
 
-      <MessagesClient messages={messages} currentUserId={user.id} />
+      <MessagesClient messages={messages} currentUserId={user?.id || ''} />
     </div>
   )
 }

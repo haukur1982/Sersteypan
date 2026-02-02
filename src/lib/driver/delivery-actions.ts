@@ -3,8 +3,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Database } from '@/types/database'
+import {
+  validateDeliveryCreate,
+  validateDeliveryComplete,
+  formatZodError
+} from '@/lib/schemas'
 
-// UUID validation regex
+// UUID validation regex (kept for simple ID validation in other functions)
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
@@ -34,24 +39,21 @@ export async function createDelivery(formData: FormData): Promise<{
     return { deliveryId: null, error: 'Unauthorized - Driver access required' }
   }
 
-  // 3. EXTRACT & VALIDATE FORM DATA
-  const projectId = formData.get('projectId') as string
-  const truckRegistration = formData.get('truckRegistration') as string
-  const truckDescription = formData.get('truckDescription') as string
-  const plannedDate = formData.get('plannedDate') as string
+  // 3. EXTRACT & VALIDATE FORM DATA WITH ZOD
+  const rawData = {
+    projectId: formData.get('projectId') as string,
+    truckRegistration: formData.get('truckRegistration') as string,
+    truckDescription: formData.get('truckDescription') as string,
+    plannedDate: formData.get('plannedDate') as string
+  }
 
-  if (!projectId) {
-    return { deliveryId: null, error: 'Project is required' }
+  const validation = validateDeliveryCreate(rawData)
+  if (!validation.success) {
+    const { error } = formatZodError(validation.error)
+    return { deliveryId: null, error }
   }
-  if (!UUID_REGEX.test(projectId)) {
-    return { deliveryId: null, error: 'Invalid project ID' }
-  }
-  if (!truckRegistration || truckRegistration.trim().length === 0) {
-    return { deliveryId: null, error: 'Truck registration is required' }
-  }
-  if (truckRegistration.trim().length > 20) {
-    return { deliveryId: null, error: 'Truck registration too long (max 20 characters)' }
-  }
+
+  const { projectId, truckRegistration, truckDescription, plannedDate } = validation.data
 
   try {
     // 4. VALIDATE PROJECT EXISTS
@@ -72,8 +74,8 @@ export async function createDelivery(formData: FormData): Promise<{
       .insert({
         project_id: projectId,
         driver_id: user.id,
-        truck_registration: truckRegistration.trim().toUpperCase(),
-        truck_description: truckDescription?.trim() || null,
+        truck_registration: truckRegistration, // Already uppercased by Zod
+        truck_description: truckDescription || null,
         planned_date: plannedDate || new Date().toISOString().split('T')[0],
         status: 'planned',
         created_by: user.id
@@ -331,26 +333,28 @@ export async function completeDelivery(
     return { success: false, error: 'Unauthorized' }
   }
 
-  // 2. INPUT VALIDATION
-  if (!UUID_REGEX.test(deliveryId)) {
-    return { success: false, error: 'Invalid delivery ID' }
+  // 2. INPUT VALIDATION WITH ZOD
+  const validation = validateDeliveryComplete({
+    deliveryId,
+    receivedByName,
+    signatureUrl,
+    photoUrl,
+    notes
+  })
+
+  if (!validation.success) {
+    const { error } = formatZodError(validation.error)
+    return { success: false, error }
   }
-  if (!receivedByName || receivedByName.trim().length === 0) {
-    return { success: false, error: 'Receiver name is required' }
-  }
-  if (receivedByName.trim().length > 100) {
-    return { success: false, error: 'Receiver name too long (max 100 characters)' }
-  }
-  if (notes && notes.length > 2000) {
-    return { success: false, error: 'Notes too long (max 2000 characters)' }
-  }
+
+  const validatedData = validation.data
 
   try {
     // 3. VALIDATE DELIVERY
     const { data: delivery, error: deliveryError } = await supabase
       .from('deliveries')
       .select('id, status, driver_id')
-      .eq('id', deliveryId)
+      .eq('id', validatedData.deliveryId)
       .single()
 
     if (deliveryError || !delivery) {
@@ -392,7 +396,7 @@ export async function completeDelivery(
     const { data: items, error: itemsError } = await supabase
       .from('delivery_items')
       .select('delivered_at')
-      .eq('delivery_id', deliveryId)
+      .eq('delivery_id', validatedData.deliveryId)
 
     if (itemsError) {
       console.error('Error fetching delivery items:', itemsError)
@@ -423,13 +427,13 @@ export async function completeDelivery(
       .update({
         status: 'completed',
         completed_at: new Date().toISOString(),
-        received_by_name: receivedByName.trim(),
-        received_by_signature_url: signatureUrl || null,
-        delivery_photo_url: photoUrl || null,
-        notes: notes?.trim() || null,
+        received_by_name: validatedData.receivedByName,
+        received_by_signature_url: validatedData.signatureUrl || null,
+        delivery_photo_url: validatedData.photoUrl || null,
+        notes: validatedData.notes || null,
         updated_at: new Date().toISOString()
       } as Database['public']['Tables']['deliveries']['Update'])
-      .eq('id', deliveryId)
+      .eq('id', validatedData.deliveryId)
 
     if (updateError) {
       console.error('Error completing delivery:', updateError)
@@ -439,7 +443,7 @@ export async function completeDelivery(
     // 6. REVALIDATE PATHS
     revalidatePath('/driver')
     revalidatePath('/driver/deliveries')
-    revalidatePath(`/driver/deliveries/${deliveryId}`)
+    revalidatePath(`/driver/deliveries/${validatedData.deliveryId}`)
     revalidatePath('/buyer/deliveries') // Buyer can now see completed delivery
 
     return { success: true }

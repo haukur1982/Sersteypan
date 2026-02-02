@@ -396,3 +396,46 @@ function calculateStatusBreakdown(elements: Array<{ status: string }>): StatusBr
 
   return breakdown
 }
+/**
+ * Get all floor plans and their element positions for a project
+ * Used for 3D Ghost Building visualization
+ */
+export async function getProjectFloorPlans(projectId: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('floor_plans')
+    .select(`
+      id,
+      name,
+      floor,
+      width_px,
+      height_px,
+      plan_image_url,
+      element_positions(
+        id,
+        x_percent,
+        y_percent,
+        rotation_degrees,
+        label,
+        element:elements(
+            id,
+            name,
+            element_type,
+            status,
+            width_mm,
+            height_mm,
+            length_mm
+        )
+      )
+    `)
+    .eq('project_id', projectId)
+    .order('floor', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching floor plans:', error)
+    return []
+  }
+
+  return data
+}

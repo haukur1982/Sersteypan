@@ -2,10 +2,21 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
-import type { AuthUser } from '@/lib/providers/AuthProvider'
+import type { AuthUser, UserPreferences } from '@/lib/providers/AuthProvider'
+import { authRateLimiter, getClientIP } from '@/lib/utils/rateLimit'
 
 export async function login(formData: FormData) {
+  // Rate limiting for login attempts
+  const headersList = await headers()
+  const clientIP = getClientIP(headersList)
+  const { success: rateLimitOk } = authRateLimiter.check(clientIP)
+
+  if (!rateLimitOk) {
+    return { error: 'Of margar tilraunir. Reyndu aftur eftir smá stund. (Too many attempts. Please try again later.)' }
+  }
+
   const supabase = await createClient()
 
   const data = {
@@ -82,6 +93,6 @@ export async function getUser() {
     fullName: profile.full_name,
     role: profile.role as AuthUser['role'],
     companyId: profile.company_id,
-    preferences: (profile.preferences || {}) as Record<string, any>,
+    preferences: (profile.preferences || {}) as UserPreferences,
   }
 }

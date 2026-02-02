@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getProject } from '@/lib/projects/actions'
 import { getElementsForProject } from '@/lib/elements/actions'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -73,8 +72,7 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
     const elementList = (elements ?? []) as ElementRow[]
 
     return (
-        <DashboardLayout>
-            <div className="space-y-8">
+        <div className="space-y-8">
                 {/* Header Section */}
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-4">
@@ -200,7 +198,6 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                         </Table>
                     </Card>
                 </div>
-            </div>
-        </DashboardLayout>
+        </div>
     )
 }

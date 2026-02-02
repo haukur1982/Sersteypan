@@ -1,24 +1,32 @@
 import React from 'react'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
-import { getUser } from '@/lib/auth/actions'
-import { getUnreadNotifications } from '@/lib/notifications/queries'
+import type { AuthUser } from '@/lib/providers/AuthProvider'
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-    const user = await getUser()
+interface DashboardLayoutProps {
+    children: React.ReactNode
+    user: AuthUser | null
+}
 
-    // Fetch notifications for the user
-    const notifications = user ? await getUnreadNotifications(user.id) : []
-
+/**
+ * DashboardLayout - Shared layout for all portal pages
+ *
+ * User is passed from parent layout (buyer/driver/admin/factory layout.tsx)
+ * to avoid duplicate getUser() calls.
+ *
+ * Notifications are fetched client-side in the Sidebar/Header components
+ * to avoid blocking server rendering.
+ */
+export default function DashboardLayout({ children, user }: DashboardLayoutProps) {
     return (
         <div className="flex min-h-screen bg-background text-foreground">
             {/* Desktop Sidebar (Left) */}
-            <Sidebar user={user} notifications={notifications} />
+            <Sidebar user={user} />
 
             {/* Main Content Wrapper */}
             <div className="flex flex-1 flex-col min-w-0">
                 {/* Mobile Header (Top) */}
-                <Header user={user} notifications={notifications} />
+                <Header user={user} />
 
                 {/* Page Content */}
                 <main className="flex-1 p-4 md:p-8 overflow-y-auto">

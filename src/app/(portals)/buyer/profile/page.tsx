@@ -1,25 +1,16 @@
 import { getUser } from '@/lib/auth/actions'
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { User, Building2, Mail, Phone, Shield } from 'lucide-react'
 
 export default async function ProfilePage() {
+  // Layout handles auth, we just need user data for display
   const user = await getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  if (user.role !== 'buyer') {
-    redirect('/login')
-  }
 
   // Get company info
   const supabase = await createClient()
   let company = null
 
-  if (user.companyId) {
+  if (user?.companyId) {
     const { data } = await supabase
       .from('companies')
       .select('*')
@@ -37,10 +28,9 @@ export default async function ProfilePage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-zinc-900">Mínar upplýsingar</h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-zinc-900">Mínar upplýsingar</h1>
           <p className="text-zinc-600 mt-1">Notendaupplýsingar og fyrirtæki</p>
         </div>
 
@@ -55,7 +45,7 @@ export default async function ProfilePage() {
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-zinc-500">Nafn</label>
-                <p className="font-medium text-zinc-900 mt-1">{user.fullName}</p>
+                <p className="font-medium text-zinc-900 mt-1">{user?.fullName}</p>
               </div>
 
               <div>
@@ -63,7 +53,7 @@ export default async function ProfilePage() {
                   <Mail className="w-4 h-4" />
                   Netfang
                 </label>
-                <p className="font-medium text-zinc-900 mt-1">{user.email}</p>
+                <p className="font-medium text-zinc-900 mt-1">{user?.email}</p>
               </div>
 
               <div>
@@ -72,7 +62,7 @@ export default async function ProfilePage() {
                   Hlutverk
                 </label>
                 <p className="font-medium text-zinc-900 mt-1">
-                  {roleLabels[user.role] || user.role}
+                  {user?.role ? (roleLabels[user.role] || user.role) : ''}
                 </p>
               </div>
             </div>
@@ -148,6 +138,5 @@ export default async function ProfilePage() {
           </p>
         </div>
       </div>
-    </DashboardLayout>
   )
 }

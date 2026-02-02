@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { RoleBasedNav } from './RoleBasedNav'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { cn } from '@/lib/utils'
@@ -30,6 +30,44 @@ interface Notification {
     elementId?: string
     deliveryId?: string
     projectId?: string
+}
+
+/**
+ * Hook to fetch notifications client-side
+ * This prevents blocking server-side rendering
+ */
+function useNotifications(userId: string | undefined) {
+    const [notifications, setNotifications] = useState<Notification[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        if (!userId) {
+            setLoading(false)
+            return
+        }
+
+        const fetchNotifications = async () => {
+            try {
+                const response = await fetch('/api/notifications')
+                if (response.ok) {
+                    const data = await response.json()
+                    setNotifications(data)
+                }
+            } catch (error) {
+                console.error('Failed to fetch notifications:', error)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchNotifications()
+
+        // Refresh notifications every 30 seconds
+        const interval = setInterval(fetchNotifications, 30000)
+        return () => clearInterval(interval)
+    }, [userId])
+
+    return { notifications, loading }
 }
 
 // UserNav component for the bottom user menu
@@ -72,15 +110,17 @@ function UserNav({ user }: { user: AuthUser | null }) {
 export interface SidebarProps {
     className?: string;
     user?: AuthUser | null;
-    notifications?: Notification[];
 }
 
-export function Sidebar({ className, user: initialUser, notifications = [] }: SidebarProps) {
+export function Sidebar({ className, user: initialUser }: SidebarProps) {
     const { user: authUser, loading: authLoading } = useAuth()
 
     // Prioritize passed user, fall back to auth hook
     const user = initialUser ?? authUser
     const loading = initialUser ? false : authLoading
+
+    // Fetch notifications client-side (doesn't block server render)
+    const { notifications } = useNotifications(user?.id)
 
     return (
         <aside className={cn("hidden md:flex flex-col sticky top-0 h-screen w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground", className)}>

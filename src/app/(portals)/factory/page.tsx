@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,16 +31,13 @@ const statusConfig = {
 export default async function FactoryDashboard() {
     const supabase = await createClient()
 
-    // Get user info
+    // Get user info (layout handles auth)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-        return null
-    }
 
     const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, role')
-        .eq('id', user.id)
+        .eq('id', user?.id || '')
         .single()
 
     const today = new Date().toISOString().split('T')[0]
@@ -74,7 +70,7 @@ export default async function FactoryDashboard() {
             .from('todo_items')
             .select('*', { count: 'exact', head: true })
             .eq('is_completed', false)
-            .eq('user_id', user.id),
+            .eq('user_id', user?.id || ''),
         // Total elements
         supabase.from('elements').select('id', { count: 'exact', head: true })
     ])
@@ -117,9 +113,8 @@ export default async function FactoryDashboard() {
     const todoCount = todoCountResult.count || 0
 
     return (
-        <DashboardLayout>
-            <div className="space-y-8">
-                {/* Header */}
+        <div className="space-y-8">
+            {/* Header */}
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">
                         Verksmiðja
@@ -355,6 +350,5 @@ export default async function FactoryDashboard() {
                     </div>
                 </Card>
             </div>
-        </DashboardLayout>
     )
 }

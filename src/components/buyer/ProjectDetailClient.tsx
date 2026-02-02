@@ -8,17 +8,20 @@ import { ElementsTab } from '@/components/buyer/project/ElementsTab'
 import { DeliveriesTab } from '@/components/buyer/project/DeliveriesTab'
 import { DocumentsTab } from '@/components/buyer/project/DocumentsTab'
 import { MessagesTab } from '@/components/buyer/project/MessagesTab'
-import { ArrowLeft, Building2, MapPin, Calendar } from 'lucide-react'
+import { Status3DTab } from '@/components/buyer/project/Status3DTab'
+import { ArrowLeft, Building2, MapPin, Calendar, Layers } from 'lucide-react'
 import Link from 'next/link'
 import type { Project, Delivery } from './project/types'
+import type { FloorPlan } from '@/components/shared/3d/ProjectScene'
 
 interface ProjectDetailClientProps {
   project: Project
   deliveries: Delivery[]
+  floorPlans?: FloorPlan[]
   tab?: string
 }
 
-export function ProjectDetailClient({ project, deliveries, tab }: ProjectDetailClientProps) {
+export function ProjectDetailClient({ project, deliveries, floorPlans = [], tab }: ProjectDetailClientProps) {
   const router = useRouter()
   const elements = project.elements || []
 
@@ -205,6 +208,10 @@ export function ProjectDetailClient({ project, deliveries, tab }: ProjectDetailC
           <TabsTrigger value="elements">
             Einingar ({totalElements})
           </TabsTrigger>
+          <TabsTrigger value="status3d" className="flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5" />
+            Ghost Building
+          </TabsTrigger>
           <TabsTrigger value="deliveries">Afhendingar</TabsTrigger>
           <TabsTrigger value="documents">
             Skjöl ({(project.documents || []).length})
@@ -216,6 +223,10 @@ export function ProjectDetailClient({ project, deliveries, tab }: ProjectDetailC
 
         <TabsContent value="elements">
           <ElementsTab elements={elements} />
+        </TabsContent>
+
+        <TabsContent value="status3d">
+          <Status3DTab floorPlans={floorPlans} />
         </TabsContent>
 
         <TabsContent value="deliveries">

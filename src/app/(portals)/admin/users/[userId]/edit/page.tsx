@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getUser, updateUser, deactivateUser } from '@/lib/users/actions'
 import { getCompanies } from '@/lib/companies/actions'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -40,8 +39,7 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
     const companyList = (companies ?? []) as CompanyRow[]
 
     return (
-        <DashboardLayout>
-            <div className="space-y-6 max-w-2xl">
+        <div className="space-y-6 max-w-2xl">
                 {/* Header */}
                 <div>
                     <Button variant="ghost" asChild className="mb-4">
@@ -199,6 +197,5 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
                     </CardContent>
                 </Card>
             </div>
-        </DashboardLayout>
     )
 }

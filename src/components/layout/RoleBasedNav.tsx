@@ -96,8 +96,8 @@ export function RoleBasedNav({ role, onItemClick }: { role: AuthUser['role'] | u
             <div className="p-4 space-y-2">
                 <div className="text-sm text-red-500 font-medium">Villa: Óþekkt hlutverk</div>
                 <div className="text-xs text-muted-foreground font-mono bg-zinc-100 p-2 rounded">
-                    Role: "{role}"<br />
-                    Normalized: "{normalizedRole || 'null'}"
+                    Role: &quot;{role}&quot;<br />
+                    Normalized: &quot;{normalizedRole || 'null'}&quot;
                 </div>
             </div>
         )

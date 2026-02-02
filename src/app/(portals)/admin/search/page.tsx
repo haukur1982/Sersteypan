@@ -1,5 +1,4 @@
 import { Suspense } from 'react'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { SearchPageClient } from './SearchPageClient'
 import { Loader2 } from 'lucide-react'
 
@@ -18,10 +17,8 @@ function SearchFallback() {
 
 export default function SearchPage() {
     return (
-        <DashboardLayout>
-            <Suspense fallback={<SearchFallback />}>
-                <SearchPageClient />
-            </Suspense>
-        </DashboardLayout>
+        <Suspense fallback={<SearchFallback />}>
+            <SearchPageClient />
+        </Suspense>
     )
 }

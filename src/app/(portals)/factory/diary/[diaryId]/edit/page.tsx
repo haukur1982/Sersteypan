@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getDiaryEntry, updateDiaryEntry } from '@/lib/diary/actions'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,8 +46,7 @@ export default async function EditDiaryEntryPage({ params }: EditDiaryEntryPageP
     const projectList = (projects ?? []) as ProjectOption[]
 
     return (
-        <DashboardLayout>
-            <div className="space-y-6 max-w-3xl mx-auto">
+        <div className="space-y-6 max-w-3xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center gap-3">
                     <Button variant="ghost" size="icon" asChild>
@@ -200,7 +198,6 @@ export default async function EditDiaryEntryPage({ params }: EditDiaryEntryPageP
                         </div>
                     </CardContent>
                 </Card>
-            </div>
-        </DashboardLayout>
+        </div>
     )
 }

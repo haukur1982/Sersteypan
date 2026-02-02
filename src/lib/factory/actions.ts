@@ -2,6 +2,128 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import type { Database } from '@/types/database'
+import {
+  type PaginationParams,
+  type PaginatedResult,
+  calculateRange,
+  buildPaginationMeta,
+} from '@/lib/utils/pagination'
+
+type ElementRow = Database['public']['Tables']['elements']['Row']
+type ProjectRow = Database['public']['Tables']['projects']['Row']
+type CompanyRow = Database['public']['Tables']['companies']['Row']
+type ProductionElement = Pick<
+  ElementRow,
+  'id' | 'name' | 'element_type' | 'status' | 'priority' | 'floor' | 'created_at'
+> & {
+  projects?: (Pick<ProjectRow, 'id' | 'name'> & { companies?: Pick<CompanyRow, 'name'> | null }) | null
+}
+
+/**
+ * Get production queue with pagination
+ */
+export async function getProductionQueuePaginated(
+  pagination: PaginationParams,
+  filters?: {
+    status?: string
+    elementType?: string
+    search?: string
+  }
+): Promise<PaginatedResult<ProductionElement>> {
+  const supabase = await createClient()
+
+  // Get current user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Not authenticated' }
+  }
+
+  // Check role - only factory_manager or admin
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !['factory_manager', 'admin'].includes(profile.role)) {
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Unauthorized' }
+  }
+
+  // Build count query
+  let countQuery = supabase.from('elements').select('*', { count: 'exact', head: true })
+
+  // Apply filters
+  if (filters?.status) {
+    countQuery = countQuery.eq('status', filters.status)
+  }
+  if (filters?.elementType) {
+    countQuery = countQuery.eq('element_type', filters.elementType)
+  }
+  if (filters?.search) {
+    countQuery = countQuery.ilike('name', `%${filters.search}%`)
+  }
+
+  const { count, error: countError } = await countQuery
+
+  if (countError) {
+    console.error('Error counting elements:', countError)
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Failed to fetch elements' }
+  }
+
+  const total = count || 0
+  const [from, to] = calculateRange(pagination.page, pagination.limit)
+
+  // Fetch paginated data with project info
+  let dataQuery = supabase
+    .from('elements')
+    .select(
+      `
+      id,
+      name,
+      element_type,
+      status,
+      priority,
+      floor,
+      created_at,
+      projects (
+        id,
+        name,
+        companies (
+          name
+        )
+      )
+    `
+    )
+    .order('priority', { ascending: false })
+    .order('created_at', { ascending: true })
+    .range(from, to)
+
+  // Apply same filters
+  if (filters?.status) {
+    dataQuery = dataQuery.eq('status', filters.status)
+  }
+  if (filters?.elementType) {
+    dataQuery = dataQuery.eq('element_type', filters.elementType)
+  }
+  if (filters?.search) {
+    dataQuery = dataQuery.ilike('name', `%${filters.search}%`)
+  }
+
+  const { data, error } = await dataQuery
+
+  if (error) {
+    console.error('Error fetching elements:', error)
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Failed to fetch elements' }
+  }
+
+  return {
+    data: (data || []) as ProductionElement[],
+    pagination: buildPaginationMeta(total, pagination.page, pagination.limit),
+  }
+}
 
 /**
  * Send a message on a project (for factory managers)

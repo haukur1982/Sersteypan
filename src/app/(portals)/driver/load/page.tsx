@@ -1,7 +1,4 @@
 import { Suspense } from 'react'
-import { getUser } from '@/lib/auth/actions'
-import { redirect } from 'next/navigation'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { LoadPageClient } from './LoadPageClient'
 import { Loader2 } from 'lucide-react'
 
@@ -19,28 +16,20 @@ function LoadingFallback() {
 }
 
 export default async function LoadPage() {
-    const user = await getUser()
-
-    if (!user || user.role !== 'driver') {
-        redirect('/login')
-    }
-
     return (
-        <DashboardLayout>
-            <div className="max-w-lg mx-auto space-y-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-zinc-900">
-                        Hlaða á bíl
-                    </h1>
-                    <p className="text-zinc-600 mt-1">
-                        Skannaðu einingar og búðu til afhendingu
-                    </p>
-                </div>
-
-                <Suspense fallback={<LoadingFallback />}>
-                    <LoadPageClient />
-                </Suspense>
+        <div className="max-w-lg mx-auto space-y-6">
+            <div>
+                <h1 className="text-2xl font-bold text-zinc-900">
+                    Hlaða á bíl
+                </h1>
+                <p className="text-zinc-600 mt-1">
+                    Skannaðu einingar og búðu til afhendingu
+                </p>
             </div>
-        </DashboardLayout>
+
+            <Suspense fallback={<LoadingFallback />}>
+                <LoadPageClient />
+            </Suspense>
+        </div>
     )
 }

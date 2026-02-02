@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,11 +11,11 @@ import {
     Package,
     Loader2,
     XCircle,
-    Pen,
     Trash2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { quickCompleteDelivery } from '@/lib/driver/complete-delivery-action'
+import { SignatureCanvas, type SignatureCanvasRef } from '@/components/shared/SignatureCanvas'
 import Image from 'next/image'
 
 interface DeliveryElement {
@@ -41,106 +41,14 @@ export function DeliverPageClient({
 }: DeliverPageClientProps) {
     const router = useRouter()
     const supabase = createClient()
+    const signatureRef = useRef<SignatureCanvasRef>(null)
 
     const [receivedByName, setReceivedByName] = useState('')
     const [photoFile, setPhotoFile] = useState<File | null>(null)
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
-
-    // Signature canvas
-    const canvasRef = useRef<HTMLCanvasElement>(null)
-    const [isDrawing, setIsDrawing] = useState(false)
     const [hasSignature, setHasSignature] = useState(false)
-
-    // Initialize signature canvas
-    useEffect(() => {
-        const canvas = canvasRef.current
-        if (!canvas) return
-
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-
-        // Set canvas size
-        canvas.width = canvas.offsetWidth
-        canvas.height = 150
-
-        // Set drawing style
-        ctx.strokeStyle = '#1a1a1a'
-        ctx.lineWidth = 2
-        ctx.lineCap = 'round'
-        ctx.lineJoin = 'round'
-
-        // Fill with white background
-        ctx.fillStyle = '#ffffff'
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-    }, [])
-
-    const getCanvasCoords = (
-        e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
-    ) => {
-        const canvas = canvasRef.current
-        if (!canvas) return { x: 0, y: 0 }
-
-        const rect = canvas.getBoundingClientRect()
-
-        if ('touches' in e) {
-            return {
-                x: e.touches[0].clientX - rect.left,
-                y: e.touches[0].clientY - rect.top,
-            }
-        }
-
-        return {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
-        }
-    }
-
-    const startDrawing = (
-        e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
-    ) => {
-        const canvas = canvasRef.current
-        const ctx = canvas?.getContext('2d')
-        if (!ctx) return
-
-        e.preventDefault()
-        setIsDrawing(true)
-        setHasSignature(true)
-
-        const { x, y } = getCanvasCoords(e)
-        ctx.beginPath()
-        ctx.moveTo(x, y)
-    }
-
-    const draw = (
-        e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
-    ) => {
-        if (!isDrawing) return
-
-        const canvas = canvasRef.current
-        const ctx = canvas?.getContext('2d')
-        if (!ctx) return
-
-        e.preventDefault()
-        const { x, y } = getCanvasCoords(e)
-        ctx.lineTo(x, y)
-        ctx.stroke()
-    }
-
-    const stopDrawing = () => {
-        setIsDrawing(false)
-    }
-
-    const clearSignature = () => {
-        const canvas = canvasRef.current
-        const ctx = canvas?.getContext('2d')
-        if (!ctx || !canvas) return
-
-        ctx.fillStyle = '#ffffff'
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-        setHasSignature(false)
-    }
 
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -202,24 +110,18 @@ export function DeliverPageClient({
             }
 
             // Upload signature
-            const canvas = canvasRef.current
-            if (canvas) {
-                const signatureBlob = await new Promise<Blob | null>((resolve) => {
-                    canvas.toBlob(resolve, 'image/png')
-                })
+            const signatureBlob = await signatureRef.current?.toBlob()
+            if (signatureBlob) {
+                const signaturePath = `deliveries/${deliveryId}/signature-${Date.now()}.png`
+                const { error: sigError } = await supabase.storage
+                    .from('signatures')
+                    .upload(signaturePath, signatureBlob)
 
-                if (signatureBlob) {
-                    const signaturePath = `deliveries/${deliveryId}/signature-${Date.now()}.png`
-                    const { error: sigError } = await supabase.storage
+                if (!sigError) {
+                    const { data: urlData } = supabase.storage
                         .from('signatures')
-                        .upload(signaturePath, signatureBlob)
-
-                    if (!sigError) {
-                        const { data: urlData } = supabase.storage
-                            .from('signatures')
-                            .getPublicUrl(signaturePath)
-                        signatureUrl = urlData.publicUrl
-                    }
+                        .getPublicUrl(signaturePath)
+                    signatureUrl = urlData.publicUrl
                 }
             }
 
@@ -292,39 +194,10 @@ export function DeliverPageClient({
             </div>
 
             {/* Signature Canvas */}
-            <div>
-                <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium text-zinc-700">
-                        Undirskrift móttakanda *
-                    </label>
-                    {hasSignature && (
-                        <button
-                            onClick={clearSignature}
-                            className="text-sm text-red-600 hover:text-red-700"
-                        >
-                            Hreinsa
-                        </button>
-                    )}
-                </div>
-                <div className="border-2 border-dashed border-zinc-300 rounded-lg p-1 bg-white">
-                    <canvas
-                        ref={canvasRef}
-                        className="w-full cursor-crosshair touch-none"
-                        style={{ height: 150 }}
-                        onMouseDown={startDrawing}
-                        onMouseMove={draw}
-                        onMouseUp={stopDrawing}
-                        onMouseLeave={stopDrawing}
-                        onTouchStart={startDrawing}
-                        onTouchMove={draw}
-                        onTouchEnd={stopDrawing}
-                    />
-                </div>
-                <p className="text-xs text-zinc-500 mt-1 flex items-center gap-1">
-                    <Pen className="w-3 h-3" />
-                    Teiknaðu undirskrift með fingri eða mús
-                </p>
-            </div>
+            <SignatureCanvas
+                ref={signatureRef}
+                onSignatureChange={setHasSignature}
+            />
 
             {/* Photo Upload */}
             <div>

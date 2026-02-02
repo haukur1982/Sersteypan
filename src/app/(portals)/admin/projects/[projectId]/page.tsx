@@ -1,10 +1,8 @@
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
-import { headers } from 'next/headers'
+import { notFound } from 'next/navigation'
 import { getProject } from '@/lib/projects/actions'
-import { getElementsForProject, generateQRCodesForElements } from '@/lib/elements/actions'
+import { getElementsForProject } from '@/lib/elements/actions'
 import { getProjectDocuments } from '@/lib/documents/actions'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -28,10 +26,10 @@ import {
     HelpCircle,
     FileText,
     Download,
-    FileDown,
     Map
 } from 'lucide-react'
 import { DocumentUploadForm } from '@/components/documents/DocumentUploadForm'
+import { ProjectActionButtons } from '@/components/admin/ProjectActionButtons'
 import type { Database } from '@/types/database'
 
 type ElementRow = Database['public']['Tables']['elements']['Row']
@@ -90,63 +88,25 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     const elementList = (elements ?? []) as ElementRow[]
     const elementIds = elementList.map((el) => el.id)
 
-    async function handleGenerateQRCodes() {
-        'use server'
-        await generateQRCodesForElements(elementIds)
-        return
-    }
-
-    async function handleGenerateReport() {
-        'use server'
-        const headerList = await headers()
-        const origin = headerList.get('origin') || ''
-        if (!origin) {
-            return
-        }
-
-        const response = await fetch(`${origin}/api/generate-report`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ type: 'project_status', project_id: projectId })
-        })
-
-        if (!response.ok) {
-            return
-        }
-
-        const data = await response.json()
-        if (data?.pdf_url) {
-            redirect(data.pdf_url)
-        }
-    }
-
     // Fetch documents for this project
     const { data: documents, error: documentsError } = await getProjectDocuments(projectId)
     const documentList = (documents ?? []) as ProjectDocumentWithProfile[]
 
     return (
-        <DashboardLayout>
-            <div className="space-y-8">
-                {/* Header Section */}
+        <div className="space-y-8">
+            {/* Header Section */}
                 <div className="flex justify-between items-start">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight text-zinc-900">{project.name}</h1>
                         <p className="text-zinc-600 mt-1">{project.companies?.name}</p>
                     </div>
                     <div className="flex gap-2">
-                        <form action={handleGenerateQRCodes}>
-                            <Button type="submit" variant="outline" disabled={elementIds.length === 0}>
-                                Generate QR Codes
-                            </Button>
-                        </form>
-                        <form action={handleGenerateReport}>
-                            <Button type="submit" variant="outline">
-                                <FileDown className="mr-2 h-4 w-4" />
-                                Generate Report
-                            </Button>
-                        </form>
+                        <ProjectActionButtons projectId={projectId} elementIds={elementIds} />
+                        <Button variant="outline" asChild disabled={elementIds.length === 0}>
+                            <Link href={`/admin/projects/${projectId}/qr-labels`}>
+                                🖨️ Prenta QR Merki
+                            </Link>
+                        </Button>
                         <Button variant="outline" asChild>
                             <Link href={`/admin/projects/${projectId}/floor-plans`}>
                                 <Map className="mr-2 h-4 w-4" />
@@ -368,6 +328,5 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                     </div>
                 </div>
             </div>
-        </DashboardLayout>
     )
 }

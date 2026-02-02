@@ -1,6 +1,4 @@
 import { getUser } from '@/lib/auth/actions'
-import { redirect } from 'next/navigation'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -22,12 +20,8 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.C
 }
 
 export default async function DeliveriesPage() {
+    // Layout handles auth, we just need user data for queries
     const user = await getUser()
-
-    if (!user || user.role !== 'driver') {
-        redirect('/login')
-    }
-
     const supabase = await createClient()
 
     // Fetch deliveries for this driver
@@ -47,7 +41,7 @@ export default async function DeliveriesPage() {
             ),
             delivery_items(count)
         `)
-        .eq('driver_id', user.id)
+        .eq('driver_id', user?.id || '')
         .order('created_at', { ascending: false })
 
     if (error) {
@@ -58,8 +52,7 @@ export default async function DeliveriesPage() {
     const completedDeliveries = deliveries?.filter(d => d.status === 'completed') || []
 
     return (
-        <DashboardLayout>
-            <div className="space-y-6">
+        <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
@@ -180,6 +173,5 @@ export default async function DeliveriesPage() {
                     </div>
                 )}
             </div>
-        </DashboardLayout>
     )
 }

@@ -1,7 +1,5 @@
 import { getUser } from '@/lib/auth/actions'
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -20,16 +18,8 @@ import {
 } from 'lucide-react'
 
 export default async function AdminDashboard() {
+  // Layout handles auth, we just need user data for display
   const user = await getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  if (user.role !== 'admin') {
-    redirect('/login')
-  }
-
   const supabase = await createClient()
 
   // Fetch all counts in parallel
@@ -99,16 +89,15 @@ export default async function AdminDashboard() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">
-              Stjórnborð
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Velkomin, {user.fullName}
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">
+            Stjórnborð
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Velkomin, {user?.fullName || ''}
             </p>
           </div>
           <div className="flex gap-2">
@@ -351,6 +340,5 @@ export default async function AdminDashboard() {
           </div>
         </Card>
       </div>
-    </DashboardLayout>
   )
 }

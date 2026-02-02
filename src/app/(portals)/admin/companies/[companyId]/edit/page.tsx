@@ -1,5 +1,4 @@
 import { getCompany } from '@/lib/companies/actions'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { CompanyForm } from '@/components/companies/CompanyForm'
 
 interface EditCompanyPageProps {
@@ -15,25 +14,21 @@ export default async function EditCompanyPage({ params }: EditCompanyPageProps) 
 
     if (error || !company) {
         return (
-            <DashboardLayout>
-                <div className="p-8 text-center">
-                    <h1 className="text-2xl font-bold text-red-600">Villa</h1>
-                    <p className="text-zinc-600">Ekki tókst að finna fyrirtæki eða villa kom upp.</p>
-                </div>
-            </DashboardLayout>
+            <div className="p-8 text-center">
+                <h1 className="text-2xl font-bold text-red-600">Villa</h1>
+                <p className="text-zinc-600">Ekki tókst að finna fyrirtæki eða villa kom upp.</p>
+            </div>
         )
     }
 
     return (
-        <DashboardLayout>
-            <div className="max-w-3xl mx-auto space-y-6">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Breyta fyrirtæki</h1>
-                    <p className="text-zinc-600 mt-2">Uppfæra upplýsingar um {company.name}</p>
-                </div>
-
-                <CompanyForm initialData={company} isEditing={true} />
+        <div className="max-w-3xl mx-auto space-y-6">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Breyta fyrirtæki</h1>
+                <p className="text-zinc-600 mt-2">Uppfæra upplýsingar um {company.name}</p>
             </div>
-        </DashboardLayout>
+
+            <CompanyForm initialData={company} isEditing={true} />
+        </div>
     )
 }

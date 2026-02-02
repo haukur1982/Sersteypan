@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, Loader2 } from 'lucide-react'
+import { validateElementCreate, formatZodError } from '@/lib/schemas'
 import type { Database } from '@/types/database'
 
 type ElementRow = Database['public']['Tables']['elements']['Row']
@@ -24,9 +25,17 @@ interface ElementFormProps {
     preselectedProjectId?: string
 }
 
+// Helper to parse number from input
+function parseNumberInput(value: string): number | undefined {
+    if (!value || value === '') return undefined
+    const num = Number(value)
+    return isNaN(num) ? undefined : num
+}
+
 export function ElementForm({ initialData, isEditing = false, preselectedProjectId }: ElementFormProps) {
     const router = useRouter()
     const [error, setError] = useState<string | null>(null)
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
     const [loading, setLoading] = useState(false)
     const [projects, setProjects] = useState<ProjectOption[]>([])
     const [selectedProject, setSelectedProject] = useState<string>(
@@ -47,9 +56,82 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
         loadProjects()
     }, [])
 
+    // Client-side validation on blur
+    function validateField(name: string, value: string | number | undefined) {
+        const formValues = getFormValues()
+        // Update with the current field value
+        if (name in formValues) {
+            (formValues as Record<string, unknown>)[name] = value
+        }
+
+        const result = validateElementCreate(formValues)
+        if (!result.success) {
+            const { errors } = formatZodError(result.error)
+            if (errors[name]) {
+                setFieldErrors(prev => ({ ...prev, [name]: errors[name] }))
+            } else {
+                setFieldErrors(prev => {
+                    const newErrors = { ...prev }
+                    delete newErrors[name]
+                    return newErrors
+                })
+            }
+        } else {
+            setFieldErrors(prev => {
+                const newErrors = { ...prev }
+                delete newErrors[name]
+                return newErrors
+            })
+        }
+    }
+
+    function getFormValues() {
+        const form = document.getElementById('element-form') as HTMLFormElement | null
+        if (!form) return {}
+
+        const formData = new FormData(form)
+        return {
+            name: formData.get('name') as string || '',
+            project_id: selectedProject,
+            element_type: selectedElementType,
+            status: selectedStatus,
+            priority: parseNumberInput(formData.get('priority') as string) ?? 0,
+            floor: formData.get('floor') as string || undefined,
+            position_description: formData.get('position_description') as string || undefined,
+            length_mm: parseNumberInput(formData.get('length_mm') as string),
+            width_mm: parseNumberInput(formData.get('width_mm') as string),
+            height_mm: parseNumberInput(formData.get('height_mm') as string),
+            weight_kg: parseNumberInput(formData.get('weight_kg') as string),
+            drawing_reference: formData.get('drawing_reference') as string || undefined,
+            production_notes: formData.get('production_notes') as string || undefined,
+        }
+    }
+
+    // Validate before submit
+    function validateForm(): boolean {
+        const formValues = getFormValues()
+        const result = validateElementCreate(formValues)
+
+        if (!result.success) {
+            const { error, errors } = formatZodError(result.error)
+            setError(error)
+            setFieldErrors(errors)
+            return false
+        }
+
+        setFieldErrors({})
+        return true
+    }
+
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault()
         setError(null)
+
+        // Client-side validation first
+        if (!validateForm()) {
+            return
+        }
+
         setLoading(true)
 
         const formData = new FormData(event.currentTarget)
@@ -69,21 +151,31 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
 
             if (result?.error) {
                 setError(result.error)
+                // Set field errors from server response
+                if ('errors' in result && result.errors) {
+                    setFieldErrors(result.errors as Record<string, string>)
+                }
                 setLoading(false)
             } else {
-                // Upon success, refresh. Server action should perform redirect.
-                // We can force a router.refresh() just in case.
                 router.refresh()
             }
         } catch (err: unknown) {
-            // Ignore redirect errors as they are expected when using redirect() in server actions
             const redirectError = err as { message?: string } | null
             if (redirectError?.message && redirectError.message.includes('NEXT_REDIRECT')) {
                 return
             }
-            setError('An unexpected error occurred')
+            setError('Óvænt villa kom upp')
             setLoading(false)
         }
+    }
+
+    // Field error display component
+    function FieldError({ name }: { name: string }) {
+        const errorMessage = fieldErrors[name]
+        if (!errorMessage) return null
+        return (
+            <p className="text-sm text-red-600 mt-1">{errorMessage}</p>
+        )
     }
 
     return (
@@ -105,8 +197,10 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     defaultValue={initialData?.name ?? ''}
                                     required
                                     disabled={loading}
-                                    className="border-zinc-300 focus:ring-blue-500"
+                                    onBlur={(e) => validateField('name', e.target.value)}
+                                    className={`border-zinc-300 focus:ring-blue-500 ${fieldErrors.name ? 'border-red-500' : ''}`}
                                 />
+                                <FieldError name="name" />
                             </div>
 
                             {/* Project Dropdown */}
@@ -114,11 +208,14 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                 <Label htmlFor="project_id">Verkefni (Project) *</Label>
                                 <Select
                                     value={selectedProject}
-                                    onValueChange={setSelectedProject}
+                                    onValueChange={(value) => {
+                                        setSelectedProject(value)
+                                        validateField('project_id', value)
+                                    }}
                                     required
                                     disabled={loading || !!preselectedProjectId}
                                 >
-                                    <SelectTrigger className="border-zinc-300 focus:ring-blue-500">
+                                    <SelectTrigger className={`border-zinc-300 focus:ring-blue-500 ${fieldErrors.project_id ? 'border-red-500' : ''}`}>
                                         <SelectValue placeholder="Veldu verkefni..." />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -129,6 +226,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                <FieldError name="project_id" />
                             </div>
 
                             {/* Element Type */}
@@ -196,6 +294,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                     {/* Dimensions Section */}
                     <div className="space-y-4 pt-6 border-t border-zinc-200">
                         <h3 className="text-lg font-semibold text-zinc-900">Mál (Dimensions)</h3>
+                        <p className="text-sm text-zinc-500">Hámark 50.000 mm (50m) og 100.000 kg</p>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div className="space-y-2">
@@ -204,11 +303,15 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     id="length_mm"
                                     name="length_mm"
                                     type="number"
+                                    min="1"
+                                    max="50000"
                                     placeholder="6000"
                                     defaultValue={initialData?.length_mm ?? ''}
                                     disabled={loading}
-                                    className="border-zinc-300"
+                                    onBlur={(e) => validateField('length_mm', parseNumberInput(e.target.value))}
+                                    className={`border-zinc-300 ${fieldErrors.length_mm ? 'border-red-500' : ''}`}
                                 />
+                                <FieldError name="length_mm" />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="width_mm">Breidd (mm)</Label>
@@ -216,11 +319,15 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     id="width_mm"
                                     name="width_mm"
                                     type="number"
+                                    min="1"
+                                    max="50000"
                                     placeholder="1200"
                                     defaultValue={initialData?.width_mm ?? ''}
                                     disabled={loading}
-                                    className="border-zinc-300"
+                                    onBlur={(e) => validateField('width_mm', parseNumberInput(e.target.value))}
+                                    className={`border-zinc-300 ${fieldErrors.width_mm ? 'border-red-500' : ''}`}
                                 />
+                                <FieldError name="width_mm" />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="height_mm">Hæð (mm)</Label>
@@ -228,11 +335,15 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     id="height_mm"
                                     name="height_mm"
                                     type="number"
+                                    min="1"
+                                    max="50000"
                                     placeholder="200"
                                     defaultValue={initialData?.height_mm ?? ''}
                                     disabled={loading}
-                                    className="border-zinc-300"
+                                    onBlur={(e) => validateField('height_mm', parseNumberInput(e.target.value))}
+                                    className={`border-zinc-300 ${fieldErrors.height_mm ? 'border-red-500' : ''}`}
                                 />
+                                <FieldError name="height_mm" />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="weight_kg">Þyngd (kg)</Label>
@@ -241,11 +352,15 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     name="weight_kg"
                                     type="number"
                                     step="0.01"
+                                    min="0.1"
+                                    max="100000"
                                     placeholder="2500"
                                     defaultValue={initialData?.weight_kg ?? ''}
                                     disabled={loading}
-                                    className="border-zinc-300"
+                                    onBlur={(e) => validateField('weight_kg', parseNumberInput(e.target.value))}
+                                    className={`border-zinc-300 ${fieldErrors.weight_kg ? 'border-red-500' : ''}`}
                                 />
+                                <FieldError name="weight_kg" />
                             </div>
                         </div>
                     </div>
@@ -281,12 +396,16 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     id="priority"
                                     name="priority"
                                     type="number"
+                                    min="0"
+                                    max="999"
                                     placeholder="0"
                                     defaultValue={initialData?.priority ?? 0}
                                     disabled={loading}
-                                    className="border-zinc-300"
+                                    onBlur={(e) => validateField('priority', parseNumberInput(e.target.value))}
+                                    className={`border-zinc-300 ${fieldErrors.priority ? 'border-red-500' : ''}`}
                                 />
-                                <p className="text-xs text-zinc-500">Hærri tala = meiri forgangur</p>
+                                <p className="text-xs text-zinc-500">Hærri tala = meiri forgangur (0-999)</p>
+                                <FieldError name="priority" />
                             </div>
 
                             {/* Production Notes */}
@@ -296,11 +415,13 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     id="production_notes"
                                     name="production_notes"
                                     rows={3}
+                                    maxLength={2000}
                                     placeholder="Athugasemdir um framleiðslu..."
                                     defaultValue={initialData?.production_notes ?? ''}
                                     disabled={loading}
                                     className="border-zinc-300"
                                 />
+                                <p className="text-xs text-zinc-500">Hámark 2.000 stafir</p>
                             </div>
 
                             {/* Delivery Notes */}
@@ -310,6 +431,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     id="delivery_notes"
                                     name="delivery_notes"
                                     rows={3}
+                                    maxLength={2000}
                                     placeholder="Athugasemdir um afhendingu..."
                                     defaultValue={initialData?.delivery_notes ?? ''}
                                     disabled={loading}

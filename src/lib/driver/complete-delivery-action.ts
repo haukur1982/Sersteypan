@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { validateDeliveryQuickComplete, formatZodError } from '@/lib/schemas'
 
 /**
  * Simplified delivery completion for driver portal
@@ -30,17 +31,27 @@ export async function quickCompleteDelivery(
         return { success: false, error: 'Óheimilt' }
     }
 
-    // Validate input
-    if (!receivedByName || receivedByName.trim().length === 0) {
-        return { success: false, error: 'Nafn móttakanda er nauðsynlegt' }
+    // Validate input with Zod
+    const validation = validateDeliveryQuickComplete({
+        deliveryId,
+        receivedByName,
+        signatureUrl,
+        photoUrl
+    })
+
+    if (!validation.success) {
+        const { error } = formatZodError(validation.error)
+        return { success: false, error }
     }
+
+    const validatedData = validation.data
 
     try {
         // Get delivery and verify ownership
         const { data: delivery, error: deliveryError } = await supabase
             .from('deliveries')
             .select('id, driver_id, status')
-            .eq('id', deliveryId)
+            .eq('id', validatedData.deliveryId)
             .single()
 
         if (deliveryError || !delivery) {
@@ -67,14 +78,14 @@ export async function quickCompleteDelivery(
             .from('deliveries')
             .update({
                 status: 'completed',
-                received_by_name: receivedByName.trim(),
-                received_by_signature_url: signatureUrl || null,
-                delivery_photo_url: photoUrl || null,
+                received_by_name: validatedData.receivedByName,
+                received_by_signature_url: validatedData.signatureUrl || null,
+                delivery_photo_url: validatedData.photoUrl || null,
                 completed_at: new Date().toISOString(),
                 delivered_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             })
-            .eq('id', deliveryId)
+            .eq('id', validatedData.deliveryId)
 
         if (updateError) {
             console.error('Error completing delivery:', updateError)
@@ -85,7 +96,7 @@ export async function quickCompleteDelivery(
         const { data: items } = await supabase
             .from('delivery_items')
             .select('element_id')
-            .eq('delivery_id', deliveryId)
+            .eq('delivery_id', validatedData.deliveryId)
 
         if (items && items.length > 0) {
             const elementIds = items.map(i => i.element_id).filter(Boolean)
@@ -109,14 +120,14 @@ export async function quickCompleteDelivery(
                 await supabase
                     .from('delivery_items')
                     .update({ delivered_at: new Date().toISOString() })
-                    .eq('delivery_id', deliveryId)
+                    .eq('delivery_id', validatedData.deliveryId)
             }
         }
 
         // Revalidate paths
         revalidatePath('/driver')
         revalidatePath('/driver/deliveries')
-        revalidatePath(`/driver/deliver/${deliveryId}`)
+        revalidatePath(`/driver/deliver/${validatedData.deliveryId}`)
         revalidatePath('/buyer/deliveries')
 
         return { success: true }

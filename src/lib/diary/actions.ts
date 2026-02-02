@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { validateDiaryCreate, validateDiaryUpdate, formatZodError } from '@/lib/schemas'
 
 // Get diary entries for current user or all (admin/factory_manager)
 export async function getDiaryEntries(limit: number = 50) {
@@ -127,23 +128,29 @@ export async function createDiaryEntry(formData: FormData) {
     return { error: 'Unauthorized - Admin or Factory Manager only' }
   }
 
-  // Extract and validate form data
-  const title = formData.get('title') as string
-  const content = formData.get('content') as string
-  const entry_date = formData.get('entry_date') as string
-  const project_id = (formData.get('project_id') as string) || null
-
-  if (!content || !entry_date) {
-    return { error: 'Content and date are required' }
+  // Extract and validate form data with Zod
+  const rawData = {
+    title: formData.get('title') as string,
+    content: formData.get('content') as string,
+    entry_date: formData.get('entry_date') as string,
+    project_id: formData.get('project_id') as string
   }
+
+  const validation = validateDiaryCreate(rawData)
+  if (!validation.success) {
+    const { error, errors } = formatZodError(validation.error)
+    return { error, errors }
+  }
+
+  const validatedData = validation.data
 
   // Prepare diary entry data
   const entryData = {
     user_id: user.id,
-    entry_date,
-    title: title?.trim() || null,
-    content: content.trim(),
-    project_id
+    entry_date: validatedData.entry_date,
+    title: validatedData.title || null,
+    content: validatedData.content,
+    project_id: validatedData.project_id || null
   }
 
   // Insert into database
@@ -197,22 +204,29 @@ export async function updateDiaryEntry(id: string, formData: FormData) {
     return { error: 'Unauthorized - You can only edit your own entries' }
   }
 
-  // Extract and validate form data
-  const title = formData.get('title') as string
-  const content = formData.get('content') as string
-  const entry_date = formData.get('entry_date') as string
-  const project_id = (formData.get('project_id') as string) || null
-
-  if (!content || !entry_date) {
-    return { error: 'Content and date are required' }
+  // Extract and validate form data with Zod
+  const rawData = {
+    id,
+    title: formData.get('title') as string,
+    content: formData.get('content') as string,
+    entry_date: formData.get('entry_date') as string,
+    project_id: formData.get('project_id') as string
   }
+
+  const validation = validateDiaryUpdate(rawData)
+  if (!validation.success) {
+    const { error, errors } = formatZodError(validation.error)
+    return { error, errors }
+  }
+
+  const validatedData = validation.data
 
   // Prepare update data
   const updateData = {
-    entry_date,
-    title: title?.trim() || null,
-    content: content.trim(),
-    project_id,
+    entry_date: validatedData.entry_date,
+    title: validatedData.title || null,
+    content: validatedData.content,
+    project_id: validatedData.project_id || null,
     updated_at: new Date().toISOString()
   }
 

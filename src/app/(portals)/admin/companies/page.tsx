@@ -1,5 +1,4 @@
 import { getCompanies } from '@/lib/companies/actions'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import {
     Table,
@@ -22,8 +21,7 @@ export default async function CompaniesPage() {
     const companyList = (companies ?? []) as CompanyRow[]
 
     return (
-        <DashboardLayout>
-            <div className="space-y-6">
+        <div className="space-y-6">
                 {/* Header */}
                 <div className="flex justify-between items-center">
                     <div>
@@ -117,8 +115,7 @@ export default async function CompaniesPage() {
                             )}
                         </TableBody>
                     </Table>
-                </Card>
-            </div>
-        </DashboardLayout>
+            </Card>
+        </div>
     )
 }

@@ -1,7 +1,5 @@
-import { getUser } from '@/lib/auth/actions'
-import { redirect, notFound } from 'next/navigation'
-import { getProjectDetail, getBuyerDeliveries } from '@/lib/buyer/queries'
-import DashboardLayout from '@/components/layout/DashboardLayout'
+import { notFound } from 'next/navigation'
+import { getProjectDetail, getBuyerDeliveries, getProjectFloorPlans } from '@/lib/buyer/queries'
 import { ProjectDetailClient } from '@/components/buyer/ProjectDetailClient'
 
 export default async function ProjectDetailPage({
@@ -13,19 +11,12 @@ export default async function ProjectDetailPage({
 }) {
   const { id } = await params
   const { tab } = await searchParams
-  const user = await getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
-
-  if (user.role !== 'buyer') {
-    redirect('/login')
-  }
-
-  const [project, deliveries] = await Promise.all([
+  // Fetch project details, deliveries, AND floor plans for 3D view
+  const [project, deliveries, floorPlans] = await Promise.all([
     getProjectDetail(id),
-    getBuyerDeliveries() // Or a more specific query if available
+    getBuyerDeliveries(),
+    getProjectFloorPlans(id)
   ])
 
   if (!project) {
@@ -36,12 +27,11 @@ export default async function ProjectDetailPage({
   const projectDeliveries = (deliveries || []).filter(d => d.project?.id === id)
 
   return (
-    <DashboardLayout>
-      <ProjectDetailClient
-        project={project}
-        deliveries={projectDeliveries}
-        tab={tab}
-      />
-    </DashboardLayout>
+    <ProjectDetailClient
+      project={project}
+      deliveries={projectDeliveries}
+      floorPlans={floorPlans || []}
+      tab={tab}
+    />
   )
 }

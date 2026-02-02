@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { validateCompanyCreate, validateCompanyUpdate, formatZodError } from '@/lib/schemas'
 
 // Types for form data
 export interface CompanyFormData {
@@ -40,31 +41,27 @@ export async function createCompany(formData: FormData) {
   }
 
   // Extract and validate form data
-  const name = formData.get('name') as string
-  const contact_name = formData.get('contact_name') as string
-  const contact_email = formData.get('contact_email') as string
+  const rawData = Object.fromEntries(formData)
+  const validation = validateCompanyCreate(rawData)
 
-  if (!name || !contact_name || !contact_email) {
-    return { error: 'Name, contact name, and contact email are required' }
+  if (!validation.success) {
+    const { error, errors } = formatZodError(validation.error)
+    return { error, errors }
   }
 
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(contact_email)) {
-    return { error: 'Invalid email format' }
-  }
+  const validatedData = validation.data
 
   // Prepare company data
   const companyData = {
-    name: name.trim(),
-    kennitala: (formData.get('kennitala') as string)?.trim() || null,
-    address: (formData.get('address') as string)?.trim() || null,
-    city: (formData.get('city') as string)?.trim() || null,
-    postal_code: (formData.get('postal_code') as string)?.trim() || null,
-    contact_name: contact_name.trim(),
-    contact_email: contact_email.trim(),
-    contact_phone: (formData.get('contact_phone') as string)?.trim() || null,
-    notes: (formData.get('notes') as string)?.trim() || null,
+    name: validatedData.name,
+    kennitala: validatedData.kennitala ?? null,
+    address: validatedData.address || null,
+    city: validatedData.city || null,
+    postal_code: validatedData.postal_code || null,
+    contact_name: validatedData.contact_name || null,
+    contact_email: validatedData.contact_email || null,
+    contact_phone: validatedData.contact_phone || null,
+    notes: validatedData.notes || null,
     is_active: formData.get('is_active') === 'true'
   }
 
@@ -157,31 +154,31 @@ export async function updateCompany(id: string, formData: FormData) {
   }
 
   // Extract and validate form data
-  const name = formData.get('name') as string
-  const contact_name = formData.get('contact_name') as string
-  const contact_email = formData.get('contact_email') as string
-
-  if (!name || !contact_name || !contact_email) {
-    return { error: 'Name, contact name, and contact email are required' }
+  const rawData = {
+    ...Object.fromEntries(formData),
+    id
   }
 
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(contact_email)) {
-    return { error: 'Invalid email format' }
+  const validation = validateCompanyUpdate(rawData)
+
+  if (!validation.success) {
+    const { error, errors } = formatZodError(validation.error)
+    return { error, errors }
   }
+
+  const validatedData = validation.data
 
   // Prepare update data
   const updateData = {
-    name: name.trim(),
-    kennitala: (formData.get('kennitala') as string)?.trim() || null,
-    address: (formData.get('address') as string)?.trim() || null,
-    city: (formData.get('city') as string)?.trim() || null,
-    postal_code: (formData.get('postal_code') as string)?.trim() || null,
-    contact_name: contact_name.trim(),
-    contact_email: contact_email.trim(),
-    contact_phone: (formData.get('contact_phone') as string)?.trim() || null,
-    notes: (formData.get('notes') as string)?.trim() || null,
+    name: validatedData.name,
+    kennitala: validatedData.kennitala ?? null,
+    address: validatedData.address || null,
+    city: validatedData.city || null,
+    postal_code: validatedData.postal_code || null,
+    contact_name: validatedData.contact_name || null,
+    contact_email: validatedData.contact_email || null,
+    contact_phone: validatedData.contact_phone || null,
+    notes: validatedData.notes || null,
     is_active: formData.get('is_active') === 'true',
     updated_at: new Date().toISOString()
   }

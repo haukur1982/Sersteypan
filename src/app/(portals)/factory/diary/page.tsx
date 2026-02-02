@@ -1,5 +1,4 @@
 import { getDiaryEntries } from '@/lib/diary/actions'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,8 +19,7 @@ export default async function DiaryPage() {
     const entryList = (entries ?? []) as DiaryEntryWithRelations[]
 
     return (
-        <DashboardLayout>
-            <div className="space-y-6 max-w-4xl mx-auto">
+        <div className="space-y-6 max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -139,7 +137,6 @@ export default async function DiaryPage() {
                         </CardContent>
                     </Card>
                 )}
-            </div>
-        </DashboardLayout>
+        </div>
     )
 }

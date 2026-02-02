@@ -4,6 +4,13 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/types/database'
+import {
+  validateTodoCreate,
+  validateTodoUpdate,
+  validateTodoToggle,
+  formatZodError,
+  parseNumber
+} from '@/lib/schemas'
 
 // Get todo items for current user
 export async function getTodoItems() {
@@ -86,25 +93,31 @@ export async function createTodoItem(formData: FormData) {
     return { error: 'Not authenticated' }
   }
 
-  // Extract and validate form data
-  const title = formData.get('title') as string
-  const description = (formData.get('description') as string) || null
-  const due_date = (formData.get('due_date') as string) || null
-  const priority = formData.get('priority') ? parseInt(formData.get('priority') as string) : 0
-  const project_id = (formData.get('project_id') as string) || null
-
-  if (!title || title.trim().length === 0) {
-    return { error: 'Title is required' }
+  // Extract and validate form data with Zod
+  const rawData = {
+    title: formData.get('title') as string,
+    description: formData.get('description') as string,
+    due_date: formData.get('due_date') as string,
+    priority: parseNumber(formData.get('priority')) ?? 0,
+    project_id: formData.get('project_id') as string
   }
+
+  const validation = validateTodoCreate(rawData)
+  if (!validation.success) {
+    const { error, errors } = formatZodError(validation.error)
+    return { error, errors }
+  }
+
+  const validatedData = validation.data
 
   // Prepare todo item data
   const todoData = {
     user_id: user.id,
-    title: title.trim(),
-    description: description?.trim() || null,
-    due_date,
-    priority,
-    project_id,
+    title: validatedData.title,
+    description: validatedData.description || null,
+    due_date: validatedData.due_date || null,
+    priority: validatedData.priority,
+    project_id: validatedData.project_id || null,
     is_completed: false
   }
 
@@ -148,24 +161,31 @@ export async function updateTodoItem(id: string, formData: FormData) {
     return { error: 'Todo item not found or unauthorized' }
   }
 
-  // Extract and validate form data
-  const title = formData.get('title') as string
-  const description = (formData.get('description') as string) || null
-  const due_date = (formData.get('due_date') as string) || null
-  const priority = formData.get('priority') ? parseInt(formData.get('priority') as string) : 0
-  const project_id = (formData.get('project_id') as string) || null
-
-  if (!title || title.trim().length === 0) {
-    return { error: 'Title is required' }
+  // Extract and validate form data with Zod
+  const rawData = {
+    id,
+    title: formData.get('title') as string,
+    description: formData.get('description') as string,
+    due_date: formData.get('due_date') as string,
+    priority: parseNumber(formData.get('priority')) ?? 0,
+    project_id: formData.get('project_id') as string
   }
+
+  const validation = validateTodoUpdate(rawData)
+  if (!validation.success) {
+    const { error, errors } = formatZodError(validation.error)
+    return { error, errors }
+  }
+
+  const validatedData = validation.data
 
   // Prepare update data
   const updateData = {
-    title: title.trim(),
-    description: description?.trim() || null,
-    due_date,
-    priority,
-    project_id,
+    title: validatedData.title,
+    description: validatedData.description || null,
+    due_date: validatedData.due_date || null,
+    priority: validatedData.priority,
+    project_id: validatedData.project_id || null,
     updated_at: new Date().toISOString()
   }
 
@@ -200,11 +220,20 @@ export async function toggleTodoCompletion(id: string, isCompleted: boolean) {
     return { error: 'Not authenticated' }
   }
 
+  // Validate input with Zod
+  const validation = validateTodoToggle({ id, is_completed: isCompleted })
+  if (!validation.success) {
+    const { error } = formatZodError(validation.error)
+    return { error }
+  }
+
+  const validatedData = validation.data
+
   // Verify ownership
   const { data: existingTodo } = await supabase
     .from('todo_items')
     .select('user_id')
-    .eq('id', id)
+    .eq('id', validatedData.id)
     .single()
 
   if (!existingTodo || existingTodo.user_id !== user.id) {
@@ -213,15 +242,15 @@ export async function toggleTodoCompletion(id: string, isCompleted: boolean) {
 
   // Update completion status
   const updateData: Database['public']['Tables']['todo_items']['Update'] = {
-    is_completed: isCompleted,
+    is_completed: validatedData.is_completed,
     updated_at: new Date().toISOString(),
-    completed_at: isCompleted ? new Date().toISOString() : null
+    completed_at: validatedData.is_completed ? new Date().toISOString() : null
   }
 
   const { error } = await supabase
     .from('todo_items')
     .update(updateData)
-    .eq('id', id)
+    .eq('id', validatedData.id)
 
   if (error) {
     console.error('Error toggling todo completion:', error)

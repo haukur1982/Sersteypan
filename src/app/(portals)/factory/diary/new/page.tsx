@@ -1,6 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { DiaryEntryForm } from '@/components/diary/DiaryEntryForm'
@@ -21,8 +19,7 @@ export default async function NewDiaryEntryPage() {
     const today = new Date().toISOString().split('T')[0]
 
     return (
-        <DashboardLayout>
-            <div className="space-y-6 max-w-3xl mx-auto">
+        <div className="space-y-6 max-w-3xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center gap-3">
                     <Button variant="ghost" size="icon" asChild>
@@ -52,7 +49,6 @@ export default async function NewDiaryEntryPage() {
                         />
                     </CardContent>
                 </Card>
-            </div>
-        </DashboardLayout>
+        </div>
     )
 }

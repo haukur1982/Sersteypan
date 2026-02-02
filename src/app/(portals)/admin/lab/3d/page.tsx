@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Card } from '@/components/ui/card'
 import { Slider } from '@/components/ui/slider'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -151,7 +150,7 @@ export default function Lab3DPage() {
                                 <div className="text-xs text-yellow-800 leading-relaxed">
                                     <strong>AI Vision Concept:</strong><br />
                                     In the future, we upload a PDF. <br />
-                                    The AI reads "W=3200, H=2400". <br />
+                                    The AI reads &quot;W=3200, H=2400&quot;. <br />
                                     It automatically sets these sliders for you. <br />
                                     0% data entry. 100% accuracy.
                                 </div>

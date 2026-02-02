@@ -1,25 +1,12 @@
-import { getUser } from '@/lib/auth/actions'
-import { redirect } from 'next/navigation'
 import { getBuyerProjects } from '@/lib/buyer/queries'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import Link from 'next/link'
 import { ArrowRight, Package } from 'lucide-react'
 
 export default async function ProjectsListPage() {
-  const user = await getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  if (user.role !== 'buyer') {
-    redirect('/login')
-  }
-
   const projects = await getBuyerProjects()
 
   return (
-    <DashboardLayout>
+    <>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-zinc-900">Verkefni</h1>
@@ -129,6 +116,6 @@ export default async function ProjectsListPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   )
 }

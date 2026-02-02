@@ -3,13 +3,19 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+export interface UserPreferences {
+  features?: Record<string, boolean>
+  visual_pilot?: boolean
+  [key: string]: unknown
+}
+
 export interface AuthUser {
   id: string
   email: string
   fullName: string
   role: 'admin' | 'factory_manager' | 'buyer' | 'driver'
   companyId: string | null
-  preferences: Record<string, any>
+  preferences: UserPreferences
 }
 
 interface AuthContextType {
@@ -49,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               fullName: profile.full_name,
               role: profile.role as AuthUser['role'],
               companyId: profile.company_id,
-              preferences: (profile.preferences || {}) as Record<string, any>,
+              preferences: (profile.preferences || {}) as UserPreferences,
             })
           }
         }
@@ -64,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (_event, session) => {
         if (session?.user) {
           const { data: profile } = await supabase
             .from('profiles')
@@ -79,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               fullName: profile.full_name,
               role: profile.role as AuthUser['role'],
               companyId: profile.company_id,
-              preferences: (profile.preferences || {}) as Record<string, any>,
+              preferences: (profile.preferences || {}) as UserPreferences,
             })
           }
         } else {

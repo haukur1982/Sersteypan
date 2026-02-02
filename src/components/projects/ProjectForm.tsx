@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, Loader2 } from 'lucide-react'
+import { validateProjectCreate, formatZodError } from '@/lib/schemas'
 import type { Database } from '@/types/database'
 
 type ProjectRow = Database['public']['Tables']['projects']['Row']
@@ -25,6 +26,7 @@ interface ProjectFormProps {
 export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps) {
     const router = useRouter()
     const [error, setError] = useState<string | null>(null)
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
     const [loading, setLoading] = useState(false)
     const [companies, setCompanies] = useState<CompanyRow[]>([])
     const [selectedCompany, setSelectedCompany] = useState<string>(initialData?.company_id || '')
@@ -42,9 +44,97 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
         loadCompanies()
     }, [])
 
+    // Client-side validation on blur
+    function validateField(name: string, value: string | undefined) {
+        const formValues = getFormValues()
+        // Update with the current field value
+        if (name in formValues) {
+            (formValues as Record<string, unknown>)[name] = value
+        }
+
+        const result = validateProjectCreate(formValues)
+        if (!result.success) {
+            const { errors } = formatZodError(result.error)
+            if (errors[name]) {
+                setFieldErrors(prev => ({ ...prev, [name]: errors[name] }))
+            } else {
+                setFieldErrors(prev => {
+                    const newErrors = { ...prev }
+                    delete newErrors[name]
+                    return newErrors
+                })
+            }
+
+            // Special handling for date range validation
+            if (name === 'start_date' || name === 'expected_end_date') {
+                if (errors.expected_end_date) {
+                    setFieldErrors(prev => ({ ...prev, expected_end_date: errors.expected_end_date }))
+                } else if (!errors.expected_end_date && fieldErrors.expected_end_date) {
+                    // Start date isn't directly validated against end date in field-specific, but refinery runs on whole object
+                    // We need to re-check if range is now valid
+                    setFieldErrors(prev => {
+                        const newErrors = { ...prev }
+                        delete newErrors.expected_end_date
+                        return newErrors
+                    })
+                }
+            }
+
+        } else {
+            setFieldErrors(prev => {
+                const newErrors = { ...prev }
+                delete newErrors[name]
+                // Also clear date error if present and validation passes
+                if ((name === 'start_date' || name === 'expected_end_date') && newErrors.expected_end_date) {
+                    delete newErrors.expected_end_date
+                }
+                return newErrors
+            })
+        }
+    }
+
+    function getFormValues() {
+        const form = document.getElementById('project-form') as HTMLFormElement | null
+        if (!form) return {}
+
+        const formData = new FormData(form)
+        return {
+            name: formData.get('name') as string || '',
+            company_id: selectedCompany,
+            description: formData.get('description') as string || undefined,
+            address: formData.get('address') as string || undefined,
+            status: selectedStatus,
+            start_date: formData.get('start_date') as string || undefined,
+            expected_end_date: formData.get('expected_end_date') as string || undefined,
+            notes: formData.get('notes') as string || undefined,
+        }
+    }
+
+    // Validate before submit
+    function validateForm(): boolean {
+        const formValues = getFormValues()
+        const result = validateProjectCreate(formValues)
+
+        if (!result.success) {
+            const { error, errors } = formatZodError(result.error)
+            setError(error)
+            setFieldErrors(errors)
+            return false
+        }
+
+        setFieldErrors({})
+        return true
+    }
+
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault()
         setError(null)
+
+        // Client-side validation first
+        if (!validateForm()) {
+            return
+        }
+
         setLoading(true)
 
         const formData = new FormData(event.currentTarget)
@@ -63,6 +153,10 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
 
             if (result?.error) {
                 setError(result.error)
+                // Set field errors from server response
+                if ('errors' in result && result.errors) {
+                    setFieldErrors(result.errors as Record<string, string>)
+                }
                 setLoading(false)
             } else {
                 // Server action should handle redirect, but redundancy is fine
@@ -79,6 +173,14 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
         }
     }
 
+    function FieldError({ name }: { name: string }) {
+        const errorMessage = fieldErrors[name]
+        if (!errorMessage) return null
+        return (
+            <p className="text-sm text-red-600 mt-1">{errorMessage}</p>
+        )
+    }
+
     return (
         <Card className="border-zinc-200 shadow-sm">
             <CardContent className="pt-6">
@@ -93,16 +195,26 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                             defaultValue={initialData?.name ?? ''}
                             required
                             disabled={loading}
-                            className="border-zinc-300 focus:border-blue-500 focus:ring-blue-500"
+                            onBlur={(e) => validateField('name', e.target.value)}
+                            className={`border-zinc-300 focus:border-blue-500 focus:ring-blue-500 ${fieldErrors.name ? 'border-red-500 ring-offset-2 ring-red-500' : ''}`}
                         />
+                        <FieldError name="name" />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Company Dropdown - Required */}
                         <div className="space-y-2">
                             <Label htmlFor="company_id">Fyrirtæki (Company) *</Label>
-                            <Select value={selectedCompany} onValueChange={setSelectedCompany} required disabled={loading}>
-                                <SelectTrigger className="border-zinc-300 focus:ring-blue-500">
+                            <Select
+                                value={selectedCompany}
+                                onValueChange={(value) => {
+                                    setSelectedCompany(value)
+                                    validateField('company_id', value)
+                                }}
+                                required
+                                disabled={loading}
+                            >
+                                <SelectTrigger className={`border-zinc-300 focus:ring-blue-500 ${fieldErrors.company_id ? 'border-red-500 ring-offset-2 ring-red-500' : ''}`}>
                                     <SelectValue placeholder="Veldu fyrirtæki..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -113,12 +225,20 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                                     ))}
                                 </SelectContent>
                             </Select>
+                            <FieldError name="company_id" />
                         </div>
 
                         {/* Status Dropdown - Required */}
                         <div className="space-y-2">
                             <Label htmlFor="status">Staða (Status) *</Label>
-                            <Select value={selectedStatus} onValueChange={setSelectedStatus} disabled={loading}>
+                            <Select
+                                value={selectedStatus}
+                                onValueChange={(value) => {
+                                    setSelectedStatus(value)
+                                    validateField('status', value)
+                                }}
+                                disabled={loading}
+                            >
                                 <SelectTrigger className="border-zinc-300 focus:ring-blue-500">
                                     <SelectValue />
                                 </SelectTrigger>
@@ -142,6 +262,7 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                             rows={3}
                             defaultValue={initialData?.description ?? ''}
                             disabled={loading}
+                            onBlur={(e) => validateField('description', e.target.value)}
                             className="border-zinc-300 focus:border-blue-500 focus:ring-blue-500"
                         />
                     </div>
@@ -155,6 +276,7 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                             placeholder="t.d. Eddufellsvegur 6, 112 Reykjavík"
                             defaultValue={initialData?.address ?? ''}
                             disabled={loading}
+                            onBlur={(e) => validateField('address', e.target.value)}
                             className="border-zinc-300"
                         />
                     </div>
@@ -169,8 +291,10 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                                 type="date"
                                 defaultValue={initialData?.start_date ?? ''}
                                 disabled={loading}
-                                className="border-zinc-300"
+                                onBlur={(e) => validateField('start_date', e.target.value)}
+                                className={`border-zinc-300 ${fieldErrors.start_date ? 'border-red-500' : ''}`}
                             />
+                            <FieldError name="start_date" />
                         </div>
 
                         {/* Expected End Date - Optional */}
@@ -182,8 +306,10 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                                 type="date"
                                 defaultValue={initialData?.expected_end_date ?? ''}
                                 disabled={loading}
-                                className="border-zinc-300"
+                                onBlur={(e) => validateField('expected_end_date', e.target.value)}
+                                className={`border-zinc-300 ${fieldErrors.expected_end_date ? 'border-red-500' : ''}`}
                             />
+                            <FieldError name="expected_end_date" />
                         </div>
                     </div>
 

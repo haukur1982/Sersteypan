@@ -1,7 +1,5 @@
-import { getUser } from '@/lib/auth/actions'
-import { redirect, notFound } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { getDeliveryDetail } from '@/lib/buyer/queries'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, Calendar, User, Phone, MapPin, FileSignature } from 'lucide-react'
@@ -32,16 +30,6 @@ export default async function DeliveryDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const user = await getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  if (user.role !== 'buyer') {
-    redirect('/login')
-  }
-
   const delivery = (await getDeliveryDetail(id)) as DeliveryDetail | null
 
   if (!delivery) {
@@ -61,9 +49,8 @@ export default async function DeliveryDetailPage({
     : { label: 'Óþekkt', color: 'bg-gray-100 text-gray-800' }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
+    <div className="space-y-6">
+      {/* Header */}
         <div>
           <Link
             href="/buyer/deliveries"
@@ -264,7 +251,6 @@ export default async function DeliveryDetailPage({
           </div>
         )}
       </div>
-    </DashboardLayout>
   )
 }
 
