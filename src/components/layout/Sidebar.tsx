@@ -168,14 +168,12 @@ export function Sidebar({ className, user: initialUser }: SidebarProps) {
                             <p>L: {loading ? 'YES' : 'NO'}</p>
                             <p className="text-[8px] opacity-50 truncate">{user?.id}</p>
                             {!user && (
-                                <form action={logout}>
-                                    <button
-                                        type="submit"
-                                        className="mt-2 w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 text-[10px] py-1 rounded border border-red-500/50 transition-colors"
-                                    >
-                                        RESET SESSION (FORCE)
-                                    </button>
-                                </form>
+                                <a
+                                    href="/auth/signout"
+                                    className="mt-2 block w-full text-center bg-red-500/20 hover:bg-red-500/30 text-red-400 text-[10px] py-1 rounded border border-red-500/50 transition-colors"
+                                >
+                                    RESET SESSION (LINK)
+                                </a>
                             )}
                         </div>
                     </>
