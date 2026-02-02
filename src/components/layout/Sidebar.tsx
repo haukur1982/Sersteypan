@@ -136,10 +136,6 @@ export function Sidebar({ className, user: initialUser }: SidebarProps) {
 
             {/* Nav Items */}
             <div className="flex-1 overflow-y-auto py-6">
-                {/* DEBUG: Remove after fixing */}
-                <div className="px-3 mb-2 text-xs text-red-500 bg-red-50 p-2 rounded">
-                    loading: {String(loading)} | role: {user?.role || 'none'} | id: {user?.id?.slice(0, 8) || 'none'}
-                </div>
                 {loading ? (
                     <div className="px-3 space-y-2">
                         {/* Loading skeleton */}

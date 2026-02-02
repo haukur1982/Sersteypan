@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export interface UserPreferences {
@@ -31,72 +31,62 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const isCancelledRef = useRef(false)
 
   useEffect(() => {
+    // useEffect only runs on client after hydration
+    isCancelledRef.current = false
     const supabase = createClient()
 
-    // Single fetch for auth + profile data
-    const loadUser = async () => {
+    // Helper to load profile
+    const loadProfile = async (authUser: { id: string; email?: string }) => {
       try {
-        const { data: { user: authUser } } = await supabase.auth.getUser()
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, email, role, company_id, preferences')
+          .eq('id', authUser.id)
+          .single()
 
-        if (authUser) {
-          // Fetch profile data
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, email, role, company_id, preferences')
-            .eq('id', authUser.id)
-            .single()
-
-          if (profile) {
-            setUser({
-              id: authUser.id,
-              email: authUser.email!,
-              fullName: profile.full_name,
-              role: profile.role as AuthUser['role'],
-              companyId: profile.company_id,
-              preferences: (profile.preferences || {}) as UserPreferences,
-            })
-          }
+        if (profile && !isCancelledRef.current) {
+          setUser({
+            id: authUser.id,
+            email: authUser.email || profile.email,
+            fullName: profile.full_name,
+            role: profile.role as AuthUser['role'],
+            companyId: profile.company_id,
+            preferences: (profile.preferences || {}) as UserPreferences,
+          })
         }
       } catch (error) {
-        console.error('Error loading user:', error)
-      } finally {
-        setLoading(false)
+        console.error('AuthProvider: Failed to load profile', error)
       }
     }
 
-    loadUser()
-
-    // Listen for auth changes
+    // Use onAuthStateChange as primary - it fires immediately with current state
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        if (session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, email, role, company_id, preferences')
-            .eq('id', session.user.id)
-            .single()
+        if (isCancelledRef.current) return
 
-          if (profile) {
-            setUser({
-              id: session.user.id,
-              email: session.user.email!,
-              fullName: profile.full_name,
-              role: profile.role as AuthUser['role'],
-              companyId: profile.company_id,
-              preferences: (profile.preferences || {}) as UserPreferences,
-            })
-          }
+        if (session?.user) {
+          await loadProfile(session.user)
         } else {
           setUser(null)
         }
-
         setLoading(false)
       }
     )
 
+    // Safety timeout - ensure loading becomes false even if auth hangs
+    const timeout = setTimeout(() => {
+      if (!isCancelledRef.current) {
+        console.warn('AuthProvider: Timeout reached, forcing loading to false')
+        setLoading(false)
+      }
+    }, 5000)
+
     return () => {
+      isCancelledRef.current = true
+      clearTimeout(timeout)
       subscription.unsubscribe()
     }
   }, [])
