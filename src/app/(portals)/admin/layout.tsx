@@ -1,17 +1,14 @@
-import { getServerUser } from '@/lib/auth/getServerUser'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 
-export default async function AdminLayout({
+export default function AdminLayout({
   children
 }: {
   children: React.ReactNode
 }) {
   // Middleware handles auth and role-based access
-  // Layout just fetches user for rendering purposes
-  const user = await getServerUser()
-
+  // Sidebar/Header fetch user client-side to avoid SSR cookie timing issues
   return (
-    <DashboardLayout user={user}>
+    <DashboardLayout>
       {children}
     </DashboardLayout>
   )

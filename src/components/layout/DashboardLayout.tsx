@@ -5,7 +5,7 @@ import type { AuthUser } from '@/lib/providers/AuthProvider'
 
 interface DashboardLayoutProps {
     children: React.ReactNode
-    user: AuthUser | null
+    user?: AuthUser | null  // Optional - Sidebar/Header use client-side auth
 }
 
 /**
