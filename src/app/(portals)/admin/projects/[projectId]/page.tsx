@@ -1,3 +1,4 @@
+import DashboardLayout from '@/components/layout/DashboardLayout'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getProject } from '@/lib/projects/actions'
@@ -68,19 +69,21 @@ interface ProjectPageProps {
     }>
 }
 
-export default async function ProjectPage({ params }: ProjectPageProps) {
+export default async function ProjectPage({
+    params,
+    searchParams
+}: {
+    params: Promise<{ projectId: string }>
+    searchParams: Promise<{ tab?: string }>
+}) {
     const { projectId } = await params
+    const { tab } = await searchParams
 
-    console.log('--- DEBUG: Project Page ---')
-    console.log('Params Project ID:', projectId)
+    // Fetch project data
+    const { data: project, error } = await getProject(projectId)
 
-    // Fetch project details
-    const { data: project, error: projectError } = await getProject(projectId)
-    console.log('Project Found:', !!project)
-    if (projectError) console.error('Project Error:', projectError)
-
-    if (projectError || !project) {
-        return notFound()
+    if (error || !project) {
+        notFound()
     }
 
     // Fetch elements for this project
@@ -93,8 +96,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     const documentList = (documents ?? []) as ProjectDocumentWithProfile[]
 
     return (
-        <div className="space-y-8">
-            {/* Header Section */}
+        <DashboardLayout>
+            <div className="space-y-8">
+                {/* Header Section */}
                 <div className="flex justify-between items-start">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight text-zinc-900">{project.name}</h1>
@@ -328,5 +332,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                     </div>
                 </div>
             </div>
+        </DashboardLayout>
     )
 }
