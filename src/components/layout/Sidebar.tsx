@@ -160,7 +160,15 @@ export function Sidebar({ className, user: initialUser }: SidebarProps) {
                         </div>
                     </div>
                 ) : (
-                    <UserNav user={user} />
+                    <>
+                        <UserNav user={user} />
+                        <div className="mt-2 pt-2 border-t border-white/10 text-[10px] items-center space-y-1 font-mono text-zinc-400 select-all">
+                            <p>U: {user ? 'OK' : 'NULL'}</p>
+                            <p>R: {user?.role || 'NONE'}</p>
+                            <p>L: {loading ? 'YES' : 'NO'}</p>
+                            <p className="text-[8px] opacity-50 truncate">{user?.id}</p>
+                        </div>
+                    </>
                 )}
             </div>
         </aside>
