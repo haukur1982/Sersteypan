@@ -538,3 +538,22 @@ export async function updateElementStatus(id: string, newStatus: string, notes?:
 
   return { success: true }
 }
+
+// Get active element types
+export async function getElementTypes() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('element_types')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching element types:', error)
+    return { error: 'Failed to fetch element types' }
+  }
+
+  return { success: true, data }
+}
+

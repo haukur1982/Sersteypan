@@ -22,11 +22,13 @@ VALUES ('documents', 'documents', false, 52428800, ARRAY['application/pdf', 'ima
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage Policies for qr-codes (public read, admin write)
-CREATE POLICY IF NOT EXISTS "QR codes are publicly accessible"
+DROP POLICY IF EXISTS "QR codes are publicly accessible" ON storage.objects;
+CREATE POLICY "QR codes are publicly accessible"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'qr-codes');
 
-CREATE POLICY IF NOT EXISTS "Admins can upload QR codes"
+DROP POLICY IF EXISTS "Admins can upload QR codes" ON storage.objects;
+CREATE POLICY "Admins can upload QR codes"
 ON storage.objects FOR INSERT
 WITH CHECK (
   bucket_id = 'qr-codes' AND
@@ -34,7 +36,8 @@ WITH CHECK (
 );
 
 -- Storage Policies for reports (authenticated read, service role write)
-CREATE POLICY IF NOT EXISTS "Users can read their project reports"
+DROP POLICY IF EXISTS "Users can read their project reports" ON storage.objects;
+CREATE POLICY "Users can read their project reports"
 ON storage.objects FOR SELECT
 USING (
   bucket_id = 'reports' AND
@@ -42,14 +45,16 @@ USING (
 );
 
 -- Storage Policies for delivery-photos (drivers can upload, authenticated read)
-CREATE POLICY IF NOT EXISTS "Authenticated users can view delivery photos"
+DROP POLICY IF EXISTS "Authenticated users can view delivery photos" ON storage.objects;
+CREATE POLICY "Authenticated users can view delivery photos"
 ON storage.objects FOR SELECT
 USING (
   bucket_id = 'delivery-photos' AND
   auth.role() = 'authenticated'
 );
 
-CREATE POLICY IF NOT EXISTS "Drivers can upload delivery photos"
+DROP POLICY IF EXISTS "Drivers can upload delivery photos" ON storage.objects;
+CREATE POLICY "Drivers can upload delivery photos"
 ON storage.objects FOR INSERT
 WITH CHECK (
   bucket_id = 'delivery-photos' AND
@@ -57,14 +62,16 @@ WITH CHECK (
 );
 
 -- Storage Policies for documents (project-based access)
-CREATE POLICY IF NOT EXISTS "Authenticated users can view documents"
+DROP POLICY IF EXISTS "Authenticated users can view documents" ON storage.objects;
+CREATE POLICY "Authenticated users can view documents"
 ON storage.objects FOR SELECT
 USING (
   bucket_id = 'documents' AND
   auth.role() = 'authenticated'
 );
 
-CREATE POLICY IF NOT EXISTS "Admins can upload documents"
+DROP POLICY IF EXISTS "Admins can upload documents" ON storage.objects;
+CREATE POLICY "Admins can upload documents"
 ON storage.objects FOR INSERT
 WITH CHECK (
   bucket_id = 'documents' AND

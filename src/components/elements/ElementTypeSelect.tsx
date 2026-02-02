@@ -19,6 +19,8 @@ interface ElementType {
   is_active: boolean
 }
 
+import { getElementTypes } from '@/lib/elements/actions'
+
 // Fallback types if API fails (matches database seed)
 const FALLBACK_TYPES: ElementType[] = [
   { id: '1', key: 'wall', label_is: 'Veggur', label_en: 'Wall', sort_order: 1, is_active: true },
@@ -31,6 +33,8 @@ const FALLBACK_TYPES: ElementType[] = [
   { id: '8', key: 'other', label_is: 'Annað', label_en: 'Other', sort_order: 99, is_active: true },
 ]
 
+
+
 // Cache for element types (client-side)
 let cachedTypes: ElementType[] | null = null
 let cachePromise: Promise<ElementType[]> | null = null
@@ -40,15 +44,20 @@ async function fetchElementTypes(): Promise<ElementType[]> {
 
   if (cachePromise) return cachePromise
 
-  cachePromise = fetch('/api/element-types')
-    .then(async (res) => {
-      if (!res.ok) throw new Error('Failed to fetch')
-      const data = await res.json()
+  cachePromise = getElementTypes()
+    .then((result) => {
+      if (result.error || !result.data) {
+        throw new Error(result.error || 'Failed to fetch')
+      }
+      // Map database rows to ElementType interface if needed, or assume they match
+      // The DB schema has keys: key, label_is, label_en, sort_order, is_active
+      // The interface matches perfectly.
+      const data = result.data as ElementType[]
       cachedTypes = data
       return data
     })
-    .catch(() => {
-      console.warn('Failed to fetch element types, using fallback')
+    .catch((err) => {
+      console.warn('Failed to fetch element types, using fallback', err)
       cachedTypes = FALLBACK_TYPES
       return FALLBACK_TYPES
     })
@@ -58,6 +67,7 @@ async function fetchElementTypes(): Promise<ElementType[]> {
 
   return cachePromise
 }
+
 
 // Clear cache (useful when admin adds new types)
 export function clearElementTypesCache() {

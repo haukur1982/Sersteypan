@@ -85,13 +85,62 @@ export async function getUser() {
 
   if (!profile) {
     console.warn('getUser: Profile missing for user', user.id)
-    // EMERGENCY FALLBACK: If profile is missing/locked (RLS), return a temporary "Ghost" user
-    // so the sidebar still renders and allows navigation/logout.
+    // Attempt self-heal: create a minimal profile if missing.
+    const roleCandidates = [
+      (user.user_metadata as { role?: string } | undefined)?.role,
+      (user.app_metadata as { role?: string } | undefined)?.role,
+    ]
+    const rawRole = roleCandidates.find((role) => typeof role === 'string')
+    const safeRole =
+      rawRole && ['admin', 'factory_manager', 'buyer', 'driver'].includes(rawRole)
+        ? (rawRole as AuthUser['role'])
+        : ('buyer' as AuthUser['role'])
+    const fallbackEmail = user.email ?? user.phone ?? 'unknown'
+    const fallbackFullName =
+      (user.user_metadata as { full_name?: string; name?: string } | undefined)?.full_name ??
+      (user.user_metadata as { full_name?: string; name?: string } | undefined)?.name ??
+      fallbackEmail
+
+    const { error: upsertError } = await supabase
+      .from('profiles')
+      .upsert(
+        {
+          id: user.id,
+          email: fallbackEmail,
+          full_name: fallbackFullName,
+          role: safeRole,
+          company_id: null,
+          is_active: true,
+        },
+        { onConflict: 'id' }
+      )
+
+    if (!upsertError) {
+      const { data: repairedProfile } = await supabase
+        .from('profiles')
+        .select('full_name, email, role, company_id, preferences')
+        .eq('id', user.id)
+        .single()
+
+      if (repairedProfile) {
+        return {
+          id: user.id,
+          email: user.email ?? repairedProfile.email,
+          fullName: repairedProfile.full_name,
+          role: repairedProfile.role as AuthUser['role'],
+          companyId: repairedProfile.company_id,
+          preferences: (repairedProfile.preferences || {}) as UserPreferences,
+        }
+      }
+    }
+
+    // EMERGENCY FALLBACK: If profile is still missing, return a safe "ghost" user
+    // so the sidebar renders and logout works.
     return {
       id: user.id,
-      email: user.email!,
-      fullName: 'GHOST USER (Profile Missing)',
-      role: 'admin' as AuthUser['role'], // Defaulting to admin for this dev user to recover system
+      email: user.email ?? fallbackEmail,
+      fullName: 'PROFILE MISSING',
+      role: 'buyer' as AuthUser['role'],
       companyId: null,
       preferences: {} as UserPreferences,
     }

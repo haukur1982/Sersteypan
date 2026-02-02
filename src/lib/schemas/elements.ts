@@ -14,15 +14,19 @@ import {
  */
 
 // Default element types (fallback when database is not available)
+// Default element types (fallback when database is not available)
 // These are kept for backward compatibility and static validation
 export const DEFAULT_ELEMENT_TYPES = [
   'wall', 'filigran', 'staircase', 'balcony', 'ceiling', 'column', 'beam', 'other'
 ] as const
 
-export const elementTypeSchema = z.enum(
-  DEFAULT_ELEMENT_TYPES,
-  { message: 'Ógild tegund einingar' }
-)
+export const elementTypeSchema = z.string().min(1, { message: 'Veldu tegund einingar' })
+// Obsolete hardcoded enum replaced by database table 'element_types'
+// export const elementTypeSchema = z.enum(
+//   DEFAULT_ELEMENT_TYPES,
+//   { message: 'Ógild tegund einingar' }
+// )
+
 
 /**
  * Create a dynamic element type schema from database types

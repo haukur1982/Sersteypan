@@ -145,15 +145,18 @@ export async function createUser(formData: FormData) {
   // Create profile record
   const { error: profileError } = await supabase
     .from('profiles')
-    .insert({
-      id: authData.user.id,
-      email: validatedData.email.trim(),
-      full_name: validatedData.full_name,
-      phone: validatedData.phone || null,
-      role: validatedData.role,
-      company_id: validatedData.role === 'buyer' ? validatedData.company_id : null,
-      is_active: true
-    })
+    .upsert(
+      {
+        id: authData.user.id,
+        email: validatedData.email.trim(),
+        full_name: validatedData.full_name,
+        phone: validatedData.phone || null,
+        role: validatedData.role,
+        company_id: validatedData.role === 'buyer' ? validatedData.company_id : null,
+        is_active: true,
+      },
+      { onConflict: 'id' }
+    )
 
   if (profileError) {
     console.error('Error creating profile:', profileError)
