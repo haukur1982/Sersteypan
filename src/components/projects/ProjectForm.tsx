@@ -15,6 +15,11 @@ import { AlertCircle, Loader2 } from 'lucide-react'
 import { validateProjectCreate, formatZodError } from '@/lib/schemas'
 import type { Database } from '@/types/database'
 
+function FieldError({ message }: { message?: string }) {
+    if (!message) return null
+    return <p className="text-sm text-red-600 mt-1">{message}</p>
+}
+
 type ProjectRow = Database['public']['Tables']['projects']['Row']
 type CompanyRow = Database['public']['Tables']['companies']['Row']
 
@@ -173,14 +178,6 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
         }
     }
 
-    function FieldError({ name }: { name: string }) {
-        const errorMessage = fieldErrors[name]
-        if (!errorMessage) return null
-        return (
-            <p className="text-sm text-red-600 mt-1">{errorMessage}</p>
-        )
-    }
-
     return (
         <Card className="border-zinc-200 shadow-sm">
             <CardContent className="pt-6">
@@ -198,7 +195,7 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                             onBlur={(e) => validateField('name', e.target.value)}
                             className={`border-zinc-300 focus:border-blue-500 focus:ring-blue-500 ${fieldErrors.name ? 'border-red-500 ring-offset-2 ring-red-500' : ''}`}
                         />
-                        <FieldError name="name" />
+                        <FieldError message={fieldErrors.name} />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -225,7 +222,7 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <FieldError name="company_id" />
+                            <FieldError message={fieldErrors.company_id} />
                         </div>
 
                         {/* Status Dropdown - Required */}
@@ -294,7 +291,7 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                                 onBlur={(e) => validateField('start_date', e.target.value)}
                                 className={`border-zinc-300 ${fieldErrors.start_date ? 'border-red-500' : ''}`}
                             />
-                            <FieldError name="start_date" />
+                            <FieldError message={fieldErrors.start_date} />
                         </div>
 
                         {/* Expected End Date - Optional */}
@@ -309,7 +306,7 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                                 onBlur={(e) => validateField('expected_end_date', e.target.value)}
                                 className={`border-zinc-300 ${fieldErrors.expected_end_date ? 'border-red-500' : ''}`}
                             />
-                            <FieldError name="expected_end_date" />
+                            <FieldError message={fieldErrors.expected_end_date} />
                         </div>
                     </div>
 

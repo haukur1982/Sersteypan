@@ -62,21 +62,12 @@ const statusConfig = {
     delivered: { color: 'bg-purple-100 text-purple-800', label: 'Afhent' }
 }
 
-interface ProjectPageProps {
-    params: Promise<{
-        projectId: string
-    }>
-}
-
 export default async function ProjectPage({
     params,
-    searchParams
 }: {
     params: Promise<{ projectId: string }>
-    searchParams: Promise<{ tab?: string }>
 }) {
     const { projectId } = await params
-    const { tab } = await searchParams
 
     // Fetch project data
     const { data: project, error } = await getProject(projectId)

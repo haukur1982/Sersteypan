@@ -3,7 +3,6 @@ import {
   safeStringSchema,
   optionalStringSchema,
   uuidSchema,
-  dateStringSchema,
   optionalDateStringSchema
 } from './common'
 

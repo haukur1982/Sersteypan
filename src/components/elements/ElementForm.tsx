@@ -16,6 +16,11 @@ import { validateElementCreate, formatZodError } from '@/lib/schemas'
 import { ElementTypeSelect } from '@/components/elements/ElementTypeSelect'
 import type { Database } from '@/types/database'
 
+function FieldError({ message }: { message?: string }) {
+    if (!message) return null
+    return <p className="text-sm text-red-600 mt-1">{message}</p>
+}
+
 type ElementRow = Database['public']['Tables']['elements']['Row']
 type ProjectRow = Database['public']['Tables']['projects']['Row']
 type ProjectOption = Pick<ProjectRow, 'id' | 'name' | 'status'>
@@ -170,15 +175,6 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
         }
     }
 
-    // Field error display component
-    function FieldError({ name }: { name: string }) {
-        const errorMessage = fieldErrors[name]
-        if (!errorMessage) return null
-        return (
-            <p className="text-sm text-red-600 mt-1">{errorMessage}</p>
-        )
-    }
-
     return (
         <Card className="border-zinc-200 shadow-sm">
             <CardContent className="pt-6">
@@ -201,7 +197,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     onBlur={(e) => validateField('name', e.target.value)}
                                     className={`border-zinc-300 focus:ring-blue-500 ${fieldErrors.name ? 'border-red-500' : ''}`}
                                 />
-                                <FieldError name="name" />
+                                <FieldError message={fieldErrors.name} />
                             </div>
 
                             {/* Project Dropdown */}
@@ -227,7 +223,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <FieldError name="project_id" />
+                                <FieldError message={fieldErrors.project_id} />
                             </div>
 
                             {/* Element Type */}
@@ -303,7 +299,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     onBlur={(e) => validateField('length_mm', parseNumberInput(e.target.value))}
                                     className={`border-zinc-300 ${fieldErrors.length_mm ? 'border-red-500' : ''}`}
                                 />
-                                <FieldError name="length_mm" />
+                                <FieldError message={fieldErrors.length_mm} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="width_mm">Breidd (mm)</Label>
@@ -319,7 +315,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     onBlur={(e) => validateField('width_mm', parseNumberInput(e.target.value))}
                                     className={`border-zinc-300 ${fieldErrors.width_mm ? 'border-red-500' : ''}`}
                                 />
-                                <FieldError name="width_mm" />
+                                <FieldError message={fieldErrors.width_mm} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="height_mm">Hæð (mm)</Label>
@@ -335,7 +331,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     onBlur={(e) => validateField('height_mm', parseNumberInput(e.target.value))}
                                     className={`border-zinc-300 ${fieldErrors.height_mm ? 'border-red-500' : ''}`}
                                 />
-                                <FieldError name="height_mm" />
+                                <FieldError message={fieldErrors.height_mm} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="weight_kg">Þyngd (kg)</Label>
@@ -352,7 +348,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     onBlur={(e) => validateField('weight_kg', parseNumberInput(e.target.value))}
                                     className={`border-zinc-300 ${fieldErrors.weight_kg ? 'border-red-500' : ''}`}
                                 />
-                                <FieldError name="weight_kg" />
+                                <FieldError message={fieldErrors.weight_kg} />
                             </div>
                         </div>
                     </div>
@@ -397,7 +393,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     className={`border-zinc-300 ${fieldErrors.priority ? 'border-red-500' : ''}`}
                                 />
                                 <p className="text-xs text-zinc-500">Hærri tala = meiri forgangur (0-999)</p>
-                                <FieldError name="priority" />
+                                <FieldError message={fieldErrors.priority} />
                             </div>
 
                             {/* Production Notes */}

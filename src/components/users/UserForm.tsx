@@ -20,6 +20,11 @@ import Link from 'next/link'
 import { validateUserCreate, formatZodError } from '@/lib/schemas'
 import type { Database } from '@/types/database'
 
+function FieldError({ message }: { message?: string }) {
+    if (!message) return null
+    return <p className="text-sm text-red-600 mt-1">{message}</p>
+}
+
 type CompanyRow = Database['public']['Tables']['companies']['Row']
 
 interface UserFormProps {
@@ -127,14 +132,6 @@ export function UserForm({ companies }: UserFormProps) {
         }
     }
 
-    function FieldError({ name }: { name: string }) {
-        const errorMessage = fieldErrors[name]
-        if (!errorMessage) return null
-        return (
-            <p className="text-sm text-red-600 mt-1">{errorMessage}</p>
-        )
-    }
-
     return (
         <div className="space-y-6 max-w-2xl">
             {/* Header */}
@@ -169,7 +166,7 @@ export function UserForm({ companies }: UserFormProps) {
                                 onBlur={(e) => validateField('full_name', e.target.value)}
                                 className={fieldErrors.full_name ? 'border-red-500 ring-offset-2 ring-red-500' : ''}
                             />
-                            <FieldError name="full_name" />
+                            <FieldError message={fieldErrors.full_name} />
                         </div>
 
                         {/* Email */}
@@ -185,7 +182,7 @@ export function UserForm({ companies }: UserFormProps) {
                                 onBlur={(e) => validateField('email', e.target.value)}
                                 className={fieldErrors.email ? 'border-red-500 ring-offset-2 ring-red-500' : ''}
                             />
-                            <FieldError name="email" />
+                            <FieldError message={fieldErrors.email} />
                         </div>
 
                         {/* Password */}
@@ -205,7 +202,7 @@ export function UserForm({ companies }: UserFormProps) {
                             <p className="text-xs text-zinc-500">
                                 Notandinn getur breytt lykilorðinu síðar
                             </p>
-                            <FieldError name="password" />
+                            <FieldError message={fieldErrors.password} />
                         </div>
 
                         {/* Phone */}
@@ -220,7 +217,7 @@ export function UserForm({ companies }: UserFormProps) {
                                 onBlur={(e) => validateField('phone', e.target.value)}
                                 className={fieldErrors.phone ? 'border-red-500 ring-offset-2 ring-red-500' : ''}
                             />
-                            <FieldError name="phone" />
+                            <FieldError message={fieldErrors.phone} />
                         </div>
 
                         {/* Role */}
@@ -244,7 +241,7 @@ export function UserForm({ companies }: UserFormProps) {
                                     <SelectItem value="driver">Driver - Bílstjóri</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <FieldError name="role" />
+                            <FieldError message={fieldErrors.role} />
                         </div>
 
                         {/* Company (for buyers only) */}
@@ -270,7 +267,7 @@ export function UserForm({ companies }: UserFormProps) {
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <FieldError name="company_id" />
+                                <FieldError message={fieldErrors.company_id} />
                             </div>
                         )}
 

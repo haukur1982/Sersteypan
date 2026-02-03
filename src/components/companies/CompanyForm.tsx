@@ -14,6 +14,11 @@ import Link from 'next/link'
 import { validateCompanyCreate, formatZodError } from '@/lib/schemas'
 import type { Database } from '@/types/database'
 
+function FieldError({ message }: { message?: string }) {
+    if (!message) return null
+    return <p className="text-sm text-red-600 mt-1">{message}</p>
+}
+
 interface CompanyFormProps {
     initialData?: Database['public']['Tables']['companies']['Row']
     isEditing?: boolean
@@ -130,14 +135,6 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
         }
     }
 
-    function FieldError({ name }: { name: string }) {
-        const errorMessage = fieldErrors[name]
-        if (!errorMessage) return null
-        return (
-            <p className="text-sm text-red-600 mt-1">{errorMessage}</p>
-        )
-    }
-
     return (
         <Card className="border-zinc-200 shadow-sm">
             <CardHeader>
@@ -157,7 +154,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                             onBlur={(e) => validateField('name', e.target.value)}
                             className={`border-zinc-300 focus:border-blue-500 focus:ring-blue-500 ${fieldErrors.name ? 'border-red-500 ring-offset-2 ring-red-500' : ''}`}
                         />
-                        <FieldError name="name" />
+                        <FieldError message={fieldErrors.name} />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -172,7 +169,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                                 onBlur={(e) => validateField('kennitala', e.target.value)}
                                 className={`border-zinc-300 ${fieldErrors.kennitala ? 'border-red-500' : ''}`}
                             />
-                            <FieldError name="kennitala" />
+                            <FieldError message={fieldErrors.kennitala} />
                         </div>
                         <div className="space-y-2">
                             {/* This input is named contact_phone in the DB and form, but often companies have a main phone too. 
@@ -187,7 +184,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                                 onBlur={(e) => validateField('contact_phone', e.target.value)}
                                 className={`border-zinc-300 ${fieldErrors.contact_phone ? 'border-red-500' : ''}`}
                             />
-                            <FieldError name="contact_phone" />
+                            <FieldError message={fieldErrors.contact_phone} />
                         </div>
                     </div>
 
@@ -225,7 +222,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                                 onBlur={(e) => validateField('postal_code', e.target.value)}
                                 className={`border-zinc-300 ${fieldErrors.postal_code ? 'border-red-500' : ''}`}
                             />
-                            <FieldError name="postal_code" />
+                            <FieldError message={fieldErrors.postal_code} />
                         </div>
                     </div>
 
@@ -254,7 +251,7 @@ export function CompanyForm({ initialData, isEditing = false }: CompanyFormProps
                                 onBlur={(e) => validateField('contact_email', e.target.value)}
                                 className={`border-zinc-300 focus:border-blue-500 ${fieldErrors.contact_email ? 'border-red-500' : ''}`}
                             />
-                            <FieldError name="contact_email" />
+                            <FieldError message={fieldErrors.contact_email} />
                         </div>
                     </div>
 

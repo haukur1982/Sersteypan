@@ -1,6 +1,5 @@
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { getUser } from '@/lib/auth/actions'
-import { redirect } from 'next/navigation'
 
 export default async function AdminLayout({
   children
