@@ -14,6 +14,7 @@ import {
     QrCode,
     UserCircle,
     Wrench,
+    LogOut,
     FlaskConical,
     Settings,
     type LucideIcon
@@ -52,6 +53,13 @@ const roleMap: Record<string, AuthUser['role']> = {
     'Bílstjóri': 'driver'
 }
 
+const logoutItem: NavItem = {
+    name: 'Útskrá',
+    englishName: 'Log out',
+    href: '/auth/signout',
+    icon: LogOut
+}
+
 const navigation: Record<AuthUser['role'], NavItem[]> = {
     admin: [
         { name: 'Stjórnborð', englishName: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -60,7 +68,8 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Notendur', englishName: 'Users', href: '/admin/users', icon: Users },
         { name: 'Skilaboð', englishName: 'Messages', href: '/admin/messages', icon: MessageSquare },
         { name: 'Stillingar', englishName: 'Settings', href: '/admin/settings/element-types', icon: Settings },
-        { name: '3D Lab (Exp)', englishName: '3D Research', href: '/admin/lab/3d', icon: FlaskConical }
+        { name: '3D Lab (Exp)', englishName: '3D Research', href: '/admin/lab/3d', icon: FlaskConical },
+        logoutItem
     ],
     factory_manager: [
         { name: 'Stjórnborð', englishName: 'Dashboard', href: '/factory', icon: LayoutDashboard },
@@ -69,19 +78,22 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Verkefnalisti', englishName: 'Tasks', href: '/factory/todos', icon: CheckSquare },
         { name: 'Lager', englishName: 'Stock', href: '/factory/stock', icon: Package },
         { name: 'Viðgerðir', englishName: 'Fix in Factory', href: '/factory/fix-in-factory', icon: Wrench },
-        { name: 'Skilaboð', englishName: 'Messages', href: '/factory/messages', icon: MessageSquare }
+        { name: 'Skilaboð', englishName: 'Messages', href: '/factory/messages', icon: MessageSquare },
+        logoutItem
     ],
     buyer: [
         { name: 'Yfirlit', englishName: 'Dashboard', href: '/buyer', icon: LayoutDashboard },
         { name: 'Verkefni', englishName: 'Projects', href: '/buyer/projects', icon: FolderKanban },
         { name: 'Afhendingar', englishName: 'Deliveries', href: '/buyer/deliveries', icon: Truck },
         { name: 'Skilaboð', englishName: 'Messages', href: '/buyer/messages', icon: MessageSquare },
-        { name: 'Prófíll', englishName: 'Profile', href: '/buyer/profile', icon: UserCircle }
+        { name: 'Prófíll', englishName: 'Profile', href: '/buyer/profile', icon: UserCircle },
+        logoutItem
     ],
     driver: [
         { name: 'Stjórnborð', englishName: 'Dashboard', href: '/driver', icon: LayoutDashboard },
         { name: 'Afhendingar', englishName: 'Deliveries', href: '/driver/deliveries', icon: Truck },
-        { name: 'Skanna QR', englishName: 'Scan QR', href: '/driver/scan', icon: QrCode }
+        { name: 'Skanna QR', englishName: 'Scan QR', href: '/driver/scan', icon: QrCode },
+        logoutItem
     ]
 }
 
@@ -92,7 +104,8 @@ export function RoleBasedNav({ role, onItemClick }: { role: AuthUser['role'] | u
 
     if (!role) return null
 
-    const normalizedRole = (roleMap[role] || role) as AuthUser['role']
+    const normalizedInput = typeof role === 'string' ? role.trim() : role
+    const normalizedRole = (roleMap[normalizedInput] || normalizedInput) as AuthUser['role']
     if (!normalizedRole || !navigation[normalizedRole]) {
         return (
             <div className="p-4 space-y-2">

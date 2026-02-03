@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { Scene } from './Scene'
 import { ParametricElement } from './ParametricElement'
+import { VegstokkurElement } from './VegstokkurElement'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 
@@ -107,19 +108,38 @@ export function ProjectScene({ floorPlans }: ProjectSceneProps) {
                                     position={[x3d, 0, z3d]}
                                     rotation={[0, -THREE.MathUtils.degToRad(pos.rotation_degrees || 0), 0]}
                                 >
-                                    <ParametricElement
-                                        length_mm={pos.element.length_mm}
-                                        height_mm={pos.element.height_mm}
-                                        width_mm={pos.element.width_mm}
-                                        status={pos.element.status}
-                                        showLabels={false} // Too clear for bird's eye view
-                                    />
+                                    {/* Render specific component based on type */}
+                                    {(pos.element.element_type === 'vegstokkur' || pos.element.name.toLowerCase().includes('stokkur')) ? (
+                                        <VegstokkurElement
+                                            length_mm={pos.element.length_mm || 4000}
+                                            status={pos.element.status}
+                                        />
+                                    ) : (
+                                        <ParametricElement
+                                            length_mm={pos.element.length_mm}
+                                            height_mm={pos.element.height_mm}
+                                            width_mm={pos.element.width_mm}
+                                            status={pos.element.status}
+                                            showLabels={false} // Too clear for bird's eye view
+                                        />
+                                    )}
                                 </group>
                             )
                         })}
                     </group>
                 )
             })}
+
+            {/* PREVIEW MODE: SHOW THE NEW MODEL IMMEDIATELY */}
+            <group position={[0, 2, 5]} rotation={[0, Math.PI / 6, 0]}>
+                <VegstokkurElement length_mm={4000} status="cast" />
+                <Html position={[0, 3, 0]}>
+                    <div className="bg-blue-600 text-white font-bold px-3 py-1 rounded shadow-lg animate-pulse">
+                        NEW DESIGN
+                    </div>
+                </Html>
+            </group>
+
         </Scene>
     )
 }

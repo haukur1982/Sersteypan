@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { pdf, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import { createClient as createUserClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 
@@ -31,9 +32,34 @@ function getServiceClient() {
   })
 }
 
+async function getAuthenticatedUser() {
+  const supabase = await createUserClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) {
+    return { user: null, supabase }
+  }
+  return { user, supabase }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json() as RequestBody
+    const { user, supabase: userClient } = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+
+    // Enforce role-based access
+    const { data: profile } = await userClient
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile || !['admin', 'factory_manager', 'buyer'].includes(profile.role)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
     const supabase = getServiceClient()
     const bucket = process.env.SUPABASE_REPORTS_BUCKET ?? 'reports'
     const expiresIn = 60 * 60 * 24 * 30
@@ -41,6 +67,17 @@ export async function POST(req: Request) {
     if (body.type === 'project_status') {
       if (!body.project_id) {
         return NextResponse.json({ error: 'project_id is required' }, { status: 400 })
+      }
+
+      // Verify user has access to this project via RLS
+      const { data: allowedProject } = await userClient
+        .from('projects')
+        .select('id')
+        .eq('id', body.project_id)
+        .single()
+
+      if (!allowedProject) {
+        return NextResponse.json({ error: 'Project not found' }, { status: 404 })
       }
 
       const { data: project, error: projectError } = await supabase
@@ -104,6 +141,17 @@ export async function POST(req: Request) {
     if (body.type === 'delivery_manifest') {
       if (!body.delivery_id) {
         return NextResponse.json({ error: 'delivery_id is required' }, { status: 400 })
+      }
+
+      // Verify user has access to this delivery via RLS
+      const { data: allowedDelivery } = await userClient
+        .from('deliveries')
+        .select('id')
+        .eq('id', body.delivery_id)
+        .single()
+
+      if (!allowedDelivery) {
+        return NextResponse.json({ error: 'Delivery not found' }, { status: 404 })
       }
 
       const { data: delivery, error: deliveryError } = await supabase

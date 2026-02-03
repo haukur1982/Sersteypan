@@ -4,6 +4,17 @@ import { defineConfig, devices } from '@playwright/test'
  * Playwright E2E test configuration for Sérsteypan
  * @see https://playwright.dev/docs/test-configuration
  */
+const useExistingServer = process.env.PW_EXISTING_SERVER === 'true'
+
+const browserProjectMap: Record<string, { name: string; use: (typeof devices)[keyof typeof devices] }> = {
+  chromium: { name: 'chromium', use: devices['Desktop Chrome'] },
+  firefox: { name: 'firefox', use: devices['Desktop Firefox'] },
+  webkit: { name: 'webkit', use: devices['Desktop Safari'] },
+}
+
+const selectedBrowser = process.env.PW_BROWSER || 'chromium'
+const selectedProject = browserProjectMap[selectedBrowser] || browserProjectMap.chromium
+
 export default defineConfig({
   testDir: './e2e',
   /* Run tests in files in parallel */
@@ -29,23 +40,22 @@ export default defineConfig({
   },
 
   /* Configure projects for major browsers */
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-  ],
+  projects: [selectedProject],
 
   /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'E2E_TEST=true npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: false, // Always start fresh to ensure E2E_TEST is set
-    timeout: 120 * 1000,
-    env: {
-      E2E_TEST: 'true',
-    },
-  },
+  webServer: useExistingServer
+    ? undefined
+    : {
+        command: 'E2E_TEST=true npm run dev',
+        url: 'http://localhost:3000',
+        // Allow reusing a manually started dev server when requested.
+        // Set PW_REUSE_SERVER=true to skip starting a new server.
+        reuseExistingServer: process.env.PW_REUSE_SERVER === 'true',
+        timeout: 120 * 1000,
+        env: {
+          E2E_TEST: 'true',
+        },
+      },
 
   /* Test timeout */
   timeout: 30 * 1000,

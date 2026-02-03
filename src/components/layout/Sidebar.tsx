@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Menu, LogOut } from 'lucide-react'
-import { logout } from '@/lib/auth/actions'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import type { AuthUser } from '@/lib/hooks/useAuth'
 import {
@@ -99,12 +98,26 @@ function UserNav({ user }: { user: AuthUser | null }) {
                     </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => logout()} className="text-red-600 focus:text-red-600 cursor-pointer">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Útskrá (Log out)</span>
+                <DropdownMenuItem asChild className="text-red-600 focus:text-red-600 cursor-pointer">
+                    <a href="/auth/signout">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Útskrá (Log out)</span>
+                    </a>
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
+    )
+}
+
+function LogoutLink() {
+    return (
+        <a
+            href="/auth/signout"
+            className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-red-600 hover:bg-sidebar-accent hover:text-red-600"
+        >
+            <LogOut className="h-4 w-4" />
+            <span>Útskrá (Log out)</span>
+        </a>
     )
 }
 
@@ -182,8 +195,10 @@ export function Sidebar({ className, user: initialUser }: SidebarProps) {
                     </div>
                 ) : (
                     <>
-                        <UserNav user={user} />
-
+                        {user ? <UserNav user={user} /> : null}
+                        <div className={cn('mt-2', user ? '' : 'mt-0')}>
+                            <LogoutLink />
+                        </div>
                     </>
                 )}
             </div>
@@ -224,7 +239,10 @@ export function MobileSidebar({ user: initialUser }: { user?: AuthUser | null })
                     )}
                 </div>
                 <div className="absolute bottom-0 w-full p-4 border-t border-sidebar-border bg-sidebar">
-                    <UserNav user={user} />
+                    {user ? <UserNav user={user} /> : null}
+                    <div className={cn('mt-2', user ? '' : 'mt-0')}>
+                        <LogoutLink />
+                    </div>
                     <div className="mt-2 text-xs text-center text-muted-foreground opacity-50">v1.0.2 (3D Lab)</div>
                 </div>
             </SheetContent>
