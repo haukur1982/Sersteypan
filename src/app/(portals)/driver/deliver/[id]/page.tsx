@@ -15,7 +15,7 @@ export default async function DeliverPage({ params }: DeliverPageProps) {
     const { id } = await params
     const supabase = await createClient()
 
-    // Fetch delivery with elements
+    // Fetch delivery with elements and confirmation status
     const { data: delivery, error } = await supabase
         .from('deliveries')
         .select(`
@@ -28,6 +28,7 @@ export default async function DeliverPage({ params }: DeliverPageProps) {
         address
       ),
       delivery_items(
+        delivered_at,
         element:elements(
           id,
           name,
@@ -47,11 +48,21 @@ export default async function DeliverPage({ params }: DeliverPageProps) {
         redirect(`/driver/deliveries/${id}`)
     }
 
-    // Extract elements from delivery items
+    // Extract elements from delivery items with confirmation status
     const elements = delivery.delivery_items
-        .map((item) => item.element)
-        .filter((e): e is { id: string; name: string; status: string | null } => e !== null)
-        .map((e) => ({ ...e, status: e.status || 'planned' }))
+        .map((item) => ({
+            element: item.element,
+            confirmedAt: item.delivered_at
+        }))
+        .filter((item): item is { element: { id: string; name: string; status: string | null }; confirmedAt: string | null } =>
+            item.element !== null
+        )
+        .map((item) => ({
+            id: item.element.id,
+            name: item.element.name,
+            status: item.element.status || 'planned',
+            confirmedAt: item.confirmedAt
+        }))
 
     const project = delivery.project as {
         id: string
@@ -73,6 +84,7 @@ export default async function DeliverPage({ params }: DeliverPageProps) {
 
             <DeliverPageClient
                 deliveryId={delivery.id}
+                deliveryStatus={delivery.status || 'planned'}
                 projectName={project?.name || 'Óþekkt verkefni'}
                 elements={elements}
                 companyName={project?.company?.name}
