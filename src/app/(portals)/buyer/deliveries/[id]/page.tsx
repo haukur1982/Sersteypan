@@ -3,6 +3,7 @@ import { getDeliveryDetail } from '@/lib/buyer/queries'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, Calendar, User, Phone, MapPin, FileSignature } from 'lucide-react'
+import { OpenInMapsLink } from '@/components/shared/OpenInMapsButton'
 import type { Database } from '@/types/database'
 
 type DeliveryRow = Database['public']['Tables']['deliveries']['Row']
@@ -19,7 +20,10 @@ type DeliveryItemDetail = DeliveryItemRow & {
 }
 
 type DeliveryDetail = DeliveryRow & {
-  project: Pick<ProjectRow, 'id' | 'name' | 'address'> | null
+  project: (Pick<ProjectRow, 'id' | 'name' | 'address'> & {
+    latitude?: number | null
+    longitude?: number | null
+  }) | null
   driver: Pick<ProfileRow, 'id' | 'full_name' | 'phone'> | null
   items: DeliveryItemDetail[]
 }
@@ -107,6 +111,16 @@ export default async function DeliveryDetailPage({
                     <p className="font-medium text-zinc-900">
                       {delivery.project.address}
                     </p>
+                    {delivery.project.latitude && delivery.project.longitude && (
+                      <div className="mt-1">
+                        <OpenInMapsLink
+                          coordinates={{
+                            latitude: delivery.project.latitude,
+                            longitude: delivery.project.longitude
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

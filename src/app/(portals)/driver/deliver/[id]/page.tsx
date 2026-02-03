@@ -71,6 +71,10 @@ export default async function DeliverPage({ params }: DeliverPageProps) {
         address: string | null
     } | null
 
+    // TODO: Add latitude, longitude to query after running migration 017_add_project_coordinates.sql
+    // Then build coordinates: { latitude: project.latitude, longitude: project.longitude }
+    const projectCoordinates = null
+
     return (
         <div className="max-w-lg mx-auto space-y-6">
             <div>
@@ -89,6 +93,7 @@ export default async function DeliverPage({ params }: DeliverPageProps) {
                 elements={elements}
                 companyName={project?.company?.name}
                 deliveryAddress={project?.address || undefined}
+                projectCoordinates={projectCoordinates}
             />
         </div>
     )

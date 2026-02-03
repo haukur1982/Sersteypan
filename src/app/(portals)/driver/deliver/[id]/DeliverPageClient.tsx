@@ -20,6 +20,8 @@ import { createClient } from '@/lib/supabase/client'
 import { arriveAtSite, completeDelivery } from '@/lib/driver/delivery-actions'
 import { confirmElementDelivered } from '@/lib/driver/qr-actions'
 import { SignatureCanvas, type SignatureCanvasRef } from '@/components/shared/SignatureCanvas'
+import { OpenInMapsButton } from '@/components/shared/OpenInMapsButton'
+import type { Coordinates } from '@/lib/maps/types'
 import Image from 'next/image'
 
 interface DeliveryElement {
@@ -36,6 +38,7 @@ interface DeliverPageClientProps {
     elements: DeliveryElement[]
     companyName?: string
     deliveryAddress?: string
+    projectCoordinates?: Coordinates | null
 }
 
 export function DeliverPageClient({
@@ -45,6 +48,7 @@ export function DeliverPageClient({
     elements: initialElements,
     companyName,
     deliveryAddress,
+    projectCoordinates,
 }: DeliverPageClientProps) {
     const router = useRouter()
     const supabase = createClient()
@@ -256,6 +260,17 @@ export function DeliverPageClient({
                         <CheckCircle className="w-4 h-4 text-green-600" />
                         <span>{confirmedCount} staðfestar</span>
                     </div>
+                </div>
+
+                {/* Navigation Button */}
+                <div className="mt-4 pt-3 border-t border-zinc-200">
+                    <OpenInMapsButton
+                        coordinates={projectCoordinates}
+                        address={deliveryAddress}
+                        variant="outline"
+                        className="w-full"
+                        label="Opna leiðsögn"
+                    />
                 </div>
             </Card>
 

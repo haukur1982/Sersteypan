@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createProject, updateProject } from '@/lib/projects/actions'
 import { getCompanies } from '@/lib/companies/actions'
+import { geocodeAndSaveProject } from '@/lib/maps/geocoding'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,9 +12,10 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle, Loader2, MapPin, CheckCircle2 } from 'lucide-react'
 import { validateProjectCreate, formatZodError } from '@/lib/schemas'
 import type { Database } from '@/types/database'
+import type { Coordinates } from '@/lib/maps/types'
 
 function FieldError({ message }: { message?: string }) {
     if (!message) return null
@@ -23,8 +25,14 @@ function FieldError({ message }: { message?: string }) {
 type ProjectRow = Database['public']['Tables']['projects']['Row']
 type CompanyRow = Database['public']['Tables']['companies']['Row']
 
+// Extended type until we regenerate database types
+type ProjectWithCoordinates = ProjectRow & {
+    latitude?: number | string | null
+    longitude?: number | string | null
+}
+
 interface ProjectFormProps {
-    initialData?: ProjectRow
+    initialData?: ProjectWithCoordinates
     isEditing?: boolean
 }
 
@@ -37,6 +45,16 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
     const [selectedCompany, setSelectedCompany] = useState<string>(initialData?.company_id || '')
     const [selectedStatus, setSelectedStatus] = useState<string>(initialData?.status || 'planning')
 
+    // Geocoding state
+    const [coordinates, setCoordinates] = useState<Coordinates | null>(
+        initialData?.latitude && initialData?.longitude
+            ? { latitude: Number(initialData.latitude), longitude: Number(initialData.longitude) }
+            : null
+    )
+    const [geocoding, setGeocoding] = useState(false)
+    const [geocodeError, setGeocodeError] = useState<string | null>(null)
+    const [geocodeSuccess, setGeocodeSuccess] = useState(false)
+
     // Fetch companies on mount
     useEffect(() => {
         async function loadCompanies() {
@@ -48,6 +66,39 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
         }
         loadCompanies()
     }, [])
+
+    // Handle geocoding
+    async function handleGeocode() {
+        if (!isEditing || !initialData?.id) {
+            setGeocodeError('Vista verkefni fyrst til að geocoda')
+            return
+        }
+
+        const form = document.getElementById('project-form') as HTMLFormElement | null
+        const address = form?.querySelector<HTMLInputElement>('#address')?.value
+
+        if (!address || address.trim().length < 5) {
+            setGeocodeError('Heimilisfang of stutt')
+            return
+        }
+
+        setGeocoding(true)
+        setGeocodeError(null)
+        setGeocodeSuccess(false)
+
+        const result = await geocodeAndSaveProject(initialData.id, address)
+
+        setGeocoding(false)
+
+        if (result.success && result.coordinates) {
+            setCoordinates(result.coordinates)
+            setGeocodeSuccess(true)
+            // Clear success message after 3 seconds
+            setTimeout(() => setGeocodeSuccess(false), 3000)
+        } else {
+            setGeocodeError(result.error || 'Geocoding mistókst')
+        }
+    }
 
     // Client-side validation on blur
     function validateField(name: string, value: string | undefined) {
@@ -267,15 +318,54 @@ export function ProjectForm({ initialData, isEditing = false }: ProjectFormProps
                     {/* Address - Optional */}
                     <div className="space-y-2">
                         <Label htmlFor="address">Heimilisfang (Delivery Address)</Label>
-                        <Input
-                            id="address"
-                            name="address"
-                            placeholder="t.d. Eddufellsvegur 6, 112 Reykjavík"
-                            defaultValue={initialData?.address ?? ''}
-                            disabled={loading}
-                            onBlur={(e) => validateField('address', e.target.value)}
-                            className="border-zinc-300"
-                        />
+                        <div className="flex gap-2">
+                            <Input
+                                id="address"
+                                name="address"
+                                placeholder="t.d. Eddufellsvegur 6, 112 Reykjavík"
+                                defaultValue={initialData?.address ?? ''}
+                                disabled={loading}
+                                onBlur={(e) => validateField('address', e.target.value)}
+                                className="border-zinc-300 flex-1"
+                            />
+                            {isEditing && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleGeocode}
+                                    disabled={loading || geocoding}
+                                    className="shrink-0"
+                                >
+                                    {geocoding ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <MapPin className="h-4 w-4" />
+                                    )}
+                                    <span className="ml-2 hidden sm:inline">
+                                        {geocoding ? 'Leita...' : 'Finna á korti'}
+                                    </span>
+                                </Button>
+                            )}
+                        </div>
+
+                        {/* Geocoding status */}
+                        {geocodeError && (
+                            <p className="text-sm text-red-600 flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                {geocodeError}
+                            </p>
+                        )}
+                        {geocodeSuccess && (
+                            <p className="text-sm text-green-600 flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Hnit vistuð
+                            </p>
+                        )}
+                        {coordinates && (
+                            <p className="text-xs text-zinc-500">
+                                Hnit: {coordinates.latitude.toFixed(6)}, {coordinates.longitude.toFixed(6)}
+                            </p>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
