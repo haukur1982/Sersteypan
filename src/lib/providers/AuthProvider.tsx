@@ -41,13 +41,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Helper to load profile
     const loadProfile = async (authUser: { id: string; email?: string }) => {
       try {
-        const { data: profile } = await supabase
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('full_name, email, role, company_id, preferences, is_active')
           .eq('id', authUser.id)
-          .single()
+          // Avoid throwing when profile row is temporarily unavailable; never sign out on fetch errors.
+          .maybeSingle()
 
-        if (!profile || profile.is_active === false) {
+        if (error) {
+          console.error('AuthProvider: Failed to load profile', error)
+          return
+        }
+
+        // Missing profile should not log the user out; it can happen due to transient issues or RLS/migration drift.
+        // Portal access is enforced by server-side middleware; client-side sign-out here causes redirect loops.
+        if (!profile) {
+          console.warn('AuthProvider: Profile missing for user', authUser.id)
+          return
+        }
+
+        if (profile.is_active === false) {
           await supabase.auth.signOut()
           if (!isCancelledRef.current) {
             setUser(null)
