@@ -78,7 +78,9 @@ export async function updateSession(request: NextRequest) {
         }
 
         // Enforce account status at edge: inactive users are immediately logged out.
-        if (user && (!profile || profile.is_active === false)) {
+        // Do NOT sign out when profile cannot be fetched (transient DB/RLS issues),
+        // otherwise users get bounced to /login and it looks like the session vanished.
+        if (user && profile && profile.is_active === false) {
             await supabase.auth.signOut()
             const redirectUrl = request.nextUrl.clone()
             redirectUrl.pathname = '/login'
