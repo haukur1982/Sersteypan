@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useActionState } from 'react'
+import { login } from '@/lib/auth/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,7 +22,15 @@ export default function LoginClient({
   redirectTo: string
   errorMessage: string | null
 }) {
-  const [loading, setLoading] = useState(false)
+  const [state, formAction, isPending] = useActionState(
+    async (_prevState: { error: string }, formData: FormData) => {
+      const res = await login(formData)
+      return { error: res?.error ?? '' }
+    },
+    { error: '' }
+  )
+
+  const mergedError = state.error || errorMessage
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
@@ -49,10 +58,8 @@ export default function LoginClient({
           </CardHeader>
           <CardContent>
             <form
-              action="/auth/login"
-              method="post"
+              action={formAction}
               className="space-y-4"
-              onSubmit={() => setLoading(true)}
             >
               {redirectTo && (
                 <input type="hidden" name="redirectTo" value={redirectTo} />
@@ -67,7 +74,7 @@ export default function LoginClient({
                   placeholder="jon@example.is"
                   required
                   autoComplete="email"
-                  disabled={loading}
+                  disabled={isPending}
                 />
               </div>
 
@@ -79,19 +86,19 @@ export default function LoginClient({
                   type="password"
                   required
                   autoComplete="current-password"
-                  disabled={loading}
+                  disabled={isPending}
                 />
               </div>
 
-              {errorMessage && (
+              {mergedError && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{errorMessage}</AlertDescription>
+                  <AlertDescription>{mergedError}</AlertDescription>
                 </Alert>
               )}
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
+              <Button type="submit" className="w-full" disabled={isPending}>
+                {isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Bíðið...
@@ -107,4 +114,3 @@ export default function LoginClient({
     </div>
   )
 }
-

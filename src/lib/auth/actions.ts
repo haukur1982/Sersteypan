@@ -7,6 +7,14 @@ import { createClient } from '@/lib/supabase/server'
 import type { AuthUser, UserPreferences } from '@/lib/providers/AuthProvider'
 import { authRateLimiter, getClientIP } from '@/lib/utils/rateLimit'
 
+function safeRedirectPath(path: unknown): string | null {
+  if (typeof path !== 'string') return null
+  const trimmed = path.trim()
+  if (!trimmed.startsWith('/')) return null
+  if (trimmed.startsWith('//')) return null
+  return trimmed
+}
+
 export async function login(formData: FormData) {
   // Rate limiting for login attempts
   const headersList = await headers()
@@ -61,6 +69,22 @@ export async function login(formData: FormData) {
   }
 
   const dashboard = dashboardMap[profile.role as keyof typeof dashboardMap] || '/admin'
+
+  // Optional: honor redirectTo (only within allowed portals)
+  const redirectTo = safeRedirectPath(formData.get('redirectTo'))
+  if (redirectTo) {
+    const rolePortalAccess: Record<string, string[]> = {
+      admin: ['/admin', '/factory', '/buyer', '/driver'],
+      factory_manager: ['/factory'],
+      buyer: ['/buyer'],
+      driver: ['/driver'],
+    }
+    const allowed = rolePortalAccess[profile.role as keyof typeof rolePortalAccess] || []
+    if (allowed.some((p) => redirectTo.startsWith(p))) {
+      revalidatePath('/', 'layout')
+      redirect(redirectTo)
+    }
+  }
 
   revalidatePath('/', 'layout')
   redirect(dashboard)
