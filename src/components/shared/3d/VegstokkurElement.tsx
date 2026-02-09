@@ -106,7 +106,7 @@ export function VegstokkurElement({ status, length_mm = 4000 }: VegstokkurProps)
         s.lineTo(xOutL, yBot)
 
         return s
-    }, [])
+    }, [H_floor, H_total, W_inner_bot, W_inner_top, W_outer])
 
     const extrudeSettings = useMemo(() => ({
         steps: 1,
@@ -156,7 +156,7 @@ export function VegstokkurElement({ status, length_mm = 4000 }: VegstokkurProps)
                     <div className="grid grid-cols-2 gap-x-2 text-[10px] text-zinc-400">
                         <span>Hæð:</span> <span className="text-white">2400mm</span>
                         <span>Lengd:</span> <span className="text-white">{length_mm}mm</span>
-                        <span>Breidd:</span> <span className="text-white">1260mm</span>
+                        <span>Breidd:</span> <span className="text-white">1600mm</span>
                     </div>
                 </div>
             </Html>

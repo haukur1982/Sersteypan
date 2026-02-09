@@ -17,11 +17,11 @@ export async function getServerUser(): Promise<AuthUser | null> {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, email, role, company_id, preferences')
+    .select('full_name, email, role, company_id, preferences, is_active')
     .eq('id', user.id)
     .single()
 
-  if (!profile) {
+  if (!profile || profile.is_active === false) {
     return null
   }
 

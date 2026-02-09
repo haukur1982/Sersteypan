@@ -35,7 +35,7 @@ export function FeatureToggler({ userId, featureKey, initialValue, label }: Feat
                 toast.success('Feature updated')
                 router.refresh()
             }
-        } catch (_error) {
+        } catch {
             setEnabled(!checked)
             toast.error('Connection failed')
         } finally {

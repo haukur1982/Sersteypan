@@ -10,15 +10,6 @@ const DRIVER_USER = {
   password: 'Password123!',
 }
 
-// Delivery status workflow
-const DELIVERY_STATUSES = [
-  'planned',
-  'loading',
-  'in_transit',
-  'arrived',
-  'completed'
-]
-
 // Helper to login as driver
 async function loginAsDriver(page: import('@playwright/test').Page) {
   await page.goto('/login')
@@ -63,10 +54,6 @@ test.describe('Deliveries List', () => {
 
   test('has link to create new delivery', async ({ page }) => {
     await page.goto('/driver/deliveries', { waitUntil: 'domcontentloaded' })
-
-    // Look for "New Delivery" link
-    const newDeliveryLink = page.getByRole('link', { name: /new|ný/i })
-      .or(page.locator('a[href*="/deliveries/new"]'))
 
     await expect(page.locator('body')).toBeVisible()
   })
@@ -128,10 +115,6 @@ test.describe('QR Scanner Page', () => {
 
   test('has manual element lookup option', async ({ page }) => {
     await page.goto('/driver/scan')
-
-    // Look for manual search/input field as fallback
-    const manualInput = page.locator('input[type="text"]')
-      .or(page.getByPlaceholder(/search|leita|element/i))
 
     // Just verify page loads (manual input may or may not exist)
     await expect(page.locator('body')).toBeVisible()

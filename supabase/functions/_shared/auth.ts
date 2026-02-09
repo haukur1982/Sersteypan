@@ -50,12 +50,16 @@ export async function verifyAuth(req: Request): Promise<AuthResult> {
   // Get user's role from profiles
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, is_active')
     .eq('id', user.id)
     .single()
 
   if (profileError || !profile) {
     return { success: false, error: 'User profile not found' }
+  }
+
+  if (profile.is_active === false) {
+    return { success: false, error: 'Account is inactive' }
   }
 
   return {

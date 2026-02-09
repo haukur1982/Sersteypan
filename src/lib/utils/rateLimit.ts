@@ -161,6 +161,16 @@ export const expensiveRateLimiter = createRateLimiter({
  * Returns 'unknown' if IP cannot be determined.
  */
 export function getClientIP(headersList: Headers): string {
+  const cfConnectingIp = headersList.get('cf-connecting-ip')
+  if (cfConnectingIp) {
+    return cfConnectingIp
+  }
+
+  const vercelForwardedFor = headersList.get('x-vercel-forwarded-for')
+  if (vercelForwardedFor) {
+    return vercelForwardedFor.split(',')[0].trim()
+  }
+
   // Try various headers that might contain the client IP
   const forwarded = headersList.get('x-forwarded-for')
   if (forwarded) {
@@ -171,6 +181,11 @@ export function getClientIP(headersList: Headers): string {
   const realIp = headersList.get('x-real-ip')
   if (realIp) {
     return realIp
+  }
+
+  const clientIp = headersList.get('x-client-ip')
+  if (clientIp) {
+    return clientIp
   }
 
   return 'unknown'

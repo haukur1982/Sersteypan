@@ -43,11 +43,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('full_name, email, role, company_id, preferences')
+          .select('full_name, email, role, company_id, preferences, is_active')
           .eq('id', authUser.id)
           .single()
 
-        if (profile && !isCancelledRef.current) {
+        if (!profile || profile.is_active === false) {
+          await supabase.auth.signOut()
+          if (!isCancelledRef.current) {
+            setUser(null)
+          }
+          return
+        }
+
+        if (!isCancelledRef.current) {
           setUser({
             id: authUser.id,
             email: authUser.email || profile.email,

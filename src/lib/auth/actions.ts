@@ -39,12 +39,17 @@ export async function login(formData: FormData) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, is_active')
     .eq('id', user.id)
     .single()
 
   if (!profile) {
     return { error: 'Profile not found' }
+  }
+
+  if (profile.is_active === false) {
+    await supabase.auth.signOut()
+    return { error: 'Account is inactive. Contact an administrator.' }
   }
 
   // Redirect to role-specific dashboard
@@ -79,11 +84,11 @@ export async function getUser() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, email, role, company_id, preferences')
+    .select('full_name, email, role, company_id, preferences, is_active')
     .eq('id', user.id)
     .single()
 
-  if (!profile) {
+  if (!profile || profile.is_active === false) {
     console.error('getUser: Profile missing for user', user.id)
     return null
   }

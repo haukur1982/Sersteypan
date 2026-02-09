@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { pdf, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 import { createClient as createUserClient } from '@/lib/supabase/server'
+import { expensiveRateLimiter, getClientIP } from '@/lib/utils/rateLimit'
 
 export const runtime = 'nodejs'
 
@@ -43,6 +44,16 @@ async function getAuthenticatedUser() {
 
 export async function POST(req: Request) {
   try {
+    const clientIP = getClientIP(req.headers)
+    const rateLimit = expensiveRateLimiter.check(clientIP)
+    if (!rateLimit.success) {
+      const retryAfter = Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))
+      return NextResponse.json(
+        { error: 'Too many report requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+      )
+    }
+
     const body = await req.json() as RequestBody
     const { user, supabase: userClient } = await getAuthenticatedUser()
     if (!user) {
@@ -52,11 +63,11 @@ export async function POST(req: Request) {
     // Enforce role-based access
     const { data: profile } = await userClient
       .from('profiles')
-      .select('role')
+      .select('role, is_active')
       .eq('id', user.id)
       .single()
 
-    if (!profile || !['admin', 'factory_manager', 'buyer'].includes(profile.role)) {
+    if (!profile || profile.is_active === false || !['admin', 'factory_manager', 'buyer'].includes(profile.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 

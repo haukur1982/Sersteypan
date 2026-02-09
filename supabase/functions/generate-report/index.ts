@@ -61,6 +61,18 @@ serve(async (req) => {
     const supabase = createServiceClient()
     const bucket = Deno.env.get('SUPABASE_REPORTS_BUCKET') ?? 'reports'
     const expiresIn = 60 * 60 * 24 * 30 // 30 days
+    const { data: requesterProfile, error: requesterProfileError } = await supabase
+      .from('profiles')
+      .select('company_id, is_active')
+      .eq('id', auth.userId)
+      .single()
+
+    if (requesterProfileError || !requesterProfile || requesterProfile.is_active === false) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     const doc = new jsPDF()
     let filePath = ''
@@ -83,11 +95,18 @@ serve(async (req) => {
 
       const { data: project, error: projectError } = await supabase
         .from('projects')
-        .select('id, name, address, status, created_at')
+        .select('id, name, address, status, created_at, company_id')
         .eq('id', body.project_id)
         .single()
 
       if (projectError || !project) {
+        return new Response(
+          JSON.stringify({ error: 'Project not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      if (auth.role === 'buyer' && project.company_id !== requesterProfile.company_id) {
         return new Response(
           JSON.stringify({ error: 'Project not found' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -155,7 +174,7 @@ serve(async (req) => {
           id,
           truck_registration,
           planned_date,
-          project:projects (id, name, address),
+          project:projects (id, name, address, company_id),
           items:delivery_items (
             id,
             element:elements (id, name, element_type, weight_kg)
@@ -173,12 +192,19 @@ serve(async (req) => {
       }
 
       // Type the nested relations
-      type ProjectRelation = { name?: string; address?: string } | null
+      type ProjectRelation = { name?: string; address?: string; company_id?: string | null } | null
       type ElementRelation = { name?: string; element_type?: string; weight_kg?: number } | null
       type DeliveryItem = { id: string; element: ElementRelation }
 
       const project = delivery.project as ProjectRelation
       const items = (delivery.items ?? []) as DeliveryItem[]
+
+      if (auth.role === 'buyer' && project?.company_id !== requesterProfile.company_id) {
+        return new Response(
+          JSON.stringify({ error: 'Delivery not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
 
       // Build PDF
       doc.setFontSize(18)

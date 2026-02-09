@@ -2,6 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
+    type UserRole = 'admin' | 'factory_manager' | 'buyer' | 'driver'
+
     let supabaseResponse = NextResponse.next({
         request,
     })
@@ -55,6 +57,17 @@ export async function updateSession(request: NextRequest) {
         // IMPORTANT: You *must* return the supabaseResponse object as it might have cookies set
         // This refreshes the session if needed
         const { data: { user } } = await supabase.auth.getUser()
+        let profile: { role: UserRole; is_active: boolean | null } | null = null
+
+        if (user) {
+            const { data: fetchedProfile } = await supabase
+                .from('profiles')
+                .select('role, is_active')
+                .eq('id', user.id)
+                .single()
+
+            profile = (fetchedProfile as { role: UserRole; is_active: boolean | null } | null) ?? null
+        }
 
         // If accessing protected route without auth, redirect to login
         if (isProtectedRoute && !user) {
@@ -64,17 +77,17 @@ export async function updateSession(request: NextRequest) {
             return NextResponse.redirect(redirectUrl)
         }
 
-        // If user is authenticated, verify they have access to the portal
-        if (user && isProtectedRoute) {
-            // Get user profile to determine role
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', user.id)
-                .single()
+        // Enforce account status at edge: inactive users are immediately logged out.
+        if (user && (!profile || profile.is_active === false)) {
+            await supabase.auth.signOut()
+            const redirectUrl = request.nextUrl.clone()
+            redirectUrl.pathname = '/login'
+            return NextResponse.redirect(redirectUrl)
+        }
 
-            if (profile) {
-                const role = profile.role as 'admin' | 'factory_manager' | 'buyer' | 'driver'
+        // If user is authenticated, verify they have access to the portal
+        if (user && profile && isProtectedRoute) {
+                const role = profile.role
                 const pathname = request.nextUrl.pathname
 
                 // Define which roles can access which portals
@@ -104,19 +117,10 @@ export async function updateSession(request: NextRequest) {
                     redirectUrl.pathname = dashboardMap[role] || '/login'
                     return NextResponse.redirect(redirectUrl)
                 }
-            }
         }
 
         // If accessing login while authenticated, redirect to appropriate dashboard
-        if (request.nextUrl.pathname === '/login' && user) {
-            // Get user profile to determine role
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', user.id)
-                .single()
-
-            if (profile) {
+        if (request.nextUrl.pathname === '/login' && user && profile) {
                 const dashboardMap = {
                     admin: '/admin',
                     factory_manager: '/factory',
@@ -128,7 +132,6 @@ export async function updateSession(request: NextRequest) {
                 const redirectUrl = request.nextUrl.clone()
                 redirectUrl.pathname = dashboard
                 return NextResponse.redirect(redirectUrl)
-            }
         }
     }
 

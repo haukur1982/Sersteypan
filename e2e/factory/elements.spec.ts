@@ -10,17 +10,6 @@ const FACTORY_USER = {
   password: 'Password123!',
 }
 
-// Valid status transitions based on the state machine
-const STATUS_WORKFLOW = [
-  'planned',
-  'rebar',
-  'cast',
-  'curing',
-  'ready',
-  'loaded',
-  'delivered'
-]
-
 // Helper to login as factory manager
 async function loginAsFactory(page: import('@playwright/test').Page) {
   await page.goto('/login')
@@ -55,12 +44,6 @@ test.describe('Production Queue Page', () => {
 
   test('has status filter options', async ({ page }) => {
     await page.goto('/factory/production')
-
-    // Look for filter/tab for different statuses
-    // Could be tabs, buttons, or select dropdown
-    const statusFilter = page.getByRole('tab')
-      .or(page.locator('[data-status]'))
-      .or(page.getByRole('button', { name: /planned|rebar|cast|curing|ready/i }))
 
     // At least verify the page loads
     await expect(page.locator('body')).toBeVisible()
@@ -107,11 +90,6 @@ test.describe('Element Status Transitions', () => {
       await elementLink.click()
       await page.waitForURL(/\/factory\/production\/[^/]+$/, { timeout: 10000 })
 
-      // Look for status update button/form
-      const statusControl = page.getByRole('button', { name: /update|uppfæra|status/i })
-        .or(page.locator('[data-testid="status-update"]'))
-        .or(page.locator('select[name="status"]'))
-
       // Element detail should show something
       await expect(page.locator('body')).toBeVisible()
     }
@@ -144,13 +122,6 @@ test.describe('Factory Dashboard', () => {
   test('has navigation to key sections', async ({ page }) => {
     await page.goto('/factory')
 
-    // Look for navigation links to main sections
-    const navLinks = [
-      page.getByRole('link', { name: /production|framleiðsla/i }),
-      page.getByRole('link', { name: /diary|dagbók/i }),
-      page.getByRole('link', { name: /todos|verkefni/i }),
-    ]
-
     // At least one navigation element should exist
     await expect(page.locator('nav, aside, [role="navigation"]').first()).toBeVisible()
   })
@@ -170,10 +141,6 @@ test.describe('Diary Entries', () => {
 
   test('has link to create new entry', async ({ page }) => {
     await page.goto('/factory/diary')
-
-    // Look for "New Entry" link
-    const newEntryLink = page.getByRole('link', { name: /new|ný/i })
-      .or(page.locator('a[href*="/diary/new"]'))
 
     await expect(page.locator('body')).toBeVisible()
   })

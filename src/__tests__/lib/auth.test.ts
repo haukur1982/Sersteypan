@@ -20,14 +20,6 @@ function canAccessFactory(role: UserRole): boolean {
   return role === 'admin' || role === 'factory_manager'
 }
 
-function canAccessBuyer(role: UserRole): boolean {
-  return role === 'admin' || role === 'buyer'
-}
-
-function canAccessDriver(role: UserRole): boolean {
-  return role === 'admin' || role === 'driver'
-}
-
 function getPortalPath(role: UserRole): string {
   switch (role) {
     case 'admin':

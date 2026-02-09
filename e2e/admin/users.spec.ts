@@ -137,9 +137,6 @@ test.describe('User Deactivation', () => {
     // Wait for users list to load
     await page.waitForLoadState('domcontentloaded')
 
-    // Look for deactivate button (may be in dropdown or visible)
-    const deactivateButton = page.getByRole('button', { name: /deactivate|afvirkja|delete|eyða/i }).first()
-
     // Just verify the page loaded correctly (deactivate might be hidden in dropdown)
     await expect(page.locator('body')).toBeVisible()
   })
