@@ -15,7 +15,7 @@ import {
     Plus,
     AlertCircle,
 } from 'lucide-react'
-import { createDelivery } from '@/lib/driver/delivery-actions'
+import { createDelivery, getDeliveryLoadState } from '@/lib/driver/delivery-actions'
 import { lookupElementByQR, addElementToDelivery, removeElementFromDelivery } from '@/lib/driver/qr-actions'
 
 interface LoadedElement {
@@ -33,6 +33,7 @@ export function LoadPageClient() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const elementIdFromScan = searchParams.get('element')
+    const deliveryIdFromUrl = searchParams.get('delivery')
 
     const [elements, setElements] = useState<LoadedElement[]>([])
     const [deliveryId, setDeliveryId] = useState<string | null>(null)
@@ -41,9 +42,10 @@ export function LoadPageClient() {
     const [success, setSuccess] = useState<string | null>(null)
     const [truckRegistration, setTruckRegistration] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isHydrating, setIsHydrating] = useState(false)
 
     // Add element from QR scan
-    const addElementById = useCallback(async (elementId: string) => {
+    const addElementById = useCallback(async (elementId: string, activeDeliveryId?: string | null) => {
         // Check if already added
         if (elements.some((e) => e.id === elementId)) {
             setError('Þessi eining er þegar á listanum')
@@ -71,8 +73,9 @@ export function LoadPageClient() {
             }
 
             // If we have an active delivery, add element to it
-            if (deliveryId) {
-                const addResult = await addElementToDelivery(deliveryId, element.id)
+            const effectiveDeliveryId = activeDeliveryId ?? deliveryId
+            if (effectiveDeliveryId) {
+                const addResult = await addElementToDelivery(effectiveDeliveryId, element.id)
 
                 if (addResult.error) {
                     setError(addResult.error)
@@ -108,16 +111,71 @@ export function LoadPageClient() {
     // Check for element from URL (after QR scan)
     useEffect(() => {
         if (elementIdFromScan) {
-            addElementById(elementIdFromScan)
+            addElementById(elementIdFromScan, deliveryIdFromUrl ?? deliveryId)
             // Clear the URL param
-            router.replace('/driver/load', { scroll: false })
+            const nextUrl = deliveryIdFromUrl ? `/driver/load?delivery=${encodeURIComponent(deliveryIdFromUrl)}` : '/driver/load'
+            router.replace(nextUrl, { scroll: false })
         }
-    }, [elementIdFromScan, addElementById, router])
+    }, [elementIdFromScan, addElementById, router, deliveryIdFromUrl, deliveryId])
+
+    // Hydrate state from existing delivery (continue loading flow)
+    useEffect(() => {
+        if (!deliveryIdFromUrl) return
+        if (deliveryId) return // already hydrated/created locally
+        if (isHydrating) return
+
+        let cancelled = false
+        setIsHydrating(true)
+        setError(null)
+
+        ;(async () => {
+            const res = await getDeliveryLoadState(deliveryIdFromUrl)
+            if (cancelled) return
+
+            if (!res.success || !res.delivery) {
+                setError(res.error || 'Gat ekki hlaðið afhendingu')
+                setIsHydrating(false)
+                return
+            }
+
+            setDeliveryId(res.delivery.id)
+            setTruckRegistration(res.delivery.truck_registration || '')
+            setProjectId(res.delivery.project?.id || null)
+            setElements((res.elements || []).map((el) => ({
+                id: el.id,
+                name: el.name,
+                status: el.status || 'planned',
+                weight_kg: el.weight_kg ?? null,
+                project: el.project,
+            })))
+
+            setIsHydrating(false)
+        })().catch((err) => {
+            console.error('Hydration error:', err)
+            if (!cancelled) {
+                setError('Villa við að hlaða afhendingu')
+                setIsHydrating(false)
+            }
+        })
+
+        return () => {
+            cancelled = true
+        }
+    }, [deliveryIdFromUrl, deliveryId, isHydrating])
+
+    // If we have a local deliveryId but no URL param (e.g. created in-session),
+    // persist it in the URL so refresh/back keeps context.
+    useEffect(() => {
+        if (!deliveryId) return
+        if (deliveryIdFromUrl) return
+        router.replace(`/driver/load?delivery=${encodeURIComponent(deliveryId)}`, { scroll: false })
+    }, [deliveryId, deliveryIdFromUrl, router])
 
     const handleRemoveElement = async (element: LoadedElement) => {
+        const effectiveDeliveryId = deliveryIdFromUrl ?? deliveryId
         // If delivery exists, use server action to remove
-        if (deliveryId) {
-            const result = await removeElementFromDelivery(deliveryId, element.id)
+        if (effectiveDeliveryId) {
+            const result = await removeElementFromDelivery(effectiveDeliveryId, element.id)
             if (result.error) {
                 setError(result.error)
                 return
@@ -130,8 +188,11 @@ export function LoadPageClient() {
 
         // If no elements left, clear project and delivery
         if (elements.length === 1) {
-            setProjectId(null)
-            setDeliveryId(null)
+            // Keep delivery context if we're continuing an existing delivery
+            if (!effectiveDeliveryId) {
+                setProjectId(null)
+                setDeliveryId(null)
+            }
         }
     }
 
@@ -215,7 +276,7 @@ export function LoadPageClient() {
                     onChange={(e) => setTruckRegistration(e.target.value.toUpperCase())}
                     className="text-lg font-mono"
                     maxLength={10}
-                    disabled={!!deliveryId}
+                    disabled={Boolean(deliveryIdFromUrl || deliveryId)}
                 />
             </Card>
 
@@ -223,7 +284,10 @@ export function LoadPageClient() {
             <Button
                 variant="outline"
                 className="w-full h-14"
-                onClick={() => router.push('/driver/scan')}
+                onClick={() => {
+                    const activeDelivery = deliveryIdFromUrl ?? deliveryId
+                    router.push(activeDelivery ? `/driver/scan?delivery=${encodeURIComponent(activeDelivery)}` : '/driver/scan')
+                }}
                 disabled={isSubmitting}
             >
                 <QrCode className="w-5 h-5 mr-2" />

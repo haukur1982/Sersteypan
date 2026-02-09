@@ -62,8 +62,16 @@ export function NotificationBell({ userId, notifications: initialNotifications }
       )
     )
 
-    // In the future, call API to persist read state
-    // await fetch(`/api/notifications/${notificationId}/read`, { method: 'POST' })
+    // Persist read state
+    try {
+      await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId }),
+      })
+    } catch (error) {
+      console.error('Failed to mark notification read:', error)
+    }
   }
 
   const markAllAsRead = async () => {
@@ -72,8 +80,16 @@ export function NotificationBell({ userId, notifications: initialNotifications }
       prev.map(n => ({ ...n, read: true }))
     )
 
-    // In the future, call API to persist
-    // await fetch('/api/notifications/mark-all-read', { method: 'POST' })
+    // Persist read state
+    try {
+      await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true }),
+      })
+    } catch (error) {
+      console.error('Failed to mark all notifications read:', error)
+    }
   }
 
   const getNotificationIcon = (type: string) => {

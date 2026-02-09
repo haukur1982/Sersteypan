@@ -613,6 +613,24 @@ export type Database = {
           },
         ]
       }
+      notification_reads: {
+        Row: {
+          notification_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          notification_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          notification_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       fix_in_factory: {
         Row: {
           assigned_to: string | null
@@ -1064,6 +1082,8 @@ export type Database = {
           description: string | null
           expected_end_date: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
           name: string
           notes: string | null
           start_date: string | null
@@ -1078,6 +1098,8 @@ export type Database = {
           description?: string | null
           expected_end_date?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
           notes?: string | null
           start_date?: string | null
@@ -1092,6 +1114,8 @@ export type Database = {
           description?: string | null
           expected_end_date?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           notes?: string | null
           start_date?: string | null

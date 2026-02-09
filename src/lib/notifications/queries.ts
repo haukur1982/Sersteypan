@@ -181,9 +181,30 @@ export async function getUnreadNotifications(userId: string): Promise<Notificati
   }
 
   // Sort by timestamp (most recent first)
-  return notifications.sort((a, b) =>
+  const sorted = notifications.sort((a, b) =>
     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   )
+
+  // Persisted read-state (if table exists). If missing/misconfigured, fall back to all-unread.
+  try {
+    const ids = sorted.map((n) => n.id).filter(Boolean)
+    if (ids.length === 0) return sorted
+
+    const { data: reads, error: readsError } = await supabase
+      .from('notification_reads')
+      .select('notification_id')
+      .eq('user_id', userId)
+      .in('notification_id', ids)
+
+    if (readsError) {
+      return sorted
+    }
+
+    const readSet = new Set((reads ?? []).map((r) => r.notification_id))
+    return sorted.map((n) => ({ ...n, read: readSet.has(n.id) }))
+  } catch {
+    return sorted
+  }
 }
 
 /**

@@ -45,7 +45,7 @@ async function getAuthenticatedUser() {
 export async function POST(req: Request) {
   try {
     const clientIP = getClientIP(req.headers)
-    const rateLimit = expensiveRateLimiter.check(clientIP)
+    const rateLimit = await expensiveRateLimiter.check(clientIP)
     if (!rateLimit.success) {
       const retryAfter = Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))
       return NextResponse.json(

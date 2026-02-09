@@ -101,6 +101,124 @@ export async function createDelivery(formData: FormData): Promise<{
 }
 
 /**
+ * Hydrate the driver load page from an existing delivery ID.
+ * Used when continuing a partially loaded delivery (planned/loading).
+ */
+export async function getDeliveryLoadState(deliveryId: string): Promise<{
+  success: boolean
+  delivery?: {
+    id: string
+    status: string | null
+    truck_registration: string | null
+    project: { id: string; name: string } | null
+  }
+  elements?: Array<{
+    id: string
+    name: string
+    status: string | null
+    weight_kg: number | null
+    project: { id: string; name: string } | null
+  }>
+  error?: string
+}> {
+  const supabase = await createClient()
+
+  // 1. AUTH CHECK
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  // 2. INPUT VALIDATION
+  if (!UUID_REGEX.test(deliveryId)) {
+    return { success: false, error: 'Invalid delivery ID' }
+  }
+
+  // 3. ROLE CHECK + OWNERSHIP
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !['driver', 'admin'].includes(profile.role)) {
+    return { success: false, error: 'Unauthorized - Driver access required' }
+  }
+
+  const { data: delivery, error: deliveryError } = await supabase
+    .from('deliveries')
+    .select(`
+      id,
+      status,
+      driver_id,
+      truck_registration,
+      project:projects(
+        id,
+        name
+      )
+    `)
+    .eq('id', deliveryId)
+    .single()
+
+  if (deliveryError || !delivery) {
+    return { success: false, error: 'Delivery not found' }
+  }
+
+  if (profile.role !== 'admin' && delivery.driver_id !== user.id) {
+    return { success: false, error: 'Unauthorized - Not your delivery' }
+  }
+
+  // Only allow hydration for modifiable deliveries.
+  const status = delivery.status || 'planned'
+  if (!['planned', 'loading'].includes(status)) {
+    return { success: false, error: 'Delivery cannot be modified (already departed or completed)' }
+  }
+
+  const { data: items, error: itemsError } = await supabase
+    .from('delivery_items')
+    .select(`
+      element:elements(
+        id,
+        name,
+        status,
+        weight_kg,
+        project:projects(
+          id,
+          name
+        )
+      )
+    `)
+    .eq('delivery_id', deliveryId)
+
+  if (itemsError) {
+    console.error('Failed to hydrate delivery items:', itemsError)
+    return { success: false, error: 'Failed to load delivery items' }
+  }
+
+  const elements = (items ?? [])
+    .map((row) => row.element)
+    .filter((el): el is NonNullable<typeof el> => Boolean(el))
+    .map((el) => ({
+      id: el.id,
+      name: el.name,
+      status: el.status,
+      weight_kg: el.weight_kg ?? null,
+      project: Array.isArray(el.project) ? el.project[0] : el.project,
+    }))
+
+  return {
+    success: true,
+    delivery: {
+      id: delivery.id,
+      status: delivery.status,
+      truck_registration: delivery.truck_registration ?? null,
+      project: Array.isArray(delivery.project) ? delivery.project[0] : delivery.project,
+    },
+    elements,
+  }
+}
+
+/**
  * Start delivery (truck departs factory)
  * Changes status from 'loading' to 'in_transit'
  */

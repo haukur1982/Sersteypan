@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { QRScanner } from '@/components/driver/QRScanner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,6 +34,8 @@ interface ScannedElement {
 
 export function ScanPageClient() {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const deliveryId = searchParams.get('delivery')
     const [scannedElement, setScannedElement] = useState<ScannedElement | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -59,7 +61,9 @@ export function ScanPageClient() {
 
             // VISUAL PILOT: Redirect to visual verification if enabled
             if (hasVisualPilot) {
-                router.push(`/driver/visual-id/${result.element.id}`)
+                router.push(
+                    `/driver/visual-id/${result.element.id}${deliveryId ? `?delivery=${encodeURIComponent(deliveryId)}` : ''}`
+                )
                 return
             }
         } catch (err) {
@@ -228,8 +232,10 @@ export function ScanPageClient() {
                                                 size="lg"
                                                 className="w-full"
                                                 onClick={() => {
-                                                    // TODO: Add to current delivery or create new
-                                                    router.push(`/driver/load?element=${scannedElement.id}`)
+                                                    const qs = new URLSearchParams()
+                                                    if (deliveryId) qs.set('delivery', deliveryId)
+                                                    qs.set('element', scannedElement.id)
+                                                    router.push(`/driver/load?${qs.toString()}`)
                                                 }}
                                             >
                                                 <Package className="w-5 h-5 mr-2" />
@@ -260,4 +266,3 @@ export function ScanPageClient() {
         </div>
     )
 }
-

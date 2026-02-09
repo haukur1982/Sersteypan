@@ -11,7 +11,7 @@ export async function login(formData: FormData) {
   // Rate limiting for login attempts
   const headersList = await headers()
   const clientIP = getClientIP(headersList)
-  const { success: rateLimitOk } = authRateLimiter.check(clientIP)
+  const { success: rateLimitOk } = await authRateLimiter.check(clientIP)
 
   if (!rateLimitOk) {
     return { error: 'Of margar tilraunir. Reyndu aftur eftir smá stund. (Too many attempts. Please try again later.)' }

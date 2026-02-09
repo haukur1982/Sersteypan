@@ -41,6 +41,11 @@ interface RateLimitEntry {
   resetAt: number
 }
 
+interface UpstashPipelineResponseItem {
+  result?: unknown
+  error?: string
+}
+
 /**
  * Create a rate limiter instance.
  * Each instance maintains its own request counts.
@@ -61,7 +66,9 @@ export function createRateLimiter(config: RateLimitConfig) {
 
   // Run cleanup every minute
   if (typeof setInterval !== 'undefined') {
-    setInterval(cleanup, 60000)
+    const interval = setInterval(cleanup, 60000)
+    // Don't keep the process alive solely for cleanup (important in serverless).
+    interval.unref?.()
   }
 
   return {
@@ -129,11 +136,116 @@ export function createRateLimiter(config: RateLimitConfig) {
  */
 const isTestEnvironment = process.env.CI === 'true' || process.env.E2E_TEST === 'true'
 
+function getUpstashConfig() {
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  if (!url || !token) return null
+  return { url: url.replace(/\/+$/, ''), token }
+}
+
+async function upstashFixedWindowCheck(
+  key: string,
+  config: RateLimitConfig
+): Promise<RateLimitResult> {
+  const upstash = getUpstashConfig()
+  if (!upstash) {
+    throw new Error('Upstash not configured')
+  }
+
+  const now = Date.now()
+  const pipeline = [
+    // Ensure the key has an expiry only when created (fixed window).
+    ['SET', key, '0', 'PX', String(config.windowMs), 'NX'],
+    ['INCR', key],
+    ['PTTL', key],
+  ]
+
+  const res = await fetch(`${upstash.url}/pipeline`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${upstash.token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(pipeline),
+    cache: 'no-store',
+  })
+
+  if (!res.ok) {
+    throw new Error(`Upstash error: ${res.status}`)
+  }
+
+  const data = (await res.json()) as UpstashPipelineResponseItem[]
+  if (!Array.isArray(data) || data.length < 3) {
+    throw new Error('Upstash pipeline response malformed')
+  }
+  if (data.some((d) => d?.error)) {
+    throw new Error(`Upstash pipeline error: ${data.map((d) => d?.error).filter(Boolean).join('; ')}`)
+  }
+
+  const count = Number((data[1] as UpstashPipelineResponseItem)?.result ?? NaN)
+  let ttlMs = Number((data[2] as UpstashPipelineResponseItem)?.result ?? NaN)
+  if (!Number.isFinite(count)) {
+    throw new Error('Upstash INCR result invalid')
+  }
+  if (!Number.isFinite(ttlMs) || ttlMs <= 0) {
+    ttlMs = config.windowMs
+  }
+
+  const success = count <= config.maxRequests
+  const remaining = success ? Math.max(0, config.maxRequests - count) : 0
+
+  return {
+    success,
+    remaining,
+    resetAt: now + ttlMs,
+  }
+}
+
+/**
+ * Hybrid limiter:
+ * - Uses Upstash Redis (distributed) when configured.
+ * - Falls back to local in-memory limiter otherwise.
+ */
+export function createHybridRateLimiter(config: RateLimitConfig & { prefix: string }) {
+  const local = createRateLimiter(config)
+  const { prefix, ...rateConfig } = config
+
+  return {
+    async check(identifier: string): Promise<RateLimitResult> {
+      if (isTestEnvironment) {
+        return local.check(identifier)
+      }
+
+      const upstash = getUpstashConfig()
+      if (!upstash) {
+        return local.check(identifier)
+      }
+
+      try {
+        return await upstashFixedWindowCheck(`${prefix}:${identifier}`, rateConfig)
+      } catch (err) {
+        // Fall back to local limiter if Upstash is unavailable.
+        console.error('Rate limit fallback to local:', err)
+        return local.check(identifier)
+      }
+    },
+
+    reset(identifier: string): void {
+      local.reset(identifier)
+    },
+
+    clear(): void {
+      local.clear()
+    },
+  }
+}
+
 /**
  * Rate limiter for authentication actions (login, password reset).
  * 5 attempts per minute per IP in production, 1000 in test environments.
  */
-export const authRateLimiter = createRateLimiter({
+export const authRateLimiter = createHybridRateLimiter({
+  prefix: 'rl:auth',
   maxRequests: isTestEnvironment ? 1000 : 5,
   windowMs: 60 * 1000, // 1 minute
 })
@@ -142,7 +254,8 @@ export const authRateLimiter = createRateLimiter({
  * Rate limiter for general API actions.
  * 30 requests per minute per IP.
  */
-export const apiRateLimiter = createRateLimiter({
+export const apiRateLimiter = createHybridRateLimiter({
+  prefix: 'rl:api',
   maxRequests: 30,
   windowMs: 60 * 1000, // 1 minute
 })
@@ -151,7 +264,8 @@ export const apiRateLimiter = createRateLimiter({
  * Rate limiter for expensive operations (reports, exports).
  * 5 requests per 5 minutes per IP.
  */
-export const expensiveRateLimiter = createRateLimiter({
+export const expensiveRateLimiter = createHybridRateLimiter({
+  prefix: 'rl:expensive',
   maxRequests: 5,
   windowMs: 5 * 60 * 1000, // 5 minutes
 })
