@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
 import { authRateLimiter, getClientIP } from '@/lib/utils/rateLimit'
+import { createClient } from '@/lib/supabase/server'
 
 function safeRedirectPath(path: string | null): string | null {
   if (!path) return null
@@ -29,77 +29,24 @@ export async function POST(request: NextRequest) {
   const password = String(formData.get('password') ?? '')
   const redirectTo = safeRedirectPath(String(formData.get('redirectTo') ?? '')) || null
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!supabaseUrl || !anonKey) {
-    const url = new URL('/login', request.url)
-    url.searchParams.set('error', 'config')
-    return NextResponse.redirect(url, { status: 303, headers: { 'Cache-Control': 'no-store' } })
-  }
-
-  // Collect cookies set by Supabase during sign-in and apply them to our redirect response.
-  const cookieJar: Array<{ name: string; value: string; options?: Parameters<NextResponse['cookies']['set']>[2] }> = []
-
-  const supabase = createServerClient(supabaseUrl, anonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll()
-      },
-      setAll(cookies) {
-        cookies.forEach(({ name, value, options }) => {
-          cookieJar.push({ name, value, options })
-        })
-      },
-    },
-  })
-
-  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+  const supabase = await createClient()
+  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
   if (signInError) {
     const url = new URL('/login', request.url)
     url.searchParams.set('error', 'bad_credentials')
     return NextResponse.redirect(url, { status: 303, headers: { 'Cache-Control': 'no-store' } })
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = signInData.user
   if (!user) {
     const url = new URL('/login', request.url)
     url.searchParams.set('error', 'no_user')
     return NextResponse.redirect(url, { status: 303, headers: { 'Cache-Control': 'no-store' } })
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, is_active')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.is_active === false) {
-    await supabase.auth.signOut()
-    const url = new URL('/login', request.url)
-    url.searchParams.set('error', 'inactive')
-    return NextResponse.redirect(url, { status: 303, headers: { 'Cache-Control': 'no-store' } })
-  }
-
-  const dashboardMap: Record<string, string> = {
-    admin: '/admin',
-    factory_manager: '/factory',
-    buyer: '/buyer',
-    driver: '/driver',
-  }
-  const defaultDashboard = dashboardMap[profile.role] || '/admin'
-
-  // Only allow redirectTo within the user's allowed portals.
-  const rolePortalAccess: Record<string, string[]> = {
-    admin: ['/admin', '/factory', '/buyer', '/driver'],
-    factory_manager: ['/factory'],
-    buyer: ['/buyer'],
-    driver: ['/driver'],
-  }
-  const allowed = rolePortalAccess[profile.role] || []
-  const target = redirectTo && allowed.some((p) => redirectTo.startsWith(p)) ? redirectTo : defaultDashboard
-
-  const url = new URL(target, request.url)
-  const redirectResponse = NextResponse.redirect(url, { status: 303, headers: { 'Cache-Control': 'no-store' } })
-  cookieJar.forEach(({ name, value, options }) => redirectResponse.cookies.set(name, value, options))
-  return redirectResponse
+  // Redirect target:
+  // - honor redirectTo if it is a safe same-origin path
+  // - otherwise send to /admin and let middleware route to the right portal
+  const target = redirectTo || '/admin'
+  return NextResponse.redirect(new URL(target, request.url), { status: 303, headers: { 'Cache-Control': 'no-store' } })
 }
