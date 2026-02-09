@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Scene } from '@/components/shared/3d/Scene'
 import { ParametricElement } from '@/components/shared/3d/ParametricElement'
 import { Button } from '@/components/ui/button'
@@ -40,6 +40,8 @@ const REJECTION_REASONS = [
 
 export default function VisualVerificationClient({ element }: VisualVerificationClientProps) {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const deliveryId = searchParams.get('delivery')
     const [isVerifying, setIsVerifying] = useState(false)
     const [isRejecting, setIsRejecting] = useState(false)
     const [showRejectDialog, setShowRejectDialog] = useState(false)
@@ -64,7 +66,10 @@ export default function VisualVerificationClient({ element }: VisualVerification
             toast.success('Eining staðfest! (Element verified!)')
 
             // Redirect to load page with the confirmed element
-            router.push(`/driver/load?element=${element.id}`)
+            const qs = new URLSearchParams()
+            if (deliveryId) qs.set('delivery', deliveryId)
+            qs.set('element', element.id)
+            router.push(`/driver/load?${qs.toString()}`)
         } catch (error) {
             console.error('Verification error:', error)
             toast.error('Villa kom upp. Reyndu aftur. (An error occurred. Please try again.)')
@@ -103,7 +108,7 @@ export default function VisualVerificationClient({ element }: VisualVerification
             setShowRejectDialog(false)
 
             // Go back to scan page
-            router.push('/driver/scan')
+            router.push(deliveryId ? `/driver/scan?delivery=${encodeURIComponent(deliveryId)}` : '/driver/scan')
         } catch (error) {
             console.error('Rejection error:', error)
             toast.error('Villa kom upp. Reyndu aftur.')

@@ -8,6 +8,9 @@
 ### Migration Status
 - [ ] verify all local migrations are applied to production
 - [ ] Run `supabase migration list` to confirm sync
+- [ ] Ensure new migrations are applied:
+  - `018_enforce_active_profiles.sql` (inactive accounts lose RLS access)
+  - `019_notification_reads.sql` (persist notification read state)
 
 ### Storage Buckets (Verification)
 Ensure the following buckets exist and have "Public" access if required:
@@ -31,6 +34,8 @@ Ensure these are set in Vercel Project Settings:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public API Key |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Secret** Service Role Key (for Admin actions) |
 | `SUPABASE_REPORTS_BUCKET` | `reports` (Default) |
+| `UPSTASH_REDIS_REST_URL` | Optional: Upstash Redis REST URL (distributed rate limiting) |
+| `UPSTASH_REDIS_REST_TOKEN` | Optional: Upstash Redis REST token (distributed rate limiting) |
 
 ## 3. Build Verification
 
@@ -46,6 +51,7 @@ Ensure these are set in Vercel Project Settings:
 3.  **Floor Plans:** Upload a floor plan image and verify it appears.
 4.  **Driver App:** Simulate a "Scan" flow (navigating to `/driver/load`).
 5.  **Notifications:** Check the notification bell.
+    - If "mark read" does not persist after refresh, apply migration `019_notification_reads.sql`.
 
 ---
 

@@ -43,6 +43,7 @@ export function LoadPageClient() {
     const [truckRegistration, setTruckRegistration] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isHydrating, setIsHydrating] = useState(false)
+    const activeDeliveryId = deliveryIdFromUrl ?? deliveryId
 
     // Add element from QR scan
     const addElementById = useCallback(async (elementId: string, activeDeliveryId?: string | null) => {
@@ -265,6 +266,13 @@ export function LoadPageClient() {
 
     return (
         <div className="space-y-6">
+            {isHydrating && (
+                <Card className="p-4 flex items-center gap-3 text-sm text-zinc-700">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Hleð afhendingu...
+                </Card>
+            )}
+
             {/* Truck Registration */}
             <Card className="p-4">
                 <label className="block text-sm font-medium text-zinc-700 mb-2">
@@ -285,10 +293,9 @@ export function LoadPageClient() {
                 variant="outline"
                 className="w-full h-14"
                 onClick={() => {
-                    const activeDelivery = deliveryIdFromUrl ?? deliveryId
-                    router.push(activeDelivery ? `/driver/scan?delivery=${encodeURIComponent(activeDelivery)}` : '/driver/scan')
+                    router.push(activeDeliveryId ? `/driver/scan?delivery=${encodeURIComponent(activeDeliveryId)}` : '/driver/scan')
                 }}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isHydrating}
             >
                 <QrCode className="w-5 h-5 mr-2" />
                 Skanna einingu til að bæta við
@@ -356,7 +363,7 @@ export function LoadPageClient() {
                                     size="sm"
                                     onClick={() => handleRemoveElement(element)}
                                     className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || isHydrating}
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </Button>
@@ -366,25 +373,36 @@ export function LoadPageClient() {
                 )}
             </div>
 
-            {/* Create Delivery Button */}
-            <Button
-                size="lg"
-                className="w-full h-14"
-                disabled={elements.length === 0 || !truckRegistration.trim() || isSubmitting}
-                onClick={handleCreateDelivery}
-            >
-                {isSubmitting ? (
-                    <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Býr til afhendingu...
-                    </>
-                ) : (
-                    <>
-                        <Truck className="w-5 h-5 mr-2" />
-                        Hefja afhendingu ({elements.length} einingar)
-                    </>
-                )}
-            </Button>
+            {activeDeliveryId ? (
+                <Button
+                    size="lg"
+                    className="w-full h-14"
+                    variant="secondary"
+                    disabled={isSubmitting || isHydrating}
+                    onClick={() => router.push(`/driver/deliveries/${activeDeliveryId}`)}
+                >
+                    Skoða afhendingu
+                </Button>
+            ) : (
+                <Button
+                    size="lg"
+                    className="w-full h-14"
+                    disabled={elements.length === 0 || !truckRegistration.trim() || isSubmitting || isHydrating}
+                    onClick={handleCreateDelivery}
+                >
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            Býr til afhendingu...
+                        </>
+                    ) : (
+                        <>
+                            <Truck className="w-5 h-5 mr-2" />
+                            Hefja afhendingu ({elements.length} einingar)
+                        </>
+                    )}
+                </Button>
+            )}
         </div>
     )
 }
