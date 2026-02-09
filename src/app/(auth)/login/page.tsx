@@ -9,7 +9,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -113,32 +112,6 @@ export default function LoginPage() {
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4 border-t bg-muted/30 p-6">
-            <div className="text-xs text-center text-muted-foreground w-full">
-              <p className="font-medium mb-2 text-foreground">Prófunarreikningar (Test accounts):</p>
-              <div className="grid grid-cols-2 gap-2 text-left bg-card p-3 rounded-lg border border-border">
-                <div>
-                  <span className="font-semibold block text-foreground">Admin:</span>
-                  admin@sersteypan.test
-                </div>
-                <div>
-                  <span className="font-semibold block text-foreground">Factory:</span>
-                  factory@sersteypan.test
-                </div>
-                <div>
-                  <span className="font-semibold block text-foreground">Buyer:</span>
-                  buyer@sersteypan.test
-                </div>
-                <div>
-                  <span className="font-semibold block text-foreground">Driver:</span>
-                  driver@sersteypan.test
-                </div>
-                <div className="col-span-2 pt-2 border-t border-border mt-2 text-center">
-                  Password: <code className="bg-muted px-1.5 py-0.5 rounded border border-border font-mono text-foreground">Password123!</code>
-                </div>
-              </div>
-            </div>
-          </CardFooter>
         </Card>
       </div>
     </div>
