@@ -63,6 +63,10 @@ export async function POST(req: Request) {
       .upsert(rows, { onConflict: 'user_id,notification_id' })
 
     if (upsertError) {
+      // Migration not applied yet: don't break the UI, just no-op.
+      if (upsertError.code === '42P01' || upsertError.message?.includes('notification_reads')) {
+        return NextResponse.json({ success: true, skipped: true }, { headers: { 'Cache-Control': 'no-store' } })
+      }
       console.error('Failed to mark notifications read:', upsertError)
       return NextResponse.json({ error: 'Failed to mark read' }, { status: 500 })
     }
