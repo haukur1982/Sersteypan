@@ -9,8 +9,13 @@ import { DriverDeliveryList } from '@/components/driver/DriverDeliveryList'
 export default async function DriverDashboard() {
   const user = await getUser()
 
-  if (!user || user.role !== 'driver') {
+  // Middleware controls portal access. Don't bounce admins (they can review all portals),
+  // and don't send authenticated users back to /login (looks like a logout).
+  if (!user) {
     redirect('/login')
+  }
+  if (user.role !== 'driver' && user.role !== 'admin') {
+    redirect(`/${user.role === 'factory_manager' ? 'factory' : user.role}`)
   }
 
   const deliveries = await getDriverDeliveries()
