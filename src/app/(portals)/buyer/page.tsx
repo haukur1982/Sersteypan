@@ -1,10 +1,9 @@
-import { getUser } from '@/lib/auth/actions'
+import { getServerUser } from '@/lib/auth/getServerUser'
 import { getBuyerProjects, getBuyerDeliveries } from '@/lib/buyer/queries'
 import { BuyerDashboardClient } from '@/components/buyer/BuyerDashboardClient'
 
 export default async function BuyerDashboard() {
-  // Layout handles auth, we just need user data for display
-  const user = await getUser()
+  const user = await getServerUser()
 
   // Fetch buyer's data
   const [projects, deliveries] = await Promise.all([

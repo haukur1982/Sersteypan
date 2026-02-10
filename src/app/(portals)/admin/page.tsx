@@ -1,4 +1,4 @@
-import { getUser } from '@/lib/auth/actions'
+import { getServerUser } from '@/lib/auth/getServerUser'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -18,8 +18,7 @@ import {
 } from 'lucide-react'
 
 export default async function AdminDashboard() {
-  // Layout handles auth, we just need user data for display
-  const user = await getUser()
+  const user = await getServerUser()
   const supabase = await createClient()
 
   // Fetch all counts in parallel

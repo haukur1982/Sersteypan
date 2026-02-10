@@ -1,10 +1,9 @@
-import { getUser } from '@/lib/auth/actions'
+import { getServerUser } from '@/lib/auth/getServerUser'
 import { createClient } from '@/lib/supabase/server'
 import { User, Building2, Mail, Phone, Shield } from 'lucide-react'
 
 export default async function ProfilePage() {
-  // Layout handles auth, we just need user data for display
-  const user = await getUser()
+  const user = await getServerUser()
 
   // Get company info
   const supabase = await createClient()

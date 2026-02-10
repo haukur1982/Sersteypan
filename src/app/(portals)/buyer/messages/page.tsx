@@ -1,4 +1,4 @@
-import { getUser } from '@/lib/auth/actions'
+import { getServerUser } from '@/lib/auth/getServerUser'
 import { getBuyerMessages } from '@/lib/buyer/queries'
 import { MessagesClient } from './MessagesClient'
 
@@ -8,8 +8,7 @@ export const metadata = {
 }
 
 export default async function BuyerMessagesPage() {
-  // Layout handles auth, we just need user data for display
-  const user = await getUser()
+  const user = await getServerUser()
   const messages = await getBuyerMessages()
 
   return (

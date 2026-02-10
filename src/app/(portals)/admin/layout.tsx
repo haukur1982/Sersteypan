@@ -1,17 +1,21 @@
 import DashboardLayout from '@/components/layout/DashboardLayout'
-import { getUser } from '@/lib/auth/actions'
+import { getServerUser } from '@/lib/auth/getServerUser'
+import { dashboardPathForRole } from '@/lib/auth/rolePaths'
+import { redirect } from 'next/navigation'
 
 export default async function AdminLayout({
   children
 }: {
   children: React.ReactNode
 }) {
-  const user = await getUser()
+  const user = await getServerUser()
 
-  if (!user || user.role !== 'admin') {
-    // Middleware handles security. If we get here without user, it's likely a sync issue.
-    // Instead of redirecting (loop risk), we render with what we have.
-    // Ideally we might show a "Re-authenticating..." state or error.
+  if (!user) {
+    redirect('/login?redirectTo=/admin')
+  }
+
+  if (user.role !== 'admin') {
+    redirect(dashboardPathForRole(user.role))
   }
 
   return (

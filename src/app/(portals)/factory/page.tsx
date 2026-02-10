@@ -1,3 +1,4 @@
+import { getServerUser } from '@/lib/auth/getServerUser'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -29,16 +30,8 @@ const statusConfig = {
 }
 
 export default async function FactoryDashboard() {
+    const serverUser = await getServerUser()
     const supabase = await createClient()
-
-    // Get user info (layout handles auth)
-    const { data: { user } } = await supabase.auth.getUser()
-
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name, role')
-        .eq('id', user?.id || '')
-        .single()
 
     const today = new Date().toISOString().split('T')[0]
 
@@ -70,7 +63,7 @@ export default async function FactoryDashboard() {
             .from('todo_items')
             .select('*', { count: 'exact', head: true })
             .eq('is_completed', false)
-            .eq('user_id', user?.id || ''),
+            .eq('user_id', serverUser?.id || ''),
         // Total elements
         supabase.from('elements').select('id', { count: 'exact', head: true })
     ])
@@ -120,7 +113,7 @@ export default async function FactoryDashboard() {
                         Verksmiðja
                     </h1>
                     <p className="text-muted-foreground mt-2">
-                        Velkomin {profile?.full_name} - Verkstjóri
+                        Velkomin {serverUser?.fullName} - Verkstjóri
                     </p>
                 </div>
 

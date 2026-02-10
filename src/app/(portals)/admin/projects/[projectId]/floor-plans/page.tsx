@@ -1,4 +1,4 @@
-import { getUser } from '@/lib/auth/actions'
+import { getServerUser } from '@/lib/auth/getServerUser'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { FloorPlanViewer } from './FloorPlanViewer'
@@ -13,7 +13,7 @@ interface Props {
 export default async function FloorPlansPage({ params }: Props) {
     const { projectId } = await params
     // Layout handles auth, we just need user data for display
-    const user = await getUser()
+    const user = await getServerUser()
     const supabase = await createClient()
 
     // Fetch project

@@ -8,9 +8,6 @@ export async function updateSession(request: NextRequest) {
         request,
     })
 
-    // Create an unmodified response for potential use if no session update is needed
-    // but we specifically need the response to be able to set cookies on it
-
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -54,86 +51,42 @@ export async function updateSession(request: NextRequest) {
 
     // Only check auth for protected routes or login page
     if (isProtectedRoute || request.nextUrl.pathname === '/login') {
-        // IMPORTANT: You *must* return the supabaseResponse object as it might have cookies set
-        // This refreshes the session if needed
+        // Refresh the session — this is the primary job of the proxy.
+        // supabase.auth.getUser() validates the JWT and refreshes the token if needed,
+        // which triggers setAll above to write updated cookies onto supabaseResponse.
         const { data: { user } } = await supabase.auth.getUser()
-        let profile: { role: UserRole; is_active: boolean | null } | null = null
 
-        if (user) {
-            const { data: fetchedProfile } = await supabase
+        // If accessing protected route without auth, redirect to login
+        if (isProtectedRoute && !user) {
+            const url = request.nextUrl.clone()
+            url.pathname = '/login'
+            url.searchParams.set('redirectTo', `${request.nextUrl.pathname}${request.nextUrl.search}`)
+            return NextResponse.redirect(url)
+        }
+
+        // If accessing login while authenticated, redirect to appropriate dashboard.
+        // We use a lightweight cookie-based check here; role enforcement happens
+        // in server components / layouts to avoid extra DB calls in the proxy.
+        if (request.nextUrl.pathname === '/login' && user) {
+            // Quick profile fetch only for the login→dashboard redirect
+            const { data: profile } = await supabase
                 .from('profiles')
                 .select('role, is_active')
                 .eq('id', user.id)
                 .single()
 
-            profile = (fetchedProfile as { role: UserRole; is_active: boolean | null } | null) ?? null
-        }
-
-        // If accessing protected route without auth, redirect to login
-        if (isProtectedRoute && !user) {
-            const redirectUrl = request.nextUrl.clone()
-            redirectUrl.pathname = '/login'
-            redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname)
-            return NextResponse.redirect(redirectUrl)
-        }
-
-        // Enforce account status at edge: inactive users are immediately logged out.
-        // Do NOT sign out when profile cannot be fetched (transient DB/RLS issues),
-        // otherwise users get bounced to /login and it looks like the session vanished.
-        if (user && profile && profile.is_active === false) {
-            await supabase.auth.signOut()
-            const redirectUrl = request.nextUrl.clone()
-            redirectUrl.pathname = '/login'
-            return NextResponse.redirect(redirectUrl)
-        }
-
-        // If user is authenticated, verify they have access to the portal
-        if (user && profile && isProtectedRoute) {
-                const role = profile.role
-                const pathname = request.nextUrl.pathname
-
-                // Define which roles can access which portals
-                const rolePortalAccess: Record<string, string[]> = {
-                    admin: ['/admin', '/factory', '/buyer', '/driver'], // Admin has full access
-                    factory_manager: ['/factory'],
-                    buyer: ['/buyer'],
-                    driver: ['/driver'],
-                }
-
-                const allowedPortals = rolePortalAccess[role] || []
-                const currentPortal = '/' + pathname.split('/')[1] // e.g., '/admin', '/factory', etc.
-
-                // Check if user has access to this portal
-                const hasAccess = allowedPortals.some(portal => currentPortal.startsWith(portal))
-
-                if (!hasAccess) {
-                    // Redirect to their default portal
-                    const dashboardMap: Record<string, string> = {
-                        admin: '/admin',
-                        factory_manager: '/factory',
-                        buyer: '/buyer',
-                        driver: '/driver',
-                    }
-
-                    const redirectUrl = request.nextUrl.clone()
-                    redirectUrl.pathname = dashboardMap[role] || '/login'
-                    return NextResponse.redirect(redirectUrl)
-                }
-        }
-
-        // If accessing login while authenticated, redirect to appropriate dashboard
-        if (request.nextUrl.pathname === '/login' && user && profile) {
-                const dashboardMap = {
+            if (profile && profile.is_active !== false) {
+                const dashboardMap: Record<string, string> = {
                     admin: '/admin',
                     factory_manager: '/factory',
                     buyer: '/buyer',
                     driver: '/driver',
                 }
-
-                const dashboard = dashboardMap[profile.role as keyof typeof dashboardMap] || '/admin'
-                const redirectUrl = request.nextUrl.clone()
-                redirectUrl.pathname = dashboard
-                return NextResponse.redirect(redirectUrl)
+                const dashboard = dashboardMap[profile.role] || '/admin'
+                const url = request.nextUrl.clone()
+                url.pathname = dashboard
+                return NextResponse.redirect(url)
+            }
         }
     }
 

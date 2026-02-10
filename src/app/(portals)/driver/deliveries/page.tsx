@@ -1,4 +1,4 @@
-import { getUser } from '@/lib/auth/actions'
+import { getServerUser } from '@/lib/auth/getServerUser'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -20,8 +20,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.C
 }
 
 export default async function DeliveriesPage() {
-    // Layout handles auth, we just need user data for queries
-    const user = await getUser()
+    const user = await getServerUser()
     const supabase = await createClient()
 
     // Fetch deliveries for this driver
