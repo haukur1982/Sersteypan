@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Menu, LogOut } from 'lucide-react'
+import { logout } from '@/lib/auth/actions'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import type { AuthUser } from '@/lib/hooks/useAuth'
 import {
@@ -98,11 +99,13 @@ function UserNav({ user }: { user: AuthUser | null }) {
                     </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="text-red-600 focus:text-red-600 cursor-pointer">
-                    <a href="/auth/signout">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>Útskrá (Log out)</span>
-                    </a>
+                <DropdownMenuItem asChild className="text-red-600 focus:text-red-600 cursor-pointer p-0">
+                    <form action={logout} className="w-full">
+                        <button type="submit" className="flex items-center w-full px-2 py-1.5 text-sm">
+                            <LogOut className="mr-2 h-4 w-4" />
+                            <span>Útskrá (Log out)</span>
+                        </button>
+                    </form>
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
@@ -111,13 +114,15 @@ function UserNav({ user }: { user: AuthUser | null }) {
 
 function LogoutLink() {
     return (
-        <a
-            href="/auth/signout"
-            className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-red-600 hover:bg-sidebar-accent hover:text-red-600"
-        >
-            <LogOut className="h-4 w-4" />
-            <span>Útskrá (Log out)</span>
-        </a>
+        <form action={logout}>
+            <button
+                type="submit"
+                className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-red-600 hover:bg-sidebar-accent hover:text-red-600 w-full"
+            >
+                <LogOut className="h-4 w-4" />
+                <span>Útskrá (Log out)</span>
+            </button>
+        </form>
     )
 }
 
