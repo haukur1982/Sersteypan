@@ -11,12 +11,10 @@ export default async function DriverLayout({
 }) {
   const user = await getServerUser()
 
-  if (!user) {
-    redirect('/login?redirectTo=/driver')
-  }
-
-  // Allow admins to inspect all portals.
-  if (user.role !== 'driver' && user.role !== 'admin') {
+  // Never redirect to /login when user is null — the proxy already handles
+  // unauthenticated access.  A null here is a transient cookie-timing issue,
+  // and redirecting causes an infinite login loop.
+  if (user && user.role !== 'driver' && user.role !== 'admin') {
     redirect(dashboardPathForRole(user.role))
   }
 

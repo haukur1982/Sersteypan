@@ -10,11 +10,10 @@ export default async function AdminLayout({
 }) {
   const user = await getServerUser()
 
-  if (!user) {
-    redirect('/login?redirectTo=/admin')
-  }
-
-  if (user.role !== 'admin') {
+  // Do not redirect on null user here. Middleware handles unauthenticated access.
+  // getServerUser() can be null transiently (cookie timing / profile read), and redirecting
+  // causes the "login loop" symptom you saw.
+  if (user && user.role !== 'admin') {
     redirect(dashboardPathForRole(user.role))
   }
 

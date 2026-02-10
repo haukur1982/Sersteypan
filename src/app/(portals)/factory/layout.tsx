@@ -10,12 +10,10 @@ export default async function FactoryLayout({
 }) {
   const user = await getServerUser()
 
-  if (!user) {
-    redirect('/login?redirectTo=/factory')
-  }
-
-  // Allow admins to inspect all portals.
-  if (user.role !== 'factory_manager' && user.role !== 'admin') {
+  // Never redirect to /login when user is null — the proxy already handles
+  // unauthenticated access.  A null here is a transient cookie-timing issue,
+  // and redirecting causes an infinite login loop.
+  if (user && user.role !== 'factory_manager' && user.role !== 'admin') {
     redirect(dashboardPathForRole(user.role))
   }
 
