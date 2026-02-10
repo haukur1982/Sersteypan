@@ -22,13 +22,7 @@ export default function LoginClient({
   redirectTo: string
   errorMessage: string | null
 }) {
-  const [state, formAction, isPending] = useActionState(
-    async (_prevState: { error: string }, formData: FormData) => {
-      const res = await login(formData)
-      return { error: res?.error ?? '' }
-    },
-    { error: '' }
-  )
+  const [state, formAction, isPending] = useActionState(login, { error: '' })
 
   const mergedError = state.error || errorMessage
 

@@ -15,7 +15,10 @@ function safeRedirectPath(path: unknown): string | null {
   return trimmed
 }
 
-export async function login(formData: FormData) {
+export async function login(
+  _prevState: { error: string },
+  formData: FormData
+): Promise<{ error: string }> {
   // Rate limiting for login attempts
   const headersList = await headers()
   const clientIP = getClientIP(headersList)
