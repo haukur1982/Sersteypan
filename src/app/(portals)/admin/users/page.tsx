@@ -17,7 +17,7 @@ import type { Database } from '@/types/database'
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
 type CompanyRow = Database['public']['Tables']['companies']['Row']
-type UserWithCompany = ProfileRow & { companies?: Pick<CompanyRow, 'id' | 'name'> | null }
+type UserWithCompany = ProfileRow & { companies?: Pick<CompanyRow, 'id' | 'name'> | null; preferences?: Record<string, unknown> | null }
 
 const roleConfig = {
     admin: { color: 'bg-red-100 text-red-800', label: 'Admin' },

@@ -1,5 +1,6 @@
 import { getServerUser } from '@/lib/auth/getServerUser'
 import { createClient } from '@/lib/supabase/server'
+import { getPriorityElements } from '@/lib/factory/queries'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -16,8 +17,28 @@ import {
     Package,
     ArrowRight,
     TrendingUp,
-    AlertTriangle
+    AlertTriangle,
+    Flame,
 } from 'lucide-react'
+
+const typeConfig: Record<string, { color: string; label: string }> = {
+    wall: { color: 'bg-blue-100 text-blue-800', label: 'Veggur' },
+    filigran: { color: 'bg-purple-100 text-purple-800', label: 'Filigran' },
+    staircase: { color: 'bg-orange-100 text-orange-800', label: 'Stigi' },
+    balcony: { color: 'bg-green-100 text-green-800', label: 'Svalir' },
+    ceiling: { color: 'bg-zinc-100 text-zinc-800', label: 'Þak' },
+    column: { color: 'bg-yellow-100 text-yellow-800', label: 'Súla' },
+    beam: { color: 'bg-red-100 text-red-800', label: 'Bita' },
+    other: { color: 'bg-zinc-100 text-zinc-600', label: 'Annað' },
+}
+
+const elementStatusConfig: Record<string, { color: string; label: string }> = {
+    planned: { color: 'bg-zinc-100 text-zinc-600', label: 'Skipulagt' },
+    rebar: { color: 'bg-yellow-100 text-yellow-800', label: 'Járnabundið' },
+    cast: { color: 'bg-orange-100 text-orange-800', label: 'Steypt' },
+    curing: { color: 'bg-amber-100 text-amber-800', label: 'Þornar' },
+    ready: { color: 'bg-green-100 text-green-800', label: 'Tilbúið' },
+}
 
 const statusConfig = {
     planned: { icon: Clock, label: 'Skipulagt', color: 'bg-gray-100 text-gray-800' },
@@ -41,7 +62,8 @@ export default async function FactoryDashboard() {
         deliveredTodayResult,
         recentDiaryResult,
         todoCountResult,
-        totalElementsResult
+        totalElementsResult,
+        priorityElements
     ] = await Promise.all([
         // All elements with status
         supabase.from('elements').select('status'),
@@ -65,7 +87,9 @@ export default async function FactoryDashboard() {
             .eq('is_completed', false)
             .eq('user_id', serverUser?.id || ''),
         // Total elements
-        supabase.from('elements').select('id', { count: 'exact', head: true })
+        supabase.from('elements').select('id', { count: 'exact', head: true }),
+        // Priority elements
+        getPriorityElements(),
     ])
 
     // Try to fetch stock alerts (may not exist yet)
@@ -171,6 +195,54 @@ export default async function FactoryDashboard() {
                         </div>
                     </Card>
                 </div>
+
+                {/* Priority Elements */}
+                {priorityElements.length > 0 && (
+                    <Card className="p-6 border-orange-200 bg-orange-50/30">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                                <Flame className="w-5 h-5 text-orange-500" />
+                                Forgangur
+                            </h2>
+                            <span className="text-sm text-muted-foreground">{priorityElements.length} stykki</span>
+                        </div>
+                        <div className="space-y-2">
+                            {priorityElements.map((el) => {
+                                const typeInfo = typeConfig[el.element_type as string] || typeConfig.other
+                                const elStatusInfo = elementStatusConfig[el.status as string] || elementStatusConfig.planned
+                                const project = el.projects as { id: string; name: string; companies: { name: string } | null } | null
+
+                                return (
+                                    <Link
+                                        key={el.id}
+                                        href={`/factory/production/${el.id}`}
+                                        className="flex items-center gap-3 p-3 rounded-lg border border-orange-200 bg-white hover:bg-orange-50 transition-colors"
+                                    >
+                                        <span className="text-lg font-bold text-orange-600 w-8 text-center flex-shrink-0">
+                                            {el.priority}
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-medium text-foreground truncate">{el.name}</span>
+                                                <Badge variant="secondary" className={`${typeInfo.color} border-0 text-xs`}>
+                                                    {typeInfo.label}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-xs text-muted-foreground truncate">
+                                                    {project?.name}{project?.companies?.name ? ` — ${project.companies.name}` : ''}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <Badge variant="secondary" className={`${elStatusInfo.color} border-0 text-xs flex-shrink-0`}>
+                                            {elStatusInfo.label}
+                                        </Badge>
+                                    </Link>
+                                )
+                            })}
+                        </div>
+                    </Card>
+                )}
 
                 {/* Production Pipeline Progress */}
                 <Card className="p-6">

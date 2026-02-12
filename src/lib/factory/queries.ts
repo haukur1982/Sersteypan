@@ -27,6 +27,11 @@ export async function getFactoryMessages() {
           id,
           name
         )
+      ),
+      element:elements(
+        id,
+        name,
+        element_type
       )
     `)
     .order('created_at', { ascending: false })
@@ -57,6 +62,11 @@ export async function getProjectMessages(projectId: string) {
         id,
         full_name,
         role
+      ),
+      element:elements(
+        id,
+        name,
+        element_type
       )
     `)
     .eq('project_id', projectId)
@@ -65,6 +75,72 @@ export async function getProjectMessages(projectId: string) {
   if (error) {
     console.error('Error fetching project messages:', error)
     throw new Error('Failed to fetch messages')
+  }
+
+  return data || []
+}
+
+/**
+ * Get element counts grouped by project and status
+ * Returns { [projectId]: { planned: 3, cast: 2, ready: 1, ... } }
+ */
+export async function getElementCountsByProject(): Promise<Record<string, Record<string, number>>> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('elements')
+    .select('project_id, status')
+
+  if (error) {
+    console.error('Error fetching element counts:', error)
+    return {}
+  }
+
+  const counts: Record<string, Record<string, number>> = {}
+  for (const el of data || []) {
+    const pid = el.project_id
+    const status = el.status || 'planned'
+    if (!counts[pid]) counts[pid] = {}
+    counts[pid][status] = (counts[pid][status] || 0) + 1
+  }
+
+  return counts
+}
+
+/**
+ * Get priority elements (priority > 0, not yet delivered/loaded)
+ * Used for the factory dashboard "Forgangur" section
+ */
+export async function getPriorityElements() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('elements')
+    .select(`
+      id,
+      name,
+      element_type,
+      status,
+      priority,
+      floor,
+      project_id,
+      projects (
+        id,
+        name,
+        companies (
+          name
+        )
+      )
+    `)
+    .gt('priority', 0)
+    .not('status', 'in', '("delivered","loaded")')
+    .order('priority', { ascending: false })
+    .order('created_at', { ascending: true })
+    .limit(20)
+
+  if (error) {
+    console.error('Error fetching priority elements:', error)
+    return []
   }
 
   return data || []

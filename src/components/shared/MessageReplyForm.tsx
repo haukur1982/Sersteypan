@@ -15,6 +15,12 @@ interface Project {
   } | null
 }
 
+export interface ElementOption {
+  id: string
+  name: string
+  element_type: string
+}
+
 interface MessageReplyFormProps {
   projects: Array<{ projectId: string; project: Project | null }>
   selectedProjectId: string | null
@@ -25,6 +31,9 @@ interface MessageReplyFormProps {
   isSubmitting: boolean
   error: string | null
   onErrorClear: () => void
+  elements?: ElementOption[]
+  selectedElementId?: string | null
+  onElementSelect?: (elementId: string | null) => void
 }
 
 const CHAR_LIMIT = 5000
@@ -38,7 +47,10 @@ export function MessageReplyForm({
   onSubmit,
   isSubmitting,
   error,
-  onErrorClear
+  onErrorClear,
+  elements,
+  selectedElementId,
+  onElementSelect
 }: MessageReplyFormProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -106,6 +118,28 @@ export function MessageReplyForm({
             ))}
           </select>
         </div>
+
+        {elements && elements.length > 0 && selectedProjectId && onElementSelect && (
+          <div>
+            <label htmlFor="element-select" className="block text-sm font-medium text-zinc-700 mb-2">
+              Eining (valfrjálst)
+            </label>
+            <select
+              id="element-select"
+              value={selectedElementId || ''}
+              onChange={(e) => onElementSelect(e.target.value || null)}
+              className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              disabled={isSubmitting}
+            >
+              <option value="">Engin eining valin...</option>
+              {elements.map((el) => (
+                <option key={el.id} value={el.id}>
+                  {el.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label htmlFor="message-textarea" className="block text-sm font-medium text-zinc-700 mb-2">

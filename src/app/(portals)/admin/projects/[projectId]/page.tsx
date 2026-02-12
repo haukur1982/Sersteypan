@@ -24,11 +24,10 @@ import {
     Minus,
     CircleDot,
     HelpCircle,
-    FileText,
-    Download,
     Map
 } from 'lucide-react'
 import { DocumentUploadForm } from '@/components/documents/DocumentUploadForm'
+import { DocumentListWithFilter } from '@/components/documents/DocumentListWithFilter'
 import { ProjectActionButtons } from '@/components/admin/ProjectActionButtons'
 import type { Database } from '@/types/database'
 
@@ -269,53 +268,11 @@ export default async function ProjectPage({
                         </CardContent>
                     </Card>
 
-                    {/* Documents List */}
+                    {/* Documents List with Category Filter */}
                     <Card className="border-zinc-200">
                         <CardContent className="pt-6">
                             <h3 className="font-semibold text-zinc-900 mb-4">Skjöl verkefnis</h3>
-                            {documentList.length > 0 ? (
-                                <div className="space-y-3">
-                                    {documentList.map((doc) => (
-                                        <div
-                                            key={doc.id}
-                                            className="flex items-center justify-between p-3 border border-zinc-200 rounded-md hover:bg-zinc-50"
-                                        >
-                                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                <FileText className="h-5 w-5 text-zinc-400 flex-shrink-0" />
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium text-zinc-900 truncate">
-                                                        {doc.name}
-                                                    </p>
-                                                    {doc.description && (
-                                                        <p className="text-xs text-zinc-500 truncate">
-                                                            {doc.description}
-                                                        </p>
-                                                    )}
-                                                    <p className="text-xs text-zinc-400">
-                                                        {doc.profiles?.full_name} • {doc.created_at ? new Date(doc.created_at).toLocaleDateString('is-IS') : 'Óþekkt'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-1 flex-shrink-0">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    asChild
-                                                    className="h-8 w-8 text-zinc-500 hover:text-blue-600"
-                                                >
-                                                    <a href={doc.file_url} download target="_blank" rel="noopener noreferrer">
-                                                        <Download className="h-4 w-4" />
-                                                    </a>
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-zinc-500 text-center py-8">
-                                    Engin skjöl hafa verið hlaðið upp ennþá.
-                                </p>
-                            )}
+                            <DocumentListWithFilter documents={documentList} />
                         </CardContent>
                     </Card>
                 </div>

@@ -6,14 +6,16 @@ import { MessageSquare, Building2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { MessageCard, type Message, type OptimisticMessage } from './MessageCard'
-import { MessageReplyForm } from './MessageReplyForm'
+import { MessageReplyForm, type ElementOption } from './MessageReplyForm'
 
 interface MessagesListProps {
   messages: Message[]
-  onSendMessage?: (projectId: string, message: string) => Promise<{ error?: string; success?: boolean }>
+  onSendMessage?: (projectId: string, message: string, elementId?: string | null) => Promise<{ error?: string; success?: boolean }>
   onMarkAsRead?: (messageIds: string[]) => Promise<{ error?: string; success?: boolean }>
   showProjectInfo?: boolean
   currentUserId?: string
+  elements?: ElementOption[]
+  elementLinkPrefix?: string
 }
 
 const roleLabels: Record<string, string> = {
@@ -55,10 +57,13 @@ export function MessagesList({
   onSendMessage,
   onMarkAsRead,
   showProjectInfo = true,
-  currentUserId
+  currentUserId,
+  elements,
+  elementLinkPrefix
 }: MessagesListProps) {
   const router = useRouter()
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
   const [newMessage, setNewMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -144,7 +149,7 @@ export function MessagesList({
     setOptimisticMessages(prev => [...prev, optimisticMsg])
     setNewMessage('')
 
-    const result = await onSendMessage(selectedProjectId, messageText)
+    const result = await onSendMessage(selectedProjectId, messageText, selectedElementId)
 
     if (result.error) {
       setOptimisticMessages(prev => prev.filter(m => m.id !== optimisticMsg.id))
@@ -155,11 +160,12 @@ export function MessagesList({
         setOptimisticMessages(prev => prev.filter(m => m.id !== optimisticMsg.id))
       }, 500)
       setSelectedProjectId(null)
+      setSelectedElementId(null)
       router.refresh()
     }
 
     setIsSubmitting(false)
-  }, [selectedProjectId, newMessage, onSendMessage, isSubmitting, currentUserId, messagesByProject, router])
+  }, [selectedProjectId, newMessage, onSendMessage, isSubmitting, currentUserId, messagesByProject, router, selectedElementId])
 
   if (allMessages.length === 0) {
     return (
@@ -192,13 +198,16 @@ export function MessagesList({
         <MessageReplyForm
           projects={sortedProjectEntries.map(([projectId, { project }]) => ({ projectId, project }))}
           selectedProjectId={selectedProjectId}
-          onProjectSelect={setSelectedProjectId}
+          onProjectSelect={(id) => { setSelectedProjectId(id); setSelectedElementId(null) }}
           newMessage={newMessage}
           onMessageChange={setNewMessage}
           onSubmit={sendMessage}
           isSubmitting={isSubmitting}
           error={error}
           onErrorClear={() => setError(null)}
+          elements={elements}
+          selectedElementId={selectedElementId}
+          onElementSelect={setSelectedElementId}
         />
       )}
 
@@ -238,6 +247,7 @@ export function MessagesList({
                     roleLabels={roleLabels}
                     roleColors={roleColors}
                     getRelativeTime={getRelativeTime}
+                    elementLinkPrefix={elementLinkPrefix}
                   />
                 ))}
               <div ref={messagesEndRef} />

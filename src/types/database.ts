@@ -982,6 +982,7 @@ export type Database = {
       }
       project_documents: {
         Row: {
+          category: string
           created_at: string | null
           description: string | null
           file_size_bytes: number | null
@@ -993,6 +994,7 @@ export type Database = {
           uploaded_by: string | null
         }
         Insert: {
+          category?: string
           created_at?: string | null
           description?: string | null
           file_size_bytes?: number | null
@@ -1004,6 +1006,7 @@ export type Database = {
           uploaded_by?: string | null
         }
         Update: {
+          category?: string
           created_at?: string | null
           description?: string | null
           file_size_bytes?: number | null
@@ -1034,6 +1037,7 @@ export type Database = {
       project_messages: {
         Row: {
           created_at: string | null
+          element_id: string | null
           id: string
           is_read: boolean | null
           message: string
@@ -1042,6 +1046,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          element_id?: string | null
           id?: string
           is_read?: boolean | null
           message: string
@@ -1050,6 +1055,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          element_id?: string | null
           id?: string
           is_read?: boolean | null
           message?: string
@@ -1057,6 +1063,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "project_messages_element_id_fkey"
+            columns: ["element_id"]
+            isOneToOne: false
+            referencedRelation: "elements"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_messages_project_id_fkey"
             columns: ["project_id"]

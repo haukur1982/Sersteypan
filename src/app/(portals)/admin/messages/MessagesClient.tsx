@@ -25,6 +25,11 @@ type Message = {
       name: string
     } | null
   } | null
+  element?: {
+    id: string
+    name: string
+    element_type: string
+  } | null
 }
 
 interface MessagesClientProps {
@@ -64,10 +69,11 @@ export function MessagesClient({ messages, currentUserId }: MessagesClientProps)
     }
   }, [router])
 
-  const handleSendMessage = async (projectId: string, message: string) => {
+  const handleSendMessage = async (projectId: string, message: string, elementId?: string | null) => {
     const formData = new FormData()
     formData.append('projectId', projectId)
     formData.append('message', message)
+    if (elementId) formData.append('elementId', elementId)
 
     return await sendAdminMessage(formData)
   }
@@ -83,6 +89,7 @@ export function MessagesClient({ messages, currentUserId }: MessagesClientProps)
       onMarkAsRead={handleMarkAsRead}
       showProjectInfo={true}
       currentUserId={currentUserId}
+      elementLinkPrefix="/admin/elements"
     />
   )
 }

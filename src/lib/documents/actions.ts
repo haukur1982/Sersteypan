@@ -84,6 +84,7 @@ export async function uploadDocument(projectId: string, formData: FormData) {
   // Get file from form data
   const file = formData.get('file') as File
   const description = formData.get('description') as string
+  const category = (formData.get('category') as string) || 'other'
 
   if (!file) {
     return { error: 'No file provided' }
@@ -147,7 +148,8 @@ export async function uploadDocument(projectId: string, formData: FormData) {
       file_url: fileName,
       file_type: fileType,
       file_size_bytes: file.size,
-      uploaded_by: user.id
+      uploaded_by: user.id,
+      category,
     })
 
   if (dbError) {
@@ -157,8 +159,9 @@ export async function uploadDocument(projectId: string, formData: FormData) {
     return { error: 'Failed to save document metadata' }
   }
 
-  // Revalidate project page
+  // Revalidate project pages
   revalidatePath(`/admin/projects/${projectId}`)
+  revalidatePath(`/factory/projects/${projectId}`)
 
   return { success: true, message: 'Document uploaded successfully' }
 }
@@ -219,8 +222,9 @@ export async function deleteDocument(documentId: string, projectId: string) {
     return { error: 'Failed to delete document' }
   }
 
-  // Revalidate project page
+  // Revalidate project pages
   revalidatePath(`/admin/projects/${projectId}`)
+  revalidatePath(`/factory/projects/${projectId}`)
 
   return { success: true }
 }

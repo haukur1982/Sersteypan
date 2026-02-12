@@ -64,6 +64,22 @@ export function DocumentUploadForm({ projectId }: DocumentUploadFormProps) {
       )}
 
       <div className="space-y-2">
+        <Label htmlFor="category">Flokkur</Label>
+        <select
+          id="category"
+          name="category"
+          defaultValue="other"
+          disabled={isUploading}
+          className="w-full px-3 py-2 border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="drawing">Teikning</option>
+          <option value="rebar">Armeringsmynd</option>
+          <option value="concrete_spec">Steypuskýrsla</option>
+          <option value="other">Annað</option>
+        </select>
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="file">Skrá *</Label>
         <Input
           id="file"

@@ -65,6 +65,7 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
     factory_manager: [
         { name: 'Stjórnborð', englishName: 'Dashboard', href: '/factory', icon: LayoutDashboard },
         { name: 'Framleiðsla', englishName: 'Production', href: '/factory/production', icon: Factory },
+        { name: 'Verkefni', englishName: 'Projects', href: '/factory/projects', icon: FolderKanban },
         { name: 'Dagbók', englishName: 'Diary', href: '/factory/diary', icon: BookOpen },
         { name: 'Verkefnalisti', englishName: 'Tasks', href: '/factory/todos', icon: CheckSquare },
         { name: 'Lager', englishName: 'Stock', href: '/factory/stock', icon: Package },

@@ -1,7 +1,14 @@
 'use client'
 
-import { User, CheckCheck, Clock, Loader2 } from 'lucide-react'
+import Link from 'next/link'
+import { User, CheckCheck, Clock, Loader2, Box } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+
+export type MessageElement = {
+  id: string
+  name: string
+  element_type: string
+} | null
 
 export type Message = {
   id: string
@@ -22,6 +29,7 @@ export type Message = {
       name: string
     } | null
   } | null
+  element?: MessageElement
 }
 
 export type OptimisticMessage = Message & {
@@ -30,12 +38,24 @@ export type OptimisticMessage = Message & {
   sendError?: string
 }
 
+const elementTypeColors: Record<string, string> = {
+  wall: 'bg-blue-100 text-blue-800 border-blue-200',
+  filigran: 'bg-purple-100 text-purple-800 border-purple-200',
+  staircase: 'bg-orange-100 text-orange-800 border-orange-200',
+  balcony: 'bg-green-100 text-green-800 border-green-200',
+  ceiling: 'bg-zinc-100 text-zinc-800 border-zinc-200',
+  column: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  beam: 'bg-red-100 text-red-800 border-red-200',
+  other: 'bg-zinc-100 text-zinc-600 border-zinc-200',
+}
+
 interface MessageCardProps {
   message: OptimisticMessage
   currentUserId?: string
   roleLabels: Record<string, string>
   roleColors: Record<string, string>
   getRelativeTime: (dateString: string | null) => string
+  elementLinkPrefix?: string
 }
 
 export function MessageCard({
@@ -43,7 +63,8 @@ export function MessageCard({
   currentUserId,
   roleLabels,
   roleColors,
-  getRelativeTime
+  getRelativeTime,
+  elementLinkPrefix = '/factory/production'
 }: MessageCardProps) {
   const isOwnMessage = currentUserId && msg.user?.id === currentUserId
   const isOptimistic = 'isOptimistic' in msg && msg.isOptimistic
@@ -106,6 +127,19 @@ export function MessageCard({
       <p className="text-sm text-zinc-700 whitespace-pre-wrap ml-6 leading-relaxed">
         {msg.message}
       </p>
+      {msg.element && (
+        <div className="ml-6 mt-2">
+          <Link href={`${elementLinkPrefix}/${msg.element.id}`} className="inline-flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+            <Badge
+              variant="outline"
+              className={`${elementTypeColors[msg.element.element_type] || elementTypeColors.other} text-xs gap-1`}
+            >
+              <Box className="w-3 h-3" />
+              {msg.element.name}
+            </Badge>
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

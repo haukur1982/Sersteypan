@@ -131,6 +131,7 @@ export async function getProductionQueuePaginated(
 export async function sendFactoryMessage(formData: FormData) {
   const projectId = formData.get('projectId') as string
   const message = formData.get('message') as string
+  const elementId = formData.get('elementId') as string | null
 
   const supabase = await createClient()
 
@@ -160,7 +161,8 @@ export async function sendFactoryMessage(formData: FormData) {
       .insert({
         project_id: projectId,
         user_id: user.id,
-        message: message.trim()
+        message: message.trim(),
+        element_id: elementId || null
       })
 
     if (error) {

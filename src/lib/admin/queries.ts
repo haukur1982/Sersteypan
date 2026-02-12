@@ -27,6 +27,11 @@ export async function getAdminMessages() {
           id,
           name
         )
+      ),
+      element:elements(
+        id,
+        name,
+        element_type
       )
     `)
     .order('created_at', { ascending: false })
@@ -57,6 +62,11 @@ export async function getProjectMessages(projectId: string) {
         id,
         full_name,
         role
+      ),
+      element:elements(
+        id,
+        name,
+        element_type
       )
     `)
     .eq('project_id', projectId)
