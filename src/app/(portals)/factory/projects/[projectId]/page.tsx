@@ -246,7 +246,7 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                     <Card className="border-border">
                         <CardContent className="pt-6">
                             <h3 className="font-semibold text-foreground mb-4">Skjöl verkefnis</h3>
-                            <DocumentListWithFilter documents={documentList} />
+                            <DocumentListWithFilter documents={documentList} projectId={projectId} canDelete />
                         </CardContent>
                     </Card>
                 </div>

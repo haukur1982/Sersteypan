@@ -177,15 +177,15 @@ export async function deleteDocument(documentId: string, projectId: string) {
     return { error: 'Not authenticated' }
   }
 
-  // Validate user is admin
+  // Validate user is admin or factory manager
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.role !== 'admin') {
-    return { error: 'Unauthorized - Admin only' }
+  if (!profile || !['admin', 'factory_manager'].includes(profile.role)) {
+    return { error: 'Unauthorized' }
   }
 
   // Get document to find file path

@@ -272,7 +272,7 @@ export default async function ProjectPage({
                     <Card className="border-zinc-200">
                         <CardContent className="pt-6">
                             <h3 className="font-semibold text-zinc-900 mb-4">Skjöl verkefnis</h3>
-                            <DocumentListWithFilter documents={documentList} />
+                            <DocumentListWithFilter documents={documentList} projectId={projectId} canDelete />
                         </CardContent>
                     </Card>
                 </div>

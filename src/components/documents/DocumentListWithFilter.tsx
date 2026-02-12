@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, Download } from 'lucide-react'
+import { Eye, Download, Trash2, Loader2, Check, X } from 'lucide-react'
 import { DocumentPreview } from './DocumentPreview'
+import { deleteDocument } from '@/lib/documents/actions'
 
 const categoryConfig: Record<string, { label: string; color: string }> = {
     drawing: { label: 'Teikning', color: 'bg-blue-100 text-blue-800' },
@@ -26,11 +28,17 @@ interface Document {
 
 interface DocumentListWithFilterProps {
     documents: Document[]
+    projectId?: string
+    canDelete?: boolean
 }
 
-export function DocumentListWithFilter({ documents }: DocumentListWithFilterProps) {
+export function DocumentListWithFilter({ documents, projectId, canDelete = false }: DocumentListWithFilterProps) {
+    const router = useRouter()
     const [activeFilter, setActiveFilter] = useState<string | null>(null)
     const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
+    const [confirmingId, setConfirmingId] = useState<string | null>(null)
+    const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [error, setError] = useState<string | null>(null)
 
     const filtered = activeFilter
         ? documents.filter(d => d.category === activeFilter)
@@ -40,6 +48,22 @@ export function DocumentListWithFilter({ documents }: DocumentListWithFilterProp
     for (const doc of documents) {
         const cat = doc.category || 'other'
         categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
+    }
+
+    async function handleDelete(docId: string) {
+        if (!projectId) return
+        setDeletingId(docId)
+        setError(null)
+        const result = await deleteDocument(docId, projectId)
+        if (result.error) {
+            setError(result.error)
+            setDeletingId(null)
+            setConfirmingId(null)
+        } else {
+            setDeletingId(null)
+            setConfirmingId(null)
+            router.refresh()
+        }
     }
 
     return (
@@ -73,11 +97,19 @@ export function DocumentListWithFilter({ documents }: DocumentListWithFilterProp
                 </div>
             )}
 
+            {error && (
+                <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                    {error}
+                </div>
+            )}
+
             {/* Document list */}
             {filtered.length > 0 ? (
                 <div className="space-y-3">
                     {filtered.map((doc) => {
                         const catInfo = categoryConfig[doc.category] || categoryConfig.other
+                        const isConfirming = confirmingId === doc.id
+                        const isDeleting = deletingId === doc.id
                         return (
                             <div
                                 key={doc.id}
@@ -107,16 +139,54 @@ export function DocumentListWithFilter({ documents }: DocumentListWithFilterProp
                                         </p>
                                     </div>
                                 </button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    asChild
-                                    className="h-8 w-8 text-muted-foreground hover:text-blue-600 flex-shrink-0"
-                                >
-                                    <a href={doc.file_url} download target="_blank" rel="noopener noreferrer">
-                                        <Download className="h-4 w-4" />
-                                    </a>
-                                </Button>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                    {isConfirming ? (
+                                        <>
+                                            <span className="text-xs text-muted-foreground mr-1">Eyða?</span>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                onClick={() => handleDelete(doc.id)}
+                                                disabled={isDeleting}
+                                            >
+                                                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={() => setConfirmingId(null)}
+                                                disabled={isDeleting}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                asChild
+                                                className="h-8 w-8 text-muted-foreground hover:text-blue-600"
+                                            >
+                                                <a href={doc.file_url} download target="_blank" rel="noopener noreferrer">
+                                                    <Download className="h-4 w-4" />
+                                                </a>
+                                            </Button>
+                                            {canDelete && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                                                    onClick={() => setConfirmingId(doc.id)}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         )
                     })}
