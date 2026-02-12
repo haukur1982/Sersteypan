@@ -50,6 +50,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://rggqjcguhfcfhlwbyrug.supabase.co",
       "font-src 'self' data:",
       "connect-src 'self' https://rggqjcguhfcfhlwbyrug.supabase.co wss://rggqjcguhfcfhlwbyrug.supabase.co https://*.sentry.io https://*.ingest.sentry.io",
+      "frame-src 'self' https://rggqjcguhfcfhlwbyrug.supabase.co",
       "frame-ancestors 'none'",
       "form-action 'self'",
       "base-uri 'self'",

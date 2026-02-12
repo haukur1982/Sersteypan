@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { FileText, Download } from 'lucide-react'
+import { Eye, Download } from 'lucide-react'
+import { DocumentPreview } from './DocumentPreview'
 
 const categoryConfig: Record<string, { label: string; color: string }> = {
     drawing: { label: 'Teikning', color: 'bg-blue-100 text-blue-800' },
@@ -17,6 +18,7 @@ interface Document {
     name: string
     description: string | null
     file_url: string
+    file_type: string | null
     category: string
     created_at: string | null
     profiles?: { full_name: string } | null
@@ -28,6 +30,7 @@ interface DocumentListWithFilterProps {
 
 export function DocumentListWithFilter({ documents }: DocumentListWithFilterProps) {
     const [activeFilter, setActiveFilter] = useState<string | null>(null)
+    const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
 
     const filtered = activeFilter
         ? documents.filter(d => d.category === activeFilter)
@@ -80,8 +83,11 @@ export function DocumentListWithFilter({ documents }: DocumentListWithFilterProp
                                 key={doc.id}
                                 className="flex items-center justify-between p-3 border border-border rounded-md hover:bg-muted/50"
                             >
-                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                <button
+                                    onClick={() => setPreviewDoc(doc)}
+                                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                                >
+                                    <Eye className="h-5 w-5 text-blue-600 flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
                                             <p className="text-sm font-medium text-foreground truncate">
@@ -100,7 +106,7 @@ export function DocumentListWithFilter({ documents }: DocumentListWithFilterProp
                                             {doc.profiles?.full_name} • {doc.created_at ? new Date(doc.created_at).toLocaleDateString('is-IS') : 'Óþekkt'}
                                         </p>
                                     </div>
-                                </div>
+                                </button>
                                 <Button
                                     variant="ghost"
                                     size="icon"
@@ -120,6 +126,13 @@ export function DocumentListWithFilter({ documents }: DocumentListWithFilterProp
                     {activeFilter ? 'Engin skjöl í þessum flokki.' : 'Engin skjöl hafa verið hlaðið upp ennþá.'}
                 </p>
             )}
+
+            {/* Document preview dialog */}
+            <DocumentPreview
+                document={previewDoc}
+                open={!!previewDoc}
+                onOpenChange={(open) => { if (!open) setPreviewDoc(null) }}
+            />
         </div>
     )
 }
