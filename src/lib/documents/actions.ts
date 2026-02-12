@@ -47,7 +47,7 @@ export async function getProjectDocuments(projectId: string) {
       const { bucket, path } = parseStoragePath(doc.file_url)
       const { data: signed, error: signError } = await supabase.storage
         .from(bucket)
-        .createSignedUrl(path, 60 * 60)
+        .createSignedUrl(path, 60 * 60, { download: false })
 
       if (!signError && signed?.signedUrl) {
         return { ...doc, file_url: signed.signedUrl }
@@ -123,6 +123,7 @@ export async function uploadDocument(projectId: string, formData: FormData) {
     .from(DOCUMENTS_BUCKET)
     .upload(fileName, file, {
       cacheControl: '3600',
+      contentType: file.type,
       upsert: false
     })
 

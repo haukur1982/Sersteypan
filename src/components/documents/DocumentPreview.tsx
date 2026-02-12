@@ -6,12 +6,19 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Download, X, FileSpreadsheet, FileText, Loader2, ExternalLink } from 'lucide-react'
 
-function getFileCategory(fileType: string | null): 'pdf' | 'image' | 'excel' | 'word' | 'other' {
-    if (!fileType) return 'other'
+function getFileCategory(fileType: string | null, fileName?: string): 'pdf' | 'image' | 'excel' | 'word' | 'other' {
     if (fileType === 'pdf') return 'pdf'
     if (fileType === 'image') return 'image'
     if (fileType === 'excel') return 'excel'
     if (fileType === 'word') return 'word'
+    // Fallback: detect from filename extension when file_type is null/other
+    if (fileName) {
+        const ext = fileName.toLowerCase().split('.').pop()
+        if (ext === 'pdf') return 'pdf'
+        if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext || '')) return 'image'
+        if (['xls', 'xlsx'].includes(ext || '')) return 'excel'
+        if (['doc', 'docx'].includes(ext || '')) return 'word'
+    }
     return 'other'
 }
 
@@ -32,7 +39,7 @@ interface DocumentPreviewProps {
 function PreviewContent({ document, onClose }: { document: PreviewDocument; onClose: () => void }) {
     const [isLoading, setIsLoading] = useState(true)
 
-    const category = getFileCategory(document.file_type)
+    const category = getFileCategory(document.file_type, document.name)
     const canPreview = category === 'pdf' || category === 'image'
 
     return (
