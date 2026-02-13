@@ -51,7 +51,7 @@ const securityHeaders = [
       "font-src 'self' data:",
       "connect-src 'self' https://rggqjcguhfcfhlwbyrug.supabase.co wss://rggqjcguhfcfhlwbyrug.supabase.co https://*.sentry.io https://*.ingest.sentry.io",
       "frame-src 'self' https://rggqjcguhfcfhlwbyrug.supabase.co",
-      "frame-ancestors 'none'",
+      "frame-ancestors 'self'",
       "form-action 'self'",
       "base-uri 'self'",
     ].join('; '),
