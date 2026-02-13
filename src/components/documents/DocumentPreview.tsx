@@ -23,6 +23,7 @@ function getFileCategory(fileType: string | null, fileName?: string): 'pdf' | 'i
 }
 
 interface PreviewDocument {
+    id: string
     name: string
     file_url: string
     file_type: string | null
@@ -42,6 +43,9 @@ function PreviewContent({ document, onClose }: { document: PreviewDocument; onCl
     const category = getFileCategory(document.file_type, document.name)
     const canPreview = category === 'pdf' || category === 'image'
 
+    // Use API route for PDF/image preview (bypasses signed URL Content-Disposition issues)
+    const proxyUrl = `/api/documents/${document.id}`
+
     return (
         <>
             {/* Accessible title (hidden) */}
@@ -54,7 +58,7 @@ function PreviewContent({ document, onClose }: { document: PreviewDocument; onCl
                 </p>
                 <div className="flex items-center gap-1 flex-shrink-0">
                     <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                        <a href={document.file_url} target="_blank" rel="noopener noreferrer">
+                        <a href={proxyUrl} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="h-4 w-4" />
                         </a>
                     </Button>
@@ -85,7 +89,7 @@ function PreviewContent({ document, onClose }: { document: PreviewDocument; onCl
 
                 {category === 'pdf' && (
                     <iframe
-                        src={document.file_url}
+                        src={proxyUrl}
                         className="w-full h-full border-0"
                         title={document.name}
                         onLoad={() => setIsLoading(false)}
@@ -142,7 +146,7 @@ export function DocumentPreview({ document, open, onOpenChange }: DocumentPrevie
                 showCloseButton={false}
             >
                 <PreviewContent
-                    key={document.file_url}
+                    key={document.id}
                     document={document}
                     onClose={() => onOpenChange(false)}
                 />

@@ -47,13 +47,24 @@ export async function getProjectDocuments(projectId: string) {
       const { bucket, path } = parseStoragePath(doc.file_url)
       const { data: signed, error: signError } = await supabase.storage
         .from(bucket)
-        .createSignedUrl(path, 60 * 60, { download: false })
+        .createSignedUrl(path, 60 * 60)
+
+      if (signError) {
+        console.error('Error signing document URL:', signError.message, { bucket, path, docId: doc.id })
+      }
 
       if (!signError && signed?.signedUrl) {
         return { ...doc, file_url: signed.signedUrl }
       }
 
-      return doc
+      // Fallback: if file_url is already a full URL, use it as-is
+      if (doc.file_url.startsWith('http')) {
+        return doc
+      }
+
+      // Last resort: construct a public URL (will only work if bucket is public)
+      console.error('Failed to generate signed URL for document:', doc.id, doc.name)
+      return { ...doc, file_url: '' }
     })
   )
 
