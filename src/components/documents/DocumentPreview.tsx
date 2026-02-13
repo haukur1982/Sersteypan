@@ -1,6 +1,21 @@
 'use client'
 
-import { DocumentViewer } from './DocumentViewer'
+import dynamic from 'next/dynamic'
+import { Loader2 } from 'lucide-react'
+
+// Dynamic import with ssr: false — prevents pdfjs-dist from being imported on the server
+// (pdfjs-dist requires browser APIs like DOMMatrix, canvas, Web Workers)
+const DocumentViewer = dynamic(
+    () => import('./DocumentViewer').then(m => ({ default: m.DocumentViewer })),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+                <Loader2 className="h-10 w-10 animate-spin text-white/70" />
+            </div>
+        ),
+    }
+)
 
 interface PreviewDocument {
     id: string

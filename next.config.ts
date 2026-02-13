@@ -52,6 +52,7 @@ const securityHeaders = [
       "connect-src 'self' https://rggqjcguhfcfhlwbyrug.supabase.co wss://rggqjcguhfcfhlwbyrug.supabase.co https://*.sentry.io https://*.ingest.sentry.io",
       "frame-src 'self' https://rggqjcguhfcfhlwbyrug.supabase.co",
       "frame-ancestors 'self'",
+      "worker-src 'self' blob:",
       "form-action 'self'",
       "base-uri 'self'",
     ].join('; '),

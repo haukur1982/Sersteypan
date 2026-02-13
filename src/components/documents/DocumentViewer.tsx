@@ -1,9 +1,17 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Document, Page, pdfjs } from 'react-pdf'
+import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch'
 import { ArrowLeft, Download, ChevronLeft, ChevronRight, RotateCcw, Loader2, AlertCircle } from 'lucide-react'
-import { usePinchZoom } from '@/lib/hooks/usePinchZoom'
-import { getPdfInfo, renderPdfPage } from '@/lib/pdf/renderPage'
+import 'react-pdf/dist/Page/AnnotationLayer.css'
+import 'react-pdf/dist/Page/TextLayer.css'
+
+// Set up pdfjs worker — import.meta.url lets webpack resolve the path at build time
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.min.mjs',
+    import.meta.url,
+).toString()
 
 interface ViewerDocument {
     id: string
@@ -30,50 +38,57 @@ function getFileCategory(fileType: string | null, fileName?: string): FileCatego
     return 'other'
 }
 
+/** Zoom reset button — needs useControls from inside TransformWrapper */
+function ZoomResetButton({ visible }: { visible: boolean }) {
+    const { resetTransform } = useControls()
+    return (
+        <button
+            onClick={(e) => { e.stopPropagation(); resetTransform() }}
+            className={`flex items-center gap-2 px-4 py-2 bg-black/70 backdrop-blur-sm text-white rounded-full text-sm active:bg-white/20 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            aria-label="Endurstilla"
+        >
+            <RotateCcw className="h-4 w-4" />
+            Endurstilla
+        </button>
+    )
+}
+
 export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
     const category = getFileCategory(document.file_type, document.name)
     const proxyUrl = `/api/documents/${document.id}`
 
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [retryKey, setRetryKey] = useState(0)
 
     // PDF state
     const [pageCount, setPageCount] = useState(1)
     const [currentPage, setCurrentPage] = useState(1)
-    const [pageDataUrl, setPageDataUrl] = useState<string | null>(null)
-    const pageCache = useRef<Map<number, string>>(new Map())
 
-    // UI visibility
+    // UI visibility — auto-hide after 3s
     const [uiVisible, setUiVisible] = useState(true)
     const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    const { scale, translateX, translateY, handlers, resetZoom, isZoomed } = usePinchZoom()
-
-    // Auto-hide UI after 3 seconds of no interaction
     const showUi = useCallback(() => {
         setUiVisible(true)
         if (hideTimer.current) clearTimeout(hideTimer.current)
         hideTimer.current = setTimeout(() => setUiVisible(false), 3000)
     }, [])
 
-    // Start auto-hide timer on first render (uiVisible starts as true)
+    // Start auto-hide on mount
     useEffect(() => {
         hideTimer.current = setTimeout(() => setUiVisible(false), 3000)
-        return () => {
-            if (hideTimer.current) clearTimeout(hideTimer.current)
-        }
+        return () => { if (hideTimer.current) clearTimeout(hideTimer.current) }
     }, [])
 
     // Close on Escape key
     useEffect(() => {
-        function onKeyDown(e: KeyboardEvent) {
-            if (e.key === 'Escape') onClose()
-        }
+        const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
         window.addEventListener('keydown', onKeyDown)
         return () => window.removeEventListener('keydown', onKeyDown)
     }, [onClose])
 
-    // Prevent body scroll when viewer is open
+    // Prevent body scroll
     useEffect(() => {
         const body = window.document.body
         const prev = body.style.overflow
@@ -81,110 +96,65 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
         return () => { body.style.overflow = prev }
     }, [])
 
-    // Load PDF info
-    useEffect(() => {
-        if (category !== 'pdf') return
-        let cancelled = false
+    const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
+        setPageCount(numPages)
+        setLoading(false)
+    }, [])
 
-        async function loadPdfInfo() {
-            try {
-                setLoading(true)
-                setError(null)
-                const info = await getPdfInfo(proxyUrl)
-                if (!cancelled) {
-                    setPageCount(info.pageCount)
-                    await loadPage(1)
-                }
-            } catch {
-                if (!cancelled) setError('Villa kom upp við að opna PDF')
-            }
-        }
+    const onDocumentLoadError = useCallback((err: Error) => {
+        console.error('[DocumentViewer] PDF load error:', err)
+        setError('Villa kom upp við að opna PDF')
+        setLoading(false)
+    }, [])
 
-        async function loadPage(page: number) {
-            try {
-                const cached = pageCache.current.get(page)
-                if (cached) {
-                    if (!cancelled) {
-                        setPageDataUrl(cached)
-                        setLoading(false)
-                    }
-                    return
-                }
-                const dataUrl = await renderPdfPage(proxyUrl, page)
-                if (!cancelled) {
-                    pageCache.current.set(page, dataUrl)
-                    setPageDataUrl(dataUrl)
-                    setLoading(false)
-                }
-            } catch {
-                if (!cancelled) {
-                    setError('Villa kom upp við að birta síðu')
-                    setLoading(false)
-                }
-            }
-        }
+    const onImageLoad = useCallback(() => {
+        setLoading(false)
+    }, [])
 
-        loadPdfInfo()
-        return () => { cancelled = true }
-    }, [category, proxyUrl])
+    const onImageError = useCallback(() => {
+        console.error('[DocumentViewer] Image load error for:', proxyUrl)
+        setError('Villa kom upp við að hlaða mynd')
+        setLoading(false)
+    }, [proxyUrl])
 
-    // Load a specific PDF page
-    const goToPage = useCallback(async (page: number) => {
+    const goToPage = useCallback((page: number) => {
         if (page < 1 || page > pageCount) return
         setCurrentPage(page)
-        setLoading(true)
-        resetZoom()
+    }, [pageCount])
 
-        const cached = pageCache.current.get(page)
-        if (cached) {
-            setPageDataUrl(cached)
-            setLoading(false)
-            return
-        }
-
-        try {
-            const dataUrl = await renderPdfPage(proxyUrl, page)
-            pageCache.current.set(page, dataUrl)
-            setPageDataUrl(dataUrl)
-            setLoading(false)
-        } catch {
-            setError('Villa kom upp við að birta síðu')
-            setLoading(false)
-        }
-    }, [pageCount, proxyUrl, resetZoom])
-
-    // Retry after error
     const retry = useCallback(() => {
         setError(null)
         setLoading(true)
-        if (category === 'pdf') {
-            pageCache.current.clear()
-            goToPage(currentPage)
-        } else {
-            // Force image reload by re-rendering
-            setLoading(true)
-        }
-    }, [category, goToPage, currentPage])
+        setRetryKey(k => k + 1)
+    }, [])
 
     const isPdf = category === 'pdf'
     const isImage = category === 'image'
-    const showToolbar = isPdf && pageCount > 1
-    const imgSrc = isPdf ? pageDataUrl : proxyUrl
+    const showPageNav = isPdf && pageCount > 1
 
-    const transformStyle = {
-        transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
-        transition: isZoomed ? 'none' : 'transform 0.2s ease-out',
-    }
+    // Calculate page width to fit screen
+    const [containerWidth, setContainerWidth] = useState(0)
+    const containerRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        const updateWidth = () => {
+            if (containerRef.current) {
+                setContainerWidth(containerRef.current.clientWidth)
+            }
+        }
+        updateWidth()
+        window.addEventListener('resize', updateWidth)
+        return () => window.removeEventListener('resize', updateWidth)
+    }, [])
 
     return (
         <div
             className="fixed inset-0 z-50 bg-black flex flex-col select-none"
-            style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
-            onClick={() => { showUi() }}
+            onClick={() => showUi()}
         >
             {/* Header */}
             <div
-                className={`absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-2 bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                className={`absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-2 bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                 style={{ height: 48, paddingTop: 'env(safe-area-inset-top)' }}
             >
                 <button
@@ -209,13 +179,10 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
             </div>
 
             {/* Main content area */}
-            <div
-                className="flex-1 flex items-center justify-center overflow-hidden"
-                {...handlers}
-            >
+            <div ref={containerRef} className="flex-1 flex items-center justify-center overflow-hidden">
                 {/* Loading spinner */}
                 {loading && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
                         <Loader2 className="h-10 w-10 animate-spin text-white/70" />
                         <p className="text-white/50 text-sm mt-3">Hleð inn...</p>
                     </div>
@@ -223,7 +190,7 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
 
                 {/* Error state */}
                 {error && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center z-20 gap-4 px-8">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-4 px-8">
                         <AlertCircle className="h-12 w-12 text-red-400" />
                         <p className="text-white text-center">{error}</p>
                         <button
@@ -235,21 +202,72 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
                     </div>
                 )}
 
-                {/* Image / PDF page — using <img> for CSS transform zoom (Next.js Image doesn't support data URLs or transform) */}
-                {!error && imgSrc && (isImage || isPdf) && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={imgSrc}
-                        alt={document.name}
-                        className="max-w-full max-h-full object-contain"
-                        style={transformStyle}
-                        onLoad={() => setLoading(false)}
-                        onError={() => {
-                            setLoading(false)
-                            setError('Villa kom upp við að hlaða mynd')
-                        }}
-                        draggable={false}
-                    />
+                {/* PDF viewer */}
+                {!error && isPdf && (
+                    <TransformWrapper
+                        key={`pdf-${retryKey}-${currentPage}`}
+                        initialScale={1}
+                        minScale={0.5}
+                        maxScale={5}
+                        doubleClick={{ mode: 'zoomIn', step: 1.5 }}
+                        pinch={{ step: 5 }}
+                        wheel={{ step: 0.1 }}
+                        centerOnInit
+                    >
+                        <TransformComponent
+                            wrapperStyle={{ width: '100%', height: '100%' }}
+                            contentStyle={{ width: '100%', display: 'flex', justifyContent: 'center' }}
+                        >
+                            <Document
+                                file={proxyUrl}
+                                onLoadSuccess={onDocumentLoadSuccess}
+                                onLoadError={onDocumentLoadError}
+                                loading=""
+                            >
+                                <Page
+                                    pageNumber={currentPage}
+                                    width={containerWidth > 0 ? containerWidth : undefined}
+                                    loading=""
+                                    renderAnnotationLayer={false}
+                                    renderTextLayer={false}
+                                />
+                            </Document>
+                        </TransformComponent>
+                    </TransformWrapper>
+                )}
+
+                {/* Image viewer */}
+                {!error && isImage && (
+                    <TransformWrapper
+                        key={`img-${retryKey}`}
+                        initialScale={1}
+                        minScale={0.5}
+                        maxScale={5}
+                        doubleClick={{ mode: 'zoomIn', step: 1.5 }}
+                        pinch={{ step: 5 }}
+                        wheel={{ step: 0.1 }}
+                        centerOnInit
+                    >
+                        <TransformComponent
+                            wrapperStyle={{ width: '100%', height: '100%' }}
+                            contentStyle={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%' }}
+                        >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={proxyUrl}
+                                alt={document.name}
+                                className="max-w-full max-h-full object-contain"
+                                onLoad={onImageLoad}
+                                onError={onImageError}
+                                draggable={false}
+                            />
+                        </TransformComponent>
+
+                        {/* Zoom reset (absolute positioned) */}
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
+                            <ZoomResetButton visible={uiVisible} />
+                        </div>
+                    </TransformWrapper>
                 )}
 
                 {/* Non-previewable fallback */}
@@ -260,9 +278,9 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
                         <a
                             href={proxyUrl}
                             download
-                            className="px-6 py-3 bg-white/20 text-white rounded-lg text-sm active:bg-white/30"
+                            className="px-6 py-3 bg-white/20 text-white rounded-lg text-sm active:bg-white/30 flex items-center gap-2"
                         >
-                            <Download className="h-4 w-4 inline mr-2" />
+                            <Download className="h-4 w-4" />
                             Niðurhala skjali
                         </a>
                     </div>
@@ -270,9 +288,9 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
             </div>
 
             {/* Bottom toolbar — PDF page navigation */}
-            {showToolbar && (
+            {showPageNav && (
                 <div
-                    className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-2 bg-black/70 backdrop-blur-sm rounded-full transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                    className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-2 bg-black/70 backdrop-blur-sm rounded-full transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                     style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
                 >
                     <button
@@ -293,31 +311,6 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
                         aria-label="Næsta síða"
                     >
                         <ChevronRight className="h-6 w-6" />
-                    </button>
-                    {isZoomed && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); resetZoom() }}
-                            className="flex items-center justify-center h-12 w-12 text-white active:bg-white/20 rounded-full"
-                            aria-label="Endurstilla"
-                        >
-                            <RotateCcw className="h-5 w-5" />
-                        </button>
-                    )}
-                </div>
-            )}
-
-            {/* Zoom reset button (non-PDF, when zoomed) */}
-            {!showToolbar && isZoomed && (
-                <div
-                    className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-10 transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-                >
-                    <button
-                        onClick={(e) => { e.stopPropagation(); resetZoom() }}
-                        className="flex items-center gap-2 px-4 py-2 bg-black/70 backdrop-blur-sm text-white rounded-full text-sm active:bg-white/20"
-                        aria-label="Endurstilla"
-                    >
-                        <RotateCcw className="h-4 w-4" />
-                        Endurstilla
                     </button>
                 </div>
             )}
