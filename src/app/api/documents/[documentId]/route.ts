@@ -1,5 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+
+function getStorageClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !key) {
+    throw new Error('Missing Supabase configuration')
+  }
+
+  return createServiceClient(url, key, {
+    auth: { persistSession: false }
+  })
+}
 
 // Serve document files inline (bypasses signed URL / Content-Disposition issues)
 export async function GET(
@@ -16,7 +30,7 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Fetch document record (RLS ensures user has access)
+  // Fetch document record (RLS ensures user has access to this document)
   const { data: doc, error: docError } = await supabase
     .from('project_documents')
     .select('file_url, name, file_type')
@@ -39,8 +53,9 @@ export async function GET(
     }
   }
 
-  // Download file from Supabase Storage
-  const { data: fileData, error: downloadError } = await supabase.storage
+  // Download file using service role (bypasses storage RLS — access already verified via DB RLS above)
+  const storageClient = getStorageClient()
+  const { data: fileData, error: downloadError } = await storageClient.storage
     .from(bucket)
     .download(path)
 
@@ -49,15 +64,7 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to download file' }, { status: 500 })
   }
 
-  // Determine content type
-  const contentTypeMap: Record<string, string> = {
-    pdf: 'application/pdf',
-    image: 'image/jpeg',
-    excel: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    word: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  }
-
-  // Try to get more specific content type from filename
+  // Determine content type from filename extension
   const ext = doc.name?.toLowerCase().split('.').pop() || ''
   const extContentType: Record<string, string> = {
     pdf: 'application/pdf',
@@ -72,7 +79,14 @@ export async function GET(
     docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   }
 
-  const contentType = extContentType[ext] || contentTypeMap[doc.file_type || ''] || 'application/octet-stream'
+  const fileTypeMap: Record<string, string> = {
+    pdf: 'application/pdf',
+    image: 'image/jpeg',
+    excel: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    word: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  }
+
+  const contentType = extContentType[ext] || fileTypeMap[doc.file_type || ''] || 'application/octet-stream'
 
   // Return file with inline disposition (opens in browser instead of downloading)
   const buffer = await fileData.arrayBuffer()
