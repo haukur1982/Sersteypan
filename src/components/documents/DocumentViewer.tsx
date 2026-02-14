@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
-import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch'
+import { TransformWrapper, TransformComponent, useControls, useTransformEffect } from 'react-zoom-pan-pinch'
 import { ArrowLeft, Download, ChevronLeft, ChevronRight, RotateCcw, Loader2, AlertCircle } from 'lucide-react'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -52,6 +52,168 @@ function ZoomResetButton({ visible }: { visible: boolean }) {
         </button>
     )
 }
+
+// ── High-resolution PDF rendering ────────────────────────────
+
+const NATIVE_DPR = typeof window !== 'undefined' ? window.devicePixelRatio : 2
+// Start at 2× native DPI — gives sharp baseline + zoom headroom up to 2×
+const INITIAL_DPR = Math.min(NATIVE_DPR * 2, 6)
+// iOS Safari hard limits for canvas
+const MAX_CANVAS_DIMENSION = 16384
+const MAX_CANVAS_PIXELS = 16777216 // ~16M pixels (safe for 256MB budget)
+// Debounce re-renders while user is actively zooming
+const DEBOUNCE_MS = 400
+const DEBOUNCE_DOWNSCALE_MS = 1000
+// Skip re-render if DPR change is smaller than this
+const DPR_CHANGE_THRESHOLD = 0.3
+
+/**
+ * Calculate a safe devicePixelRatio for the PDF canvas that stays within
+ * iOS Safari memory limits while being as sharp as possible at the current zoom.
+ */
+function calculateSafeDpr(
+    zoomScale: number,
+    nativeDpr: number,
+    containerWidth: number,
+    pageAspectRatio: number
+): number {
+    // Desired: render at enough pixels to look sharp at this zoom level
+    const desiredDpr = zoomScale * nativeDpr
+
+    // Cap #1: No single canvas dimension exceeds iOS limit
+    const largestDimension = Math.max(containerWidth, containerWidth * pageAspectRatio)
+    const maxByDimension = MAX_CANVAS_DIMENSION / largestDimension
+
+    // Cap #2: Total pixel count stays within memory budget
+    const pageArea = containerWidth * containerWidth * pageAspectRatio
+    const maxByPixels = Math.sqrt(MAX_CANVAS_PIXELS / pageArea)
+
+    // Cap #3: Absolute maximum (beyond 8× native there's no perceptual benefit)
+    const absoluteMax = nativeDpr * 8
+
+    const safeDpr = Math.min(desiredDpr, maxByDimension, maxByPixels, absoluteMax)
+
+    // Round to 0.5 increments to reduce unnecessary re-renders
+    return Math.max(1, Math.round(safeDpr * 2) / 2)
+}
+
+/** Subtle indicator shown while the PDF re-renders at higher resolution */
+function SharpeningIndicator() {
+    return (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full text-white/80 text-xs flex items-center gap-1.5 animate-pulse pointer-events-none">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Betrumbæti...
+        </div>
+    )
+}
+
+/**
+ * Zoom-aware PDF page renderer.
+ * Must be a child of TransformWrapper to access useTransformEffect.
+ * Listens to zoom scale changes and re-renders the canvas at higher DPI
+ * so pinch-zoomed drawings stay sharp.
+ */
+function ZoomAwarePdfPage({
+    proxyUrl,
+    currentPage,
+    containerWidth,
+    onDocumentLoadSuccess,
+    onDocumentLoadError,
+}: {
+    proxyUrl: string
+    currentPage: number
+    containerWidth: number
+    onDocumentLoadSuccess: (result: { numPages: number }) => void
+    onDocumentLoadError: (err: Error) => void
+}) {
+    const [renderDpr, setRenderDpr] = useState(INITIAL_DPR)
+    const [isSharpening, setIsSharpening] = useState(false)
+    const [pageAspectRatio, setPageAspectRatio] = useState(1.414) // A4 default
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const lastRenderDprRef = useRef(INITIAL_DPR)
+
+    // Cleanup debounce on unmount
+    useEffect(() => {
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current)
+        }
+    }, [])
+
+    // Listen to zoom/pan transform changes
+    useTransformEffect(({ state }) => {
+        const zoomScale = state.scale
+        const neededDpr = calculateSafeDpr(
+            zoomScale,
+            NATIVE_DPR,
+            containerWidth,
+            pageAspectRatio
+        )
+
+        const currentDpr = lastRenderDprRef.current
+        const dprDelta = Math.abs(neededDpr - currentDpr)
+
+        // Skip if change is too small to matter
+        if (dprDelta < DPR_CHANGE_THRESHOLD) {
+            return
+        }
+
+        // Clear any pending debounce
+        if (debounceRef.current) {
+            clearTimeout(debounceRef.current)
+        }
+
+        // Zooming IN: increase DPR (needs more pixels)
+        if (neededDpr > currentDpr) {
+            setIsSharpening(true)
+            debounceRef.current = setTimeout(() => {
+                setRenderDpr(neededDpr)
+                lastRenderDprRef.current = neededDpr
+                setIsSharpening(false)
+            }, DEBOUNCE_MS)
+            return
+        }
+
+        // Zooming OUT below 0.8×: decrease DPR to reclaim memory (longer delay)
+        if (neededDpr < currentDpr && zoomScale <= 0.8) {
+            debounceRef.current = setTimeout(() => {
+                setRenderDpr(neededDpr)
+                lastRenderDprRef.current = neededDpr
+                setIsSharpening(false)
+            }, DEBOUNCE_DOWNSCALE_MS)
+        }
+        // Zooming out but still above 0.8×: keep current high DPR (it still looks good)
+    })
+
+    // Capture page aspect ratio on first render for safe DPR calculation
+    const onPageLoadSuccess = useCallback((page: { getViewport: (params: { scale: number }) => { width: number; height: number } }) => {
+        const viewport = page.getViewport({ scale: 1 })
+        setPageAspectRatio(viewport.height / viewport.width)
+    }, [])
+
+    return (
+        <>
+            <Document
+                file={proxyUrl}
+                onLoadSuccess={onDocumentLoadSuccess}
+                onLoadError={onDocumentLoadError}
+                loading=""
+            >
+                <Page
+                    pageNumber={currentPage}
+                    width={containerWidth > 0 ? containerWidth : undefined}
+                    devicePixelRatio={renderDpr}
+                    loading=""
+                    renderAnnotationLayer={false}
+                    renderTextLayer={false}
+                    onLoadSuccess={onPageLoadSuccess}
+                />
+            </Document>
+            {isSharpening && <SharpeningIndicator />}
+        </>
+    )
+}
+
+// ── Main DocumentViewer ──────────────────────────────────────
 
 export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
     const category = getFileCategory(document.file_type, document.name)
@@ -202,7 +364,7 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
                     </div>
                 )}
 
-                {/* PDF viewer */}
+                {/* PDF viewer — zoom-aware high-resolution rendering */}
                 {!error && isPdf && (
                     <TransformWrapper
                         key={`pdf-${retryKey}-${currentPage}`}
@@ -218,20 +380,13 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
                             wrapperStyle={{ width: '100%', height: '100%' }}
                             contentStyle={{ width: '100%', display: 'flex', justifyContent: 'center' }}
                         >
-                            <Document
-                                file={proxyUrl}
-                                onLoadSuccess={onDocumentLoadSuccess}
-                                onLoadError={onDocumentLoadError}
-                                loading=""
-                            >
-                                <Page
-                                    pageNumber={currentPage}
-                                    width={containerWidth > 0 ? containerWidth : undefined}
-                                    loading=""
-                                    renderAnnotationLayer={false}
-                                    renderTextLayer={false}
-                                />
-                            </Document>
+                            <ZoomAwarePdfPage
+                                proxyUrl={proxyUrl}
+                                currentPage={currentPage}
+                                containerWidth={containerWidth}
+                                onDocumentLoadSuccess={onDocumentLoadSuccess}
+                                onDocumentLoadError={onDocumentLoadError}
+                            />
                         </TransformComponent>
                     </TransformWrapper>
                 )}
