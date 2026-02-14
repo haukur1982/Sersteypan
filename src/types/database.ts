@@ -675,8 +675,10 @@ export type Database = {
       fix_in_factory: {
         Row: {
           assigned_to: string | null
+          category: string | null
           completed_at: string | null
           created_at: string | null
+          delivery_impact: boolean | null
           element_id: string | null
           id: string
           issue_description: string
@@ -684,13 +686,16 @@ export type Database = {
           project_id: string | null
           reported_by: string | null
           resolution_notes: string | null
+          resolved_by: string | null
           status: string | null
           updated_at: string | null
         }
         Insert: {
           assigned_to?: string | null
+          category?: string | null
           completed_at?: string | null
           created_at?: string | null
+          delivery_impact?: boolean | null
           element_id?: string | null
           id?: string
           issue_description: string
@@ -698,13 +703,16 @@ export type Database = {
           project_id?: string | null
           reported_by?: string | null
           resolution_notes?: string | null
+          resolved_by?: string | null
           status?: string | null
           updated_at?: string | null
         }
         Update: {
           assigned_to?: string | null
+          category?: string | null
           completed_at?: string | null
           created_at?: string | null
+          delivery_impact?: boolean | null
           element_id?: string | null
           id?: string
           issue_description?: string
@@ -712,6 +720,7 @@ export type Database = {
           project_id?: string | null
           reported_by?: string | null
           resolution_notes?: string | null
+          resolved_by?: string | null
           status?: string | null
           updated_at?: string | null
         }

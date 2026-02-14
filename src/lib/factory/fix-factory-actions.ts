@@ -5,12 +5,15 @@ import { revalidatePath } from 'next/cache'
 
 export type FixStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled'
 export type FixPriority = 'low' | 'normal' | 'high' | 'urgent'
+export type FixCategory = 'material' | 'assembly' | 'design' | 'transport' | 'other'
 
 export type FixRequestRecord = {
     id: string
     issue_description: string
     status: FixStatus | string
     priority: FixPriority | string
+    category: FixCategory | string | null
+    delivery_impact: boolean | null
     resolution_notes: string | null
     completed_at: string | null
     created_at: string | null
@@ -26,6 +29,8 @@ interface CreateFixRequestData {
     project_id?: string
     issue_description: string
     priority?: FixPriority
+    category?: FixCategory
+    delivery_impact?: boolean
 }
 
 /**
@@ -40,8 +45,13 @@ export async function createFixRequest(data: CreateFixRequestData) {
     const { error } = await supabase
         .from('fix_in_factory')
         .insert({
-            ...data,
-            reported_by: user.id
+            element_id: data.element_id || null,
+            project_id: data.project_id || null,
+            issue_description: data.issue_description,
+            priority: data.priority || 'normal',
+            category: data.category || 'other',
+            delivery_impact: data.delivery_impact || false,
+            reported_by: user.id,
         })
 
     if (error) {
@@ -50,6 +60,7 @@ export async function createFixRequest(data: CreateFixRequestData) {
     }
 
     revalidatePath('/factory/fix-in-factory')
+    revalidatePath('/factory')
     return { success: true }
 }
 
@@ -77,6 +88,7 @@ export async function updateFixStatus(
 
     if (status === 'completed') {
         updateData.completed_at = new Date().toISOString()
+        updateData.resolved_by = user.id
         if (resolutionNotes) {
             updateData.resolution_notes = resolutionNotes
         }
@@ -93,6 +105,7 @@ export async function updateFixStatus(
     }
 
     revalidatePath('/factory/fix-in-factory')
+    revalidatePath('/factory')
     return { success: true }
 }
 
@@ -109,6 +122,8 @@ export async function getFixRequests(statusFilter?: FixStatus): Promise<FixReque
             issue_description,
             status,
             priority,
+            category,
+            delivery_impact,
             resolution_notes,
             completed_at,
             created_at,

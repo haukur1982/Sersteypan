@@ -147,6 +147,63 @@ export async function getPriorityElements() {
 }
 
 /**
+ * Get all active elements for the production schedule view
+ * Groups elements by project with status, priority, and dates
+ */
+export async function getScheduleElements() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('elements')
+    .select(`
+      id, name, element_type, status, priority, floor,
+      created_at, updated_at,
+      rebar_completed_at, cast_at, curing_completed_at, ready_at,
+      project_id,
+      projects (
+        id, name,
+        companies ( name )
+      )
+    `)
+    .not('status', 'in', '("delivered","verified")')
+    .order('priority', { ascending: false })
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching schedule elements:', error)
+    return []
+  }
+
+  return data || []
+}
+
+/**
+ * Get deliveries for the factory delivery calendar
+ * Returns all deliveries with project, driver, and item count
+ */
+export async function getFactoryDeliveries() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('deliveries')
+    .select(`
+      id, status, planned_date, truck_registration,
+      departed_at, arrived_at, completed_at, created_at,
+      project:projects ( id, name, company:companies ( name ) ),
+      driver:profiles!deliveries_driver_id_fkey ( id, full_name ),
+      delivery_items ( id )
+    `)
+    .order('planned_date', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching factory deliveries:', error)
+    return []
+  }
+
+  return data || []
+}
+
+/**
  * Get unread message count for factory managers
  */
 export async function getUnreadMessageCount() {

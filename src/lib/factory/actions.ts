@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Database } from '@/types/database'
+import { createNotifications } from '@/lib/notifications/queries'
 import {
   type PaginationParams,
   type PaginatedResult,
@@ -212,5 +213,108 @@ export async function markMessagesAsRead(messageIds: string[]) {
   } catch (err) {
     console.error('Unexpected error:', err)
     return { error: 'An unexpected error occurred' }
+  }
+}
+
+/**
+ * Bulk update element statuses
+ * Updates multiple elements to the same status in one operation
+ */
+export async function bulkUpdateElementStatus(
+  elementIds: string[],
+  newStatus: string
+): Promise<{ success: boolean; count: number; error?: string }> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { success: false, count: 0, error: 'Unauthorized' }
+  }
+
+  if (!elementIds || elementIds.length === 0) {
+    return { success: false, count: 0, error: 'Engar einingar valdar' }
+  }
+
+  const validStatuses = ['planned', 'rebar', 'cast', 'curing', 'ready', 'loaded']
+  if (!validStatuses.includes(newStatus)) {
+    return { success: false, count: 0, error: `Ógild staða: ${newStatus}` }
+  }
+
+  try {
+    // Fetch elements to get current status and project info for notifications
+    const { data: elements, error: fetchError } = await supabase
+      .from('elements')
+      .select('id, name, status, project_id, project:projects(name, company_id)')
+      .in('id', elementIds)
+
+    if (fetchError || !elements) {
+      return { success: false, count: 0, error: 'Villa við að sækja einingar' }
+    }
+
+    // Update all elements
+    const { error: updateError } = await supabase
+      .from('elements')
+      .update({
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .in('id', elementIds)
+
+    if (updateError) {
+      console.error('Error bulk updating elements:', updateError)
+      return { success: false, count: 0, error: 'Villa við að uppfæra stöðu' }
+    }
+
+    // Send notifications (non-blocking)
+    try {
+      const notifyTargets: Array<{ userId: string; type: string; title: string; body?: string; link?: string }> = []
+
+      // Get buyers for all affected projects
+      for (const el of elements) {
+        const project = el.project as { name: string; company_id: string | null } | null
+        if (project?.company_id) {
+          const { data: buyers } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('company_id', project.company_id)
+            .eq('role', 'buyer')
+            .eq('is_active', true)
+
+          if (buyers) {
+            for (const buyer of buyers) {
+              // Avoid duplicate notifications per buyer
+              if (!notifyTargets.some(t => t.userId === buyer.id && t.link === `/buyer/projects/${el.project_id}`)) {
+                notifyTargets.push({
+                  userId: buyer.id,
+                  type: 'element_status',
+                  title: `${elements.length} einingar uppfærðar`,
+                  body: `${project.name}: staða → ${newStatus}`,
+                  link: `/buyer/projects/${el.project_id}`,
+                })
+              }
+            }
+          }
+        }
+      }
+
+      if (notifyTargets.length > 0) {
+        await createNotifications(notifyTargets)
+      }
+    } catch (notifyErr) {
+      console.error('Failed to create bulk notifications:', notifyErr)
+    }
+
+    // Revalidate
+    revalidatePath('/factory/production')
+    revalidatePath('/factory/schedule')
+    revalidatePath('/factory')
+    for (const pid of [...new Set(elements.map(e => e.project_id))]) {
+      revalidatePath(`/admin/projects/${pid}`)
+    }
+
+    return { success: true, count: elements.length }
+  } catch (err) {
+    console.error('Unexpected error in bulk update:', err)
+    return { success: false, count: 0, error: 'Óvænt villa kom upp' }
   }
 }
