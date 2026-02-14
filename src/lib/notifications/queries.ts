@@ -1,216 +1,166 @@
 import { createClient } from '@/lib/supabase/server'
-import type { Database } from '@/types/database'
 
-export interface Notification {
+export interface NotificationRow {
   id: string
-  type: 'element_status' | 'delivery' | 'message'
+  user_id: string
+  type: string
   title: string
-  message: string
-  timestamp: string
-  read: boolean
-  elementId?: string
-  deliveryId?: string
-  projectId?: string
-}
-
-type ElementEventRow = Database['public']['Tables']['element_events']['Row']
-type ElementRow = Database['public']['Tables']['elements']['Row']
-type ProjectRow = Database['public']['Tables']['projects']['Row']
-type DeliveryRow = Database['public']['Tables']['deliveries']['Row']
-
-type BuyerEvent = Pick<ElementEventRow, 'id' | 'status' | 'previous_status' | 'created_at'> & {
-  element: (Pick<ElementRow, 'id' | 'name'> & {
-    project: Pick<ProjectRow, 'id' | 'name' | 'company_id'> | null
-  }) | null
-}
-
-type AdminEvent = Pick<ElementEventRow, 'id' | 'status' | 'previous_status' | 'created_at'> & {
-  element: (Pick<ElementRow, 'id' | 'name'> & {
-    project: Pick<ProjectRow, 'id' | 'name'> | null
-  }) | null
-}
-
-type DriverDelivery = Pick<DeliveryRow, 'id' | 'status' | 'created_at'> & {
-  project: Pick<ProjectRow, 'id' | 'name'> | null
+  body: string | null
+  link: string | null
+  is_read: boolean
+  created_at: string
 }
 
 /**
- * Get unread notifications for a user
- * For now, we generate notifications from element_events table
- * In the future, we can create a dedicated notifications table
+ * Get recent notifications for a user (up to 20, newest first)
  */
-export async function getUnreadNotifications(userId: string): Promise<Notification[]> {
+export async function getUserNotifications(userId: string): Promise<NotificationRow[]> {
   const supabase = await createClient()
 
-  // Get user's profile to determine role and company
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, company_id')
-    .eq('id', userId)
-    .single()
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('id, user_id, type, title, body, link, is_read, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20)
 
-  if (!profile) {
+  if (error) {
+    console.error('Error fetching notifications:', error)
     return []
   }
 
-  const notifications: Notification[] = []
+  return (data || []) as NotificationRow[]
+}
 
-  try {
-    // For buyers: get element status changes for their company's projects
-    if (profile.role === 'buyer' && profile.company_id) {
-      const { data: events } = await supabase
-        .from('element_events')
-        .select(`
-          id,
-          status,
-          previous_status,
-          created_at,
-          element:elements!inner (
-            id,
-            name,
-            project:projects!inner (
-              id,
-              name,
-              company_id
-            )
-          )
-        `)
-        .eq('element.project.company_id', profile.company_id)
-        .order('created_at', { ascending: false })
-        .limit(10)
+/**
+ * Get unread notification count for a user
+ */
+export async function getUnreadNotificationCount(userId: string): Promise<number> {
+  const supabase = await createClient()
 
-      if (events) {
-        events.forEach((event: BuyerEvent) => {
-          const element = event.element
-          const project = element?.project
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('is_read', false)
 
-          if (element && project) {
-            notifications.push({
-              id: event.id,
-              type: 'element_status',
-              title: `${element.name} status updated`,
-              message: `Status changed from ${event.previous_status || 'none'} to ${event.status}`,
-              timestamp: event.created_at || new Date().toISOString(),
-              read: false,
-              elementId: element.id,
-              projectId: project.id
-            })
-          }
-        })
-      }
-    }
-
-    // For factory managers and admins: get recent element events
-    if (profile.role === 'factory_manager' || profile.role === 'admin') {
-      const { data: events } = await supabase
-        .from('element_events')
-        .select(`
-          id,
-          status,
-          previous_status,
-          created_at,
-          element:elements!inner (
-            id,
-            name,
-            project:projects (
-              id,
-              name
-            )
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(10)
-
-      if (events) {
-        events.forEach((event: AdminEvent) => {
-          const element = event.element
-          const project = element?.project
-
-          if (element) {
-            notifications.push({
-              id: event.id,
-              type: 'element_status',
-              title: `${element.name} status updated`,
-              message: `${project?.name || 'Project'}: ${event.previous_status || 'new'} → ${event.status}`,
-              timestamp: event.created_at || new Date().toISOString(),
-              read: false,
-              elementId: element.id,
-              projectId: project?.id
-            })
-          }
-        })
-      }
-    }
-
-    // For drivers: get delivery updates
-    if (profile.role === 'driver') {
-      const { data: deliveries } = await supabase
-        .from('deliveries')
-        .select(`
-          id,
-          status,
-          created_at,
-          project:projects (
-            id,
-            name
-          )
-        `)
-        .eq('driver_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(10)
-
-      if (deliveries) {
-        deliveries.forEach((delivery: DriverDelivery) => {
-          const project = delivery.project
-
-          notifications.push({
-            id: delivery.id,
-            type: 'delivery',
-            title: `Delivery ${delivery.status}`,
-            message: `${project?.name || 'Project'} delivery status: ${delivery.status}`,
-            timestamp: delivery.created_at || new Date().toISOString(),
-            read: false,
-            deliveryId: delivery.id,
-            projectId: project?.id
-          })
-        })
-      }
-    }
-  } catch (error) {
-    console.error('Error fetching notifications:', error)
+  if (error) {
+    console.error('Error counting unread notifications:', error)
+    return 0
   }
 
-  // Sort by timestamp (most recent first)
-  const sorted = notifications.sort((a, b) =>
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  )
+  return count || 0
+}
 
-  // Persisted read-state (if table exists). If missing/misconfigured, fall back to all-unread.
-  try {
-    const ids = sorted.map((n) => n.id).filter(Boolean)
-    if (ids.length === 0) return sorted
+/**
+ * Mark a single notification as read
+ */
+export async function markNotificationRead(notificationId: string, userId: string): Promise<void> {
+  const supabase = await createClient()
 
-    const { data: reads, error: readsError } = await supabase
-      .from('notification_reads')
-      .select('notification_id')
-      .eq('user_id', userId)
-      .in('notification_id', ids)
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', notificationId)
+    .eq('user_id', userId)
 
-    if (readsError) {
-      return sorted
-    }
-
-    const readSet = new Set((reads ?? []).map((r) => r.notification_id))
-    return sorted.map((n) => ({ ...n, read: readSet.has(n.id) }))
-  } catch {
-    return sorted
+  if (error) {
+    console.error('Error marking notification read:', error)
   }
 }
 
 /**
- * Get notification count for a user
+ * Mark all notifications as read for a user
  */
-export async function getNotificationCount(userId: string): Promise<number> {
-  const notifications = await getUnreadNotifications(userId)
-  return notifications.length
+export async function markAllNotificationsRead(userId: string): Promise<void> {
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', userId)
+    .eq('is_read', false)
+
+  if (error) {
+    console.error('Error marking all notifications read:', error)
+  }
+}
+
+/**
+ * Create a notification for a specific user.
+ * Called from server actions when notable events happen (status changes, messages, etc.)
+ */
+export async function createNotification(params: {
+  userId: string
+  type: string
+  title: string
+  body?: string
+  link?: string
+}): Promise<void> {
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('notifications')
+    .insert({
+      user_id: params.userId,
+      type: params.type,
+      title: params.title,
+      body: params.body || null,
+      link: params.link || null,
+    })
+
+  if (error) {
+    console.error('Error creating notification:', error)
+  }
+}
+
+/**
+ * Create notifications for multiple users at once.
+ * Useful for broadcasting (e.g., new message in project → notify all project members).
+ */
+export async function createNotifications(
+  notifications: Array<{
+    userId: string
+    type: string
+    title: string
+    body?: string
+    link?: string
+  }>
+): Promise<void> {
+  if (notifications.length === 0) return
+
+  const supabase = await createClient()
+
+  const rows = notifications.map((n) => ({
+    user_id: n.userId,
+    type: n.type,
+    title: n.title,
+    body: n.body || null,
+    link: n.link || null,
+  }))
+
+  const { error } = await supabase.from('notifications').insert(rows)
+
+  if (error) {
+    console.error('Error creating notifications:', error)
+  }
+}
+
+/**
+ * Delete old notifications (cleanup job). Keeps last 30 days.
+ */
+export async function cleanupOldNotifications(): Promise<void> {
+  const supabase = await createClient()
+
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .lt('created_at', thirtyDaysAgo.toISOString())
+
+  if (error) {
+    console.error('Error cleaning up old notifications:', error)
+  }
 }

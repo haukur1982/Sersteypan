@@ -4,6 +4,88 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { validateDiaryCreate, validateDiaryUpdate, formatZodError } from '@/lib/schemas'
+import type { PaginationParams, PaginatedResult } from '@/lib/utils/pagination'
+import { buildPaginationMeta, calculateRange } from '@/lib/utils/pagination'
+
+export interface DiaryEntryWithRelations {
+  id: string
+  entry_date: string
+  title: string | null
+  content: string
+  created_at: string | null
+  updated_at: string | null
+  user_id: string
+  project_id: string | null
+  profiles: { full_name: string } | null
+  projects: { name: string } | null
+}
+
+/**
+ * Paginated diary entries with optional search
+ */
+export async function getDiaryEntriesPaginated(
+  pagination: PaginationParams,
+  filters?: { search?: string }
+): Promise<PaginatedResult<DiaryEntryWithRelations>> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Not authenticated' }
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) {
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Profile not found' }
+  }
+
+  const isManager = profile.role === 'admin' || profile.role === 'factory_manager'
+
+  // Count query
+  let countQuery = supabase.from('diary_entries').select('*', { count: 'exact', head: true })
+  if (!isManager) countQuery = countQuery.eq('user_id', user.id)
+  if (filters?.search) countQuery = countQuery.or(`title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`)
+
+  const { count, error: countError } = await countQuery
+  if (countError) {
+    console.error('Error counting diary entries:', countError)
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Failed to fetch entries' }
+  }
+
+  const total = count || 0
+  const [from, to] = calculateRange(pagination.page, pagination.limit)
+
+  // Data query
+  let dataQuery = supabase
+    .from('diary_entries')
+    .select(`
+      id, entry_date, title, content, created_at, updated_at, user_id, project_id,
+      profiles(full_name),
+      projects(name)
+    `)
+    .order('entry_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .range(from, to)
+
+  if (!isManager) dataQuery = dataQuery.eq('user_id', user.id)
+  if (filters?.search) dataQuery = dataQuery.or(`title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`)
+
+  const { data, error } = await dataQuery
+  if (error) {
+    console.error('Error fetching diary entries:', error)
+    return { data: [], pagination: buildPaginationMeta(0, 1, pagination.limit), error: 'Failed to fetch entries' }
+  }
+
+  return {
+    data: (data || []) as DiaryEntryWithRelations[],
+    pagination: buildPaginationMeta(total, pagination.page, pagination.limit),
+  }
+}
 
 // Get diary entries for current user or all (admin/factory_manager)
 export async function getDiaryEntries(limit: number = 50) {

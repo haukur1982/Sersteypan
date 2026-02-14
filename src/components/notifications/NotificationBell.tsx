@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Bell, CheckCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,56 +14,46 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { formatDistanceToNow } from 'date-fns'
+import { is } from 'date-fns/locale'
 
-interface Notification {
+export interface NotificationItem {
   id: string
-  type: 'element_status' | 'delivery' | 'message'
+  type: string
   title: string
-  message: string
-  timestamp: string
-  read: boolean
-  elementId?: string
-  deliveryId?: string
-  projectId?: string
+  body: string | null
+  link: string | null
+  is_read: boolean
+  created_at: string
 }
 
 interface NotificationBellProps {
-  userId: string
-  notifications: Notification[]
+  notifications: NotificationItem[]
 }
 
-export function NotificationBell({ userId, notifications: initialNotifications }: NotificationBellProps) {
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications)
+export function NotificationBell({ notifications: initialNotifications }: NotificationBellProps) {
+  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications)
   const [isOpen, setIsOpen] = useState(false)
+  const router = useRouter()
 
-  // Auto-refresh notifications every minute
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch('/api/notifications')
-        if (response.ok) {
-          const data = await response.json()
-          setNotifications(data.notifications || [])
-        }
-      } catch (error) {
-        console.error('Error refreshing notifications:', error)
-      }
-    }, 60000) // 60 seconds
+  // Sync when parent passes new notifications
+  if (initialNotifications !== notifications && initialNotifications.length > 0) {
+    // Only update if the data actually changed (new fetch)
+    const initialIds = initialNotifications.map(n => n.id).join(',')
+    const currentIds = notifications.map(n => n.id).join(',')
+    if (initialIds !== currentIds) {
+      setNotifications(initialNotifications)
+    }
+  }
 
-    return () => clearInterval(interval)
-  }, [userId])
-
-  const unreadCount = notifications.filter(n => !n.read).length
+  const unreadCount = notifications.filter(n => !n.is_read).length
 
   const markAsRead = async (notificationId: string) => {
-    // Optimistically update UI
     setNotifications(prev =>
       prev.map(n =>
-        n.id === notificationId ? { ...n, read: true } : n
+        n.id === notificationId ? { ...n, is_read: true } : n
       )
     )
 
-    // Persist read state
     try {
       await fetch('/api/notifications', {
         method: 'POST',
@@ -75,12 +66,10 @@ export function NotificationBell({ userId, notifications: initialNotifications }
   }
 
   const markAllAsRead = async () => {
-    // Optimistically update UI
     setNotifications(prev =>
-      prev.map(n => ({ ...n, read: true }))
+      prev.map(n => ({ ...n, is_read: true }))
     )
 
-    // Persist read state
     try {
       await fetch('/api/notifications', {
         method: 'POST',
@@ -92,14 +81,28 @@ export function NotificationBell({ userId, notifications: initialNotifications }
     }
   }
 
+  const handleClick = (notification: NotificationItem) => {
+    if (!notification.is_read) {
+      markAsRead(notification.id)
+    }
+    if (notification.link) {
+      setIsOpen(false)
+      router.push(notification.link)
+    }
+  }
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'element_status':
         return '📦'
-      case 'delivery':
+      case 'delivery_status':
         return '🚛'
-      case 'message':
+      case 'new_message':
         return '💬'
+      case 'priority_request':
+        return '⚡'
+      case 'fix_in_factory':
+        return '🔧'
       default:
         return '🔔'
     }
@@ -118,7 +121,7 @@ export function NotificationBell({ userId, notifications: initialNotifications }
               {unreadCount > 9 ? '9+' : unreadCount}
             </Badge>
           )}
-          <span className="sr-only">Notifications</span>
+          <span className="sr-only">Tilkynningar</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
@@ -144,47 +147,39 @@ export function NotificationBell({ userId, notifications: initialNotifications }
           </div>
         ) : (
           <div className="max-h-96 overflow-y-auto">
-            {notifications.slice(0, 10).map((notification) => (
+            {notifications.map((notification) => (
               <DropdownMenuItem
                 key={notification.id}
                 className="flex flex-col items-start p-3 cursor-pointer"
-                onClick={() => !notification.read && markAsRead(notification.id)}
+                onClick={() => handleClick(notification)}
               >
                 <div className="flex items-start justify-between w-full gap-2">
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-base">{getNotificationIcon(notification.type)}</span>
-                      <p className={`text-sm font-medium ${notification.read ? 'text-muted-foreground' : 'text-foreground'}`}>
+                      <span className="text-base flex-shrink-0">{getNotificationIcon(notification.type)}</span>
+                      <p className={`text-sm font-medium truncate ${notification.is_read ? 'text-muted-foreground' : 'text-foreground'}`}>
                         {notification.title}
                       </p>
                     </div>
+                    {notification.body && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {notification.body}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground mt-1">
-                      {notification.message}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatDistanceToNow(new Date(notification.timestamp), {
-                        addSuffix: true
+                      {formatDistanceToNow(new Date(notification.created_at), {
+                        addSuffix: true,
+                        locale: is,
                       })}
                     </p>
                   </div>
-                  {!notification.read && (
+                  {!notification.is_read && (
                     <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1" />
                   )}
                 </div>
               </DropdownMenuItem>
             ))}
           </div>
-        )}
-
-        {notifications.length > 10 && (
-          <>
-            <DropdownMenuSeparator />
-            <div className="py-2 text-center">
-              <Button variant="ghost" size="sm" className="text-xs">
-                Sjá allar tilkynningar
-              </Button>
-            </div>
-          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

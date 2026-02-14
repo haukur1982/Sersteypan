@@ -8,6 +8,7 @@ import {
   validateDeliveryComplete,
   formatZodError
 } from '@/lib/schemas'
+import { createNotifications } from '@/lib/notifications/queries'
 
 // UUID validation regex (kept for simple ID validation in other functions)
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -471,7 +472,7 @@ export async function completeDelivery(
     // 3. VALIDATE DELIVERY
     const { data: delivery, error: deliveryError } = await supabase
       .from('deliveries')
-      .select('id, status, driver_id')
+      .select('id, status, driver_id, project_id, project:projects(name, company_id)')
       .eq('id', validatedData.deliveryId)
       .single()
 
@@ -558,11 +559,62 @@ export async function completeDelivery(
       return { success: false, error: 'Failed to complete delivery' }
     }
 
-    // 6. REVALIDATE PATHS
+    // 6. NOTIFY BUYERS & ADMINS
+    const project = delivery.project as { name: string; company_id: string | null } | null
+    try {
+      const notifyTargets: Array<{ userId: string; type: string; title: string; body?: string; link?: string }> = []
+
+      if (project?.company_id) {
+        const { data: buyers } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('company_id', project.company_id)
+          .eq('role', 'buyer')
+          .eq('is_active', true)
+
+        if (buyers) {
+          for (const buyer of buyers) {
+            notifyTargets.push({
+              userId: buyer.id,
+              type: 'delivery_status',
+              title: `Afhending lokið — ${project.name}`,
+              body: `${totalItems} einingar afhentar`,
+              link: `/buyer/deliveries`,
+            })
+          }
+        }
+      }
+
+      const { data: admins } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'admin')
+        .eq('is_active', true)
+
+      if (admins) {
+        for (const admin of admins) {
+          notifyTargets.push({
+            userId: admin.id,
+            type: 'delivery_status',
+            title: `Afhending lokið — ${project?.name || 'Verkefni'}`,
+            body: `${totalItems} einingar afhentar`,
+            link: `/admin/deliveries`,
+          })
+        }
+      }
+
+      if (notifyTargets.length > 0) {
+        await createNotifications(notifyTargets)
+      }
+    } catch (notifyErr) {
+      console.error('Failed to create delivery notifications:', notifyErr)
+    }
+
+    // 7. REVALIDATE PATHS
     revalidatePath('/driver')
     revalidatePath('/driver/deliveries')
     revalidatePath(`/driver/deliveries/${validatedData.deliveryId}`)
-    revalidatePath('/buyer/deliveries') // Buyer can now see completed delivery
+    revalidatePath('/buyer/deliveries')
 
     return { success: true }
 

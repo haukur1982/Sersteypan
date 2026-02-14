@@ -3,25 +3,13 @@
 import { useState, useEffect } from 'react'
 import { MobileSidebar } from './Sidebar'
 import type { AuthUser } from '@/lib/hooks/useAuth'
-import { NotificationBell } from '@/components/notifications/NotificationBell'
-
-interface Notification {
-    id: string
-    type: 'element_status' | 'delivery' | 'message'
-    title: string
-    message: string
-    timestamp: string
-    read: boolean
-    elementId?: string
-    deliveryId?: string
-    projectId?: string
-}
+import { NotificationBell, type NotificationItem } from '@/components/notifications/NotificationBell'
 
 /**
  * Hook to fetch notifications client-side
  */
 function useNotifications(userId: string | undefined) {
-    const [notifications, setNotifications] = useState<Notification[]>([])
+    const [notifications, setNotifications] = useState<NotificationItem[]>([])
 
     useEffect(() => {
         if (!userId) return
@@ -59,7 +47,7 @@ export function Header({ user }: { user?: AuthUser | null }) {
                 </div>
             </div>
             {user && (
-                <NotificationBell userId={user.id} notifications={notifications} />
+                <NotificationBell notifications={notifications} />
             )}
         </header>
     )

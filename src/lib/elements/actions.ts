@@ -17,6 +17,7 @@ import {
   formatZodError,
   parseNumber
 } from '@/lib/schemas'
+import { createNotifications } from '@/lib/notifications/queries'
 
 type ElementRow = Database['public']['Tables']['elements']['Row']
 
@@ -491,10 +492,10 @@ export async function updateElementStatus(id: string, newStatus: string, notes?:
     return { error }
   }
 
-  // Get element to find project_id and current status
+  // Get element to find project_id, current status, and project info for notifications
   const { data: element } = await supabase
     .from('elements')
-    .select('project_id, status')
+    .select('project_id, status, name, project:projects(name, company_id)')
     .eq('id', id)
     .single()
 
@@ -527,6 +528,60 @@ export async function updateElementStatus(id: string, newStatus: string, notes?:
   if (error) {
     console.error('Error updating element status:', error)
     return { error: 'Villa við að uppfæra stöðu. Reyndu aftur.' }
+  }
+
+  // Send notifications to relevant users (non-blocking)
+  const project = element.project as { name: string; company_id: string | null } | null
+  try {
+    const notifyTargets: Array<{ userId: string; type: string; title: string; body?: string; link?: string }> = []
+
+    // Notify buyers in the project's company
+    if (project?.company_id) {
+      const { data: buyers } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('company_id', project.company_id)
+        .eq('role', 'buyer')
+        .eq('is_active', true)
+
+      if (buyers) {
+        for (const buyer of buyers) {
+          notifyTargets.push({
+            userId: buyer.id,
+            type: 'element_status',
+            title: `${element.name} — staða uppfærð`,
+            body: `${project.name}: ${currentStatus} → ${newStatus}`,
+            link: `/buyer/projects/${element.project_id}`,
+          })
+        }
+      }
+    }
+
+    // Notify admins
+    const { data: admins } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('role', 'admin')
+      .eq('is_active', true)
+
+    if (admins) {
+      for (const admin of admins) {
+        notifyTargets.push({
+          userId: admin.id,
+          type: 'element_status',
+          title: `${element.name} — staða uppfærð`,
+          body: `${project?.name || 'Verkefni'}: ${currentStatus} → ${newStatus}`,
+          link: `/admin/projects/${element.project_id}`,
+        })
+      }
+    }
+
+    if (notifyTargets.length > 0) {
+      await createNotifications(notifyTargets)
+    }
+  } catch (notifyErr) {
+    // Don't fail the status update if notifications fail
+    console.error('Failed to create notifications:', notifyErr)
   }
 
   // Revalidate pages

@@ -63,7 +63,8 @@ export default async function FactoryDashboard() {
         recentDiaryResult,
         todoCountResult,
         totalElementsResult,
-        priorityElements
+        priorityElements,
+        fixInFactoryResult,
     ] = await Promise.all([
         // All elements with status
         supabase.from('elements').select('status'),
@@ -90,6 +91,11 @@ export default async function FactoryDashboard() {
         supabase.from('elements').select('id', { count: 'exact', head: true }),
         // Priority elements
         getPriorityElements(),
+        // Open fix-in-factory items
+        supabase
+            .from('fix_in_factory')
+            .select('id', { count: 'exact', head: true })
+            .is('completed_at', null),
     ])
 
     // Try to fetch stock alerts (may not exist yet)
@@ -128,6 +134,7 @@ export default async function FactoryDashboard() {
 
     const recentDiaryEntries = recentDiaryResult.data || []
     const todoCount = todoCountResult.count || 0
+    const fixInFactoryCount = fixInFactoryResult.count || 0
 
     return (
         <div className="space-y-8">
@@ -142,7 +149,7 @@ export default async function FactoryDashboard() {
                 </div>
 
                 {/* Summary Stats Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {/* In Production */}
                     <Card className="p-4 border-yellow-200 bg-yellow-50/50">
                         <div className="flex items-center gap-3">
@@ -194,6 +201,21 @@ export default async function FactoryDashboard() {
                             </div>
                         </div>
                     </Card>
+
+                    {/* Fix in Factory */}
+                    <Link href="/factory/fix-in-factory">
+                        <Card className={`p-4 transition-all hover:shadow-md ${fixInFactoryCount > 0 ? 'border-red-200 bg-red-50/50 hover:border-red-300' : 'border-zinc-200 hover:border-zinc-300'}`}>
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${fixInFactoryCount > 0 ? 'bg-red-100' : 'bg-zinc-100'}`}>
+                                    <Wrench className={`w-5 h-5 ${fixInFactoryCount > 0 ? 'text-red-600' : 'text-zinc-600'}`} />
+                                </div>
+                                <div>
+                                    <p className={`text-2xl font-bold ${fixInFactoryCount > 0 ? 'text-red-700' : 'text-zinc-700'}`}>{fixInFactoryCount}</p>
+                                    <p className={`text-xs ${fixInFactoryCount > 0 ? 'text-red-600' : 'text-zinc-600'}`}>Lagfæringar</p>
+                                </div>
+                            </div>
+                        </Card>
+                    </Link>
                 </div>
 
                 {/* Priority Elements */}

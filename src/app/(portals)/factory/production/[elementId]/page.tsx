@@ -14,7 +14,9 @@ import {
     Truck,
     Building,
     Box,
-    Image as ImageIcon
+    Image as ImageIcon,
+    AlertTriangle,
+    FileWarning
 } from 'lucide-react'
 import { ElementStatusUpdateForm } from '@/components/factory/ElementStatusUpdateForm'
 import { PhotoGallery } from '@/components/shared/PhotoGallery'
@@ -153,22 +155,43 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
         .limit(10)
     const historyList = (history ?? []) as ElementEvent[]
 
-    // Fetch element photos
-    const { data: photos } = await supabase
-        .from('element_photos')
-        .select(`
-            *,
-            created_by:profiles!element_photos_taken_by_fkey (
-                full_name
-            )
-        `)
-        .eq('element_id', elementId)
-        .order('created_at', { ascending: false })
-    const photoList = (photos ?? []) as ElementPhoto[]
+    // Fetch element photos, fix-in-factory requests, and document count in parallel
+    const [photosResult, fixRequestsResult, documentsCountResult] = await Promise.all([
+        supabase
+            .from('element_photos')
+            .select(`
+                *,
+                created_by:profiles!element_photos_taken_by_fkey (
+                    full_name
+                )
+            `)
+            .eq('element_id', elementId)
+            .order('created_at', { ascending: false }),
+        supabase
+            .from('fix_in_factory')
+            .select('id, priority, status, issue_description, created_at, completed_at')
+            .eq('element_id', elementId)
+            .order('created_at', { ascending: false }),
+        supabase
+            .from('project_documents')
+            .select('id', { count: 'exact', head: true })
+            .eq('project_id', elementDetail.projects?.id || ''),
+    ])
+    const photoList = (photosResult.data ?? []) as ElementPhoto[]
+    const fixRequests = fixRequestsResult.data ?? []
+    const projectDocCount = documentsCountResult.count ?? 0
 
     const statusInfo = statusConfig[elementDetail.status as keyof typeof statusConfig] || statusConfig.planned
     const typeInfo = typeConfig[elementDetail.element_type as keyof typeof typeConfig] || typeConfig.other
     const StatusIcon = statusInfo.icon
+
+    // Calculate days in current status from the last event
+    const now = new Date()
+    const lastStatusChange = historyList.length > 0 ? historyList[0].created_at : elementDetail.created_at
+    const daysInStatus = lastStatusChange
+        ? Math.floor((now.getTime() - new Date(lastStatusChange).getTime()) / (1000 * 60 * 60 * 24))
+        : 0
+    const openFixRequests = fixRequests.filter(f => !f.completed_at)
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
@@ -179,12 +202,24 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                             <ArrowLeft className="w-4 h-4" />
                         </Link>
                     </Button>
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
-                            {elementDetail.name}
-                        </h1>
+                    <div className="flex-1">
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
+                                {elementDetail.name}
+                            </h1>
+                            <Badge variant="secondary" className={`${statusInfo.color} gap-1`}>
+                                <StatusIcon className="w-3 h-3" />
+                                {statusInfo.label}
+                            </Badge>
+                            {daysInStatus > 0 && (
+                                <Badge variant="outline" className={daysInStatus > 7 ? 'border-red-300 text-red-700' : 'text-zinc-600'}>
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    {daysInStatus} {daysInStatus === 1 ? 'dagur' : 'dagar'} í þessari stöðu
+                                </Badge>
+                            )}
+                        </div>
                         <p className="text-zinc-600 mt-1">
-                            Uppfæra framleiðslustöðu (Update Production Status)
+                            Uppfæra framleiðslustöðu
                         </p>
                     </div>
                 </div>
@@ -435,6 +470,60 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                                 )}
                             </CardContent>
                         </Card>
+
+                        {/* Fix-in-Factory Requests */}
+                        {openFixRequests.length > 0 && (
+                            <Card className="border-red-200 bg-red-50/30">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="flex items-center gap-2 text-lg text-red-800">
+                                        <AlertTriangle className="w-5 h-5 text-red-600" />
+                                        Lagfæringar ({openFixRequests.length})
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-2">
+                                    {openFixRequests.map((fix) => (
+                                        <div key={fix.id} className="p-3 bg-white rounded-lg border border-red-200">
+                                            <div className="flex items-center justify-between">
+                                                <Badge variant="secondary" className={
+                                                    fix.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                                    fix.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-zinc-100 text-zinc-700'
+                                                }>
+                                                    {fix.priority === 'high' ? 'Hár forgangur' :
+                                                     fix.priority === 'medium' ? 'Meðal' : 'Lágur'}
+                                                </Badge>
+                                                <span className="text-xs text-zinc-500">
+                                                    {fix.created_at ? new Date(fix.created_at).toLocaleDateString('is-IS') : ''}
+                                                </span>
+                                            </div>
+                                            {fix.issue_description && (
+                                                <p className="text-sm text-zinc-700 mt-2">{fix.issue_description}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                    <Button asChild variant="outline" size="sm" className="w-full mt-2">
+                                        <Link href="/factory/fix-in-factory">Sjá allar lagfæringar</Link>
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Document Warning */}
+                        {projectDocCount === 0 && (
+                            <Card className="border-amber-200 bg-amber-50/30">
+                                <CardContent className="pt-6">
+                                    <div className="flex items-center gap-3">
+                                        <FileWarning className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                                        <div>
+                                            <p className="text-sm font-medium text-amber-800">Engin skjöl</p>
+                                            <p className="text-xs text-amber-600 mt-0.5">
+                                                Engin skjöl hafa verið hlaðið upp fyrir þetta verkefni
+                                            </p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
                 </div>
         </div>

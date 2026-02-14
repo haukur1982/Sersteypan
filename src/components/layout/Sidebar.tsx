@@ -19,26 +19,14 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { NotificationBell } from '@/components/notifications/NotificationBell'
-
-interface Notification {
-    id: string
-    type: 'element_status' | 'delivery' | 'message'
-    title: string
-    message: string
-    timestamp: string
-    read: boolean
-    elementId?: string
-    deliveryId?: string
-    projectId?: string
-}
+import { NotificationBell, type NotificationItem } from '@/components/notifications/NotificationBell'
 
 /**
  * Hook to fetch notifications client-side
  * This prevents blocking server-side rendering
  */
 function useNotifications(userId: string | undefined) {
-    const [notifications, setNotifications] = useState<Notification[]>([])
+    const [notifications, setNotifications] = useState<NotificationItem[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -169,7 +157,7 @@ export function Sidebar({ className, user: initialUser }: SidebarProps) {
                     Sérsteypan
                 </h2>
                 {user && (
-                    <NotificationBell userId={user.id} notifications={notifications} />
+                    <NotificationBell notifications={notifications} />
                 )}
             </div>
 

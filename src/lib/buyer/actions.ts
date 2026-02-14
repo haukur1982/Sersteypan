@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { createNotifications } from '@/lib/notifications/queries'
 
 /**
  * Request priority change for an element
@@ -114,7 +115,34 @@ export async function sendMessage(formData: FormData) {
       return { error: 'Failed to send message' }
     }
 
-    // 4. Revalidate
+    // 4. Notify factory managers and admins about the new message
+    try {
+      const [{ data: project }, { data: profile }, { data: staff }] = await Promise.all([
+        supabase.from('projects').select('name').eq('id', projectId).single(),
+        supabase.from('profiles').select('full_name').eq('id', user.id).single(),
+        supabase.from('profiles').select('id').in('role', ['admin', 'factory_manager']).eq('is_active', true),
+      ])
+
+      if (staff && staff.length > 0) {
+        const senderName = profile?.full_name || 'Kaupandi'
+        const projectName = project?.name || 'Verkefni'
+        const preview = message.trim().length > 60 ? message.trim().slice(0, 60) + '...' : message.trim()
+
+        await createNotifications(
+          staff.map((s) => ({
+            userId: s.id,
+            type: 'new_message',
+            title: `Ný skilaboð — ${projectName}`,
+            body: `${senderName}: ${preview}`,
+            link: `/admin/messages?project=${projectId}`,
+          }))
+        )
+      }
+    } catch (notifyErr) {
+      console.error('Failed to create message notifications:', notifyErr)
+    }
+
+    // 5. Revalidate
     revalidatePath(`/buyer/projects/${projectId}`)
     revalidatePath('/buyer/messages')
 
