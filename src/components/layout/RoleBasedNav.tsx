@@ -17,6 +17,7 @@ import {
     FlaskConical,
     Settings,
     CalendarDays,
+    FileText,
     type LucideIcon
 } from 'lucide-react'
 import Link from 'next/link'
@@ -68,6 +69,7 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Framleiðsla', englishName: 'Production', href: '/factory/production', icon: Factory },
         { name: 'Áætlun', englishName: 'Schedule', href: '/factory/schedule', icon: CalendarDays },
         { name: 'Afhendingar', englishName: 'Deliveries', href: '/factory/deliveries', icon: Truck },
+        { name: 'Teikningar', englishName: 'Drawings', href: '/factory/drawings', icon: FileText },
         { name: 'Verkefni', englishName: 'Projects', href: '/factory/projects', icon: FolderKanban },
         { name: 'Dagbók', englishName: 'Diary', href: '/factory/diary', icon: BookOpen },
         { name: 'Verkefnalisti', englishName: 'Tasks', href: '/factory/todos', icon: CheckSquare },

@@ -264,7 +264,10 @@ export default async function ProjectPage({
                     <Card className="border-zinc-200">
                         <CardContent className="pt-6">
                             <h3 className="font-semibold text-zinc-900 mb-4">Hlaða upp skjali</h3>
-                            <DocumentUploadForm projectId={projectId} />
+                            <DocumentUploadForm
+                                projectId={projectId}
+                                elements={elementList.map(e => ({ id: e.id, name: e.name }))}
+                            />
                         </CardContent>
                     </Card>
 

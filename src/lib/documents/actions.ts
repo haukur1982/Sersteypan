@@ -96,6 +96,7 @@ export async function uploadDocument(projectId: string, formData: FormData) {
   const file = formData.get('file') as File
   const description = formData.get('description') as string
   const category = (formData.get('category') as string) || 'other'
+  const elementId = (formData.get('element_id') as string) || null
 
   if (!file) {
     return { error: 'No file provided' }
@@ -162,6 +163,7 @@ export async function uploadDocument(projectId: string, formData: FormData) {
       file_size_bytes: file.size,
       uploaded_by: user.id,
       category,
+      element_id: elementId,
     })
 
   if (dbError) {
@@ -237,6 +239,94 @@ export async function deleteDocument(documentId: string, projectId: string) {
   // Revalidate project pages
   revalidatePath(`/admin/projects/${projectId}`)
   revalidatePath(`/factory/projects/${projectId}`)
+  revalidatePath('/factory/drawings')
 
   return { success: true }
+}
+
+// Get drawings linked to a specific element (plus project-level drawings)
+export async function getElementDrawings(elementId: string, projectId: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Get documents linked to this element OR project-level drawings
+  const { data, error } = await supabase
+    .from('project_documents')
+    .select(`
+      *,
+      profiles (full_name),
+      element:elements (id, name)
+    `)
+    .eq('project_id', projectId)
+    .or(`element_id.eq.${elementId},and(category.eq.drawing,element_id.is.null)`)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching element drawings:', error)
+    return { error: 'Failed to fetch drawings' }
+  }
+
+  // Sign URLs
+  const signedDocs = await Promise.all(
+    (data || []).map(async (doc) => {
+      const { bucket, path } = parseStoragePath(doc.file_url)
+      const { data: signed } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(path, 60 * 60)
+      return { ...doc, file_url: signed?.signedUrl || doc.file_url }
+    })
+  )
+
+  return { success: true, data: signedDocs }
+}
+
+// Get all drawings across all projects (for factory drawings page)
+export async function getAllDrawings(options?: { category?: string; projectId?: string; search?: string }) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  let query = supabase
+    .from('project_documents')
+    .select(`
+      *,
+      profiles (full_name),
+      project:projects (id, name),
+      element:elements (id, name)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  if (options?.category) {
+    query = query.eq('category', options.category)
+  }
+  if (options?.projectId) {
+    query = query.eq('project_id', options.projectId)
+  }
+  if (options?.search) {
+    query = query.ilike('name', `%${options.search}%`)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('Error fetching all drawings:', error)
+    return { error: 'Failed to fetch drawings' }
+  }
+
+  // Sign URLs
+  const signedDocs = await Promise.all(
+    (data || []).map(async (doc) => {
+      const { bucket, path } = parseStoragePath(doc.file_url)
+      const { data: signed } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(path, 60 * 60)
+      return { ...doc, file_url: signed?.signedUrl || doc.file_url }
+    })
+  )
+
+  return { success: true, data: signedDocs }
 }

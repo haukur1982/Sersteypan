@@ -8,11 +8,18 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Upload } from 'lucide-react'
 
-interface DocumentUploadFormProps {
-  projectId: string
+interface ElementOption {
+  id: string
+  name: string
 }
 
-export function DocumentUploadForm({ projectId }: DocumentUploadFormProps) {
+interface DocumentUploadFormProps {
+  projectId: string
+  elements?: ElementOption[]
+  defaultElementId?: string
+}
+
+export function DocumentUploadForm({ projectId, elements, defaultElementId }: DocumentUploadFormProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -79,6 +86,27 @@ export function DocumentUploadForm({ projectId }: DocumentUploadFormProps) {
         </select>
       </div>
 
+      {elements && elements.length > 0 && (
+        <div className="space-y-2">
+          <Label htmlFor="element_id">Tengja við einingu (valfrjálst)</Label>
+          <select
+            id="element_id"
+            name="element_id"
+            defaultValue={defaultElementId || ''}
+            disabled={isUploading}
+            className="w-full px-3 py-2 border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">— Ekkert (verkefnisstig)</option>
+            {elements.map((el) => (
+              <option key={el.id} value={el.id}>{el.name}</option>
+            ))}
+          </select>
+          <p className="text-xs text-zinc-500">
+            Tengdu skjal við tiltekna einingu svo verkmenn fái aðgang beint
+          </p>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="file">Skrá *</Label>
         <Input
@@ -86,11 +114,11 @@ export function DocumentUploadForm({ projectId }: DocumentUploadFormProps) {
           name="file"
           type="file"
           required
-          accept=".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.doc,.docx"
+          accept=".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.doc,.docx,.dwg"
           disabled={isUploading}
         />
         <p className="text-xs text-zinc-500">
-          PDF, myndir, Excel, eða Word skjöl. Hámark 50MB.
+          PDF, myndir, Excel, Word eða DWG skjöl. Hámark 50MB.
         </p>
       </div>
 

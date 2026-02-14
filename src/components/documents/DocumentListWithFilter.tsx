@@ -23,6 +23,8 @@ interface Document {
     file_type: string | null
     category: string
     created_at: string | null
+    element_id?: string | null
+    element?: { id: string; name: string } | null
     profiles?: { full_name: string } | null
 }
 
@@ -128,6 +130,11 @@ export function DocumentListWithFilter({ documents, projectId, canDelete = false
                                             <Badge variant="secondary" className={`${catInfo.color} border-0 text-[10px] px-1.5 py-0 flex-shrink-0`}>
                                                 {catInfo.label}
                                             </Badge>
+                                            {doc.element?.name && (
+                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0 border-purple-200 text-purple-700">
+                                                    {doc.element.name}
+                                                </Badge>
+                                            )}
                                         </div>
                                         {doc.description && (
                                             <p className="text-xs text-muted-foreground truncate">

@@ -16,10 +16,12 @@ import {
     Box,
     Image as ImageIcon,
     AlertTriangle,
-    FileWarning
+    FileWarning,
+    FileText,
 } from 'lucide-react'
 import { ElementStatusUpdateForm } from '@/components/factory/ElementStatusUpdateForm'
 import { PhotoGallery } from '@/components/shared/PhotoGallery'
+import { ElementDrawings } from '@/components/factory/ElementDrawings'
 import type { ElementPhoto } from '@/components/buyer/project/types'
 import type { Database } from '@/types/database'
 
@@ -155,8 +157,9 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
         .limit(10)
     const historyList = (history ?? []) as ElementEvent[]
 
-    // Fetch element photos, fix-in-factory requests, and document count in parallel
-    const [photosResult, fixRequestsResult, documentsCountResult] = await Promise.all([
+    // Fetch element photos, fix-in-factory requests, document count, and element drawings in parallel
+    const projectId = elementDetail.projects?.id || ''
+    const [photosResult, fixRequestsResult, documentsCountResult, drawingsResult] = await Promise.all([
         supabase
             .from('element_photos')
             .select(`
@@ -175,11 +178,20 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
         supabase
             .from('project_documents')
             .select('id', { count: 'exact', head: true })
-            .eq('project_id', elementDetail.projects?.id || ''),
+            .eq('project_id', projectId),
+        // Get drawings: linked to this element OR project-level drawings
+        supabase
+            .from('project_documents')
+            .select('id, name, file_url, file_type, category, element_id, created_at')
+            .eq('project_id', projectId)
+            .or(`element_id.eq.${elementId},and(category.eq.drawing,element_id.is.null)`)
+            .order('created_at', { ascending: false })
+            .limit(20),
     ])
     const photoList = (photosResult.data ?? []) as ElementPhoto[]
     const fixRequests = fixRequestsResult.data ?? []
     const projectDocCount = documentsCountResult.count ?? 0
+    const drawings = drawingsResult.data ?? []
 
     const statusInfo = statusConfig[elementDetail.status as keyof typeof statusConfig] || statusConfig.planned
     const typeInfo = typeConfig[elementDetail.element_type as keyof typeof typeConfig] || typeConfig.other
@@ -422,6 +434,32 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                                         </Link>
                                     </Button>
                                 </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Drawings */}
+                        <Card className={drawings.length > 0 ? 'border-blue-200 bg-blue-50/20' : 'border-zinc-200'}>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="flex items-center gap-2 text-lg">
+                                    <FileText className="w-5 h-5 text-blue-600" />
+                                    Teikningar ({drawings.length})
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {drawings.length > 0 ? (
+                                    <ElementDrawings drawings={drawings} elementId={elementId} />
+                                ) : (
+                                    <div className="text-center py-4">
+                                        <p className="text-sm text-zinc-500">Engar teikningar tengdar</p>
+                                        {projectId && (
+                                            <Button asChild variant="link" size="sm" className="mt-1 text-blue-600">
+                                                <Link href={`/factory/projects/${projectId}`}>
+                                                    Hlaða upp í verkefni
+                                                </Link>
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 

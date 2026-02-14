@@ -238,7 +238,10 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                     <Card className="border-border">
                         <CardContent className="pt-6">
                             <h3 className="font-semibold text-foreground mb-4">Hlaða upp skjali</h3>
-                            <DocumentUploadForm projectId={projectId} />
+                            <DocumentUploadForm
+                                projectId={projectId}
+                                elements={elementList.map(e => ({ id: e.id, name: e.name }))}
+                            />
                         </CardContent>
                     </Card>
 

@@ -169,6 +169,7 @@ export async function getProjectDetail(projectId: string) {
         file_url,
         file_type,
         file_size_bytes,
+        category,
         created_at
       ),
       messages:project_messages(

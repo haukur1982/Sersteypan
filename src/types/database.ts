@@ -1035,6 +1035,7 @@ export type Database = {
           category: string
           created_at: string | null
           description: string | null
+          element_id: string | null
           file_size_bytes: number | null
           file_type: string | null
           file_url: string
@@ -1047,6 +1048,7 @@ export type Database = {
           category?: string
           created_at?: string | null
           description?: string | null
+          element_id?: string | null
           file_size_bytes?: number | null
           file_type?: string | null
           file_url: string
@@ -1059,6 +1061,7 @@ export type Database = {
           category?: string
           created_at?: string | null
           description?: string | null
+          element_id?: string | null
           file_size_bytes?: number | null
           file_type?: string | null
           file_url?: string
@@ -1068,6 +1071,13 @@ export type Database = {
           uploaded_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "project_documents_element_id_fkey"
+            columns: ["element_id"]
+            isOneToOne: false
+            referencedRelation: "elements"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_documents_project_id_fkey"
             columns: ["project_id"]
