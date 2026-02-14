@@ -6,8 +6,8 @@ import { test, expect } from '@playwright/test'
  */
 
 const DRIVER_USER = {
-  email: 'driver@sersteypan.test',
-  password: 'Password123!',
+  email: 'owner.driver@sersteypan.test',
+  password: 'OwnerAccess!2026',
 }
 
 // Helper to login as driver

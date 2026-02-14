@@ -6,8 +6,8 @@ import { test, expect } from '@playwright/test'
  */
 
 const BUYER_USER = {
-  email: 'buyer@sersteypan.test',
-  password: 'Password123!',
+  email: 'owner.buyer@sersteypan.test',
+  password: 'OwnerAccess!2026',
 }
 
 // Helper to login as buyer

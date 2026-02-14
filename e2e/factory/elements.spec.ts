@@ -6,8 +6,8 @@ import { test, expect } from '@playwright/test'
  */
 
 const FACTORY_USER = {
-  email: 'factory@sersteypan.test',
-  password: 'Password123!',
+  email: 'owner.factory@sersteypan.test',
+  password: 'OwnerAccess!2026',
 }
 
 // Helper to login as factory manager

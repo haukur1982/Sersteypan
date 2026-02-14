@@ -6,10 +6,10 @@ import { test, expect } from '@playwright/test'
  */
 
 const TEST_USERS = {
-  admin: { email: 'admin@sersteypan.test', password: 'Password123!', portal: '/admin' },
-  factory: { email: 'factory@sersteypan.test', password: 'Password123!', portal: '/factory' },
-  buyer: { email: 'buyer@sersteypan.test', password: 'Password123!', portal: '/buyer' },
-  driver: { email: 'driver@sersteypan.test', password: 'Password123!', portal: '/driver' },
+  admin: { email: 'owner.admin@sersteypan.test', password: 'OwnerAccess!2026', portal: '/admin' },
+  factory: { email: 'owner.factory@sersteypan.test', password: 'OwnerAccess!2026', portal: '/factory' },
+  buyer: { email: 'owner.buyer@sersteypan.test', password: 'OwnerAccess!2026', portal: '/buyer' },
+  driver: { email: 'owner.driver@sersteypan.test', password: 'OwnerAccess!2026', portal: '/driver' },
 }
 
 test.describe('Authentication Flow', () => {

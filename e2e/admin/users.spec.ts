@@ -6,8 +6,8 @@ import { test, expect } from '@playwright/test'
  */
 
 const ADMIN_USER = {
-  email: 'admin@sersteypan.test',
-  password: 'Password123!',
+  email: 'owner.admin@sersteypan.test',
+  password: 'OwnerAccess!2026',
 }
 
 // Helper to login as admin

@@ -6,10 +6,10 @@ import { test, expect } from '@playwright/test'
  */
 
 const TEST_USERS = {
-  admin: { email: 'admin@sersteypan.test', password: 'Password123!' },
-  factory: { email: 'factory@sersteypan.test', password: 'Password123!' },
-  buyer: { email: 'buyer@sersteypan.test', password: 'Password123!' },
-  driver: { email: 'driver@sersteypan.test', password: 'Password123!' },
+  admin: { email: 'owner.admin@sersteypan.test', password: 'OwnerAccess!2026' },
+  factory: { email: 'owner.factory@sersteypan.test', password: 'OwnerAccess!2026' },
+  buyer: { email: 'owner.buyer@sersteypan.test', password: 'OwnerAccess!2026' },
+  driver: { email: 'owner.driver@sersteypan.test', password: 'OwnerAccess!2026' },
 }
 
 // Helper to login as a specific user
