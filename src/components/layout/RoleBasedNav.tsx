@@ -18,6 +18,7 @@ import {
     Settings,
     CalendarDays,
     FileText,
+    BarChart3,
     type LucideIcon
 } from 'lucide-react'
 import Link from 'next/link'
@@ -61,6 +62,7 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Verkefni', englishName: 'Projects', href: '/admin/projects', icon: FolderKanban },
         { name: 'Notendur', englishName: 'Users', href: '/admin/users', icon: Users },
         { name: 'Skilaboð', englishName: 'Messages', href: '/admin/messages', icon: MessageSquare },
+        { name: 'Skýrslur', englishName: 'Reports', href: '/admin/reports', icon: BarChart3 },
         { name: 'Stillingar', englishName: 'Settings', href: '/admin/settings/element-types', icon: Settings },
         { name: '3D Lab (Exp)', englishName: '3D Research', href: '/admin/lab/3d', icon: FlaskConical },
     ],
