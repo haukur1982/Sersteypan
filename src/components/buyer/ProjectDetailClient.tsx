@@ -222,7 +222,7 @@ export function ProjectDetailClient({ project, deliveries, floorPlans = [], tab 
         </TabsList>
 
         <TabsContent value="elements">
-          <ElementsTab elements={elements} />
+          <ElementsTab elements={elements} deliveries={deliveries} />
         </TabsContent>
 
         <TabsContent value="status3d">

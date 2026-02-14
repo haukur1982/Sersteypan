@@ -3,6 +3,72 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createNotifications } from '@/lib/notifications/queries'
+import { z } from 'zod'
+
+const profileUpdateSchema = z.object({
+  full_name: z.string().trim().min(1, 'Nafn má ekki vera tómt').max(200, 'Nafn má ekki vera lengra en 200 stafir'),
+  phone: z.string().trim()
+    .transform((val) => val.replace(/[\s-]/g, ''))
+    .refine(
+      (val) => val === '' || /^(\+354)?\d{7}$/.test(val),
+      { message: 'Símanúmer verður að vera 7 tölustafir' }
+    )
+    .transform((val) => val || null),
+})
+
+/**
+ * Update buyer profile (name and phone)
+ * Uses (prevState, formData) signature for useActionState
+ */
+export async function updateBuyerProfile(
+  _prevState: { error: string; success: boolean },
+  formData: FormData
+): Promise<{ error: string; success: boolean }> {
+  const supabase = await createClient()
+
+  // 1. Auth check
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Unauthorized', success: false }
+  }
+
+  // 2. Parse and validate
+  const rawData = {
+    full_name: formData.get('full_name') as string || '',
+    phone: formData.get('phone') as string || '',
+  }
+
+  const parsed = profileUpdateSchema.safeParse(rawData)
+  if (!parsed.success) {
+    const firstError = parsed.error.issues[0]?.message || 'Staðfestingarvilla'
+    return { error: firstError, success: false }
+  }
+
+  try {
+    // 3. Update profile
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        full_name: parsed.data.full_name,
+        phone: parsed.data.phone,
+      })
+      .eq('id', user.id)
+
+    if (error) {
+      console.error('Error updating buyer profile:', error)
+      return { error: 'Ekki tókst að uppfæra upplýsingar', success: false }
+    }
+
+    // 4. Revalidate
+    revalidatePath('/buyer/profile')
+    revalidatePath('/buyer')
+
+    return { error: '', success: true }
+  } catch (err) {
+    console.error('Unexpected error updating profile:', err)
+    return { error: 'Óvænt villa kom upp', success: false }
+  }
+}
 
 /**
  * Request priority change for an element

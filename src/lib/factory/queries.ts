@@ -204,6 +204,114 @@ export async function getFactoryDeliveries() {
 }
 
 /**
+ * Get elements that have been stuck in a status beyond expected thresholds.
+ * Uses element_events to determine entry time (falls back to updated_at).
+ *
+ * Thresholds:
+ * - planned > 14 days
+ * - rebar > 7 days
+ * - cast > 3 days
+ * - curing > 10 days
+ * - ready > 14 days (not loaded)
+ */
+export async function getStuckElements() {
+  const supabase = await createClient()
+
+  const thresholds: Record<string, number> = {
+    planned: 14,
+    rebar: 7,
+    cast: 3,
+    curing: 10,
+    ready: 14,
+  }
+
+  // Fetch elements in the relevant statuses (not loaded/delivered/verified)
+  const { data: elements, error } = await supabase
+    .from('elements')
+    .select(`
+      id, name, element_type, status, priority, floor,
+      updated_at, project_id,
+      projects (
+        id, name,
+        companies ( name )
+      )
+    `)
+    .in('status', Object.keys(thresholds))
+    .order('updated_at', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching elements for stuck check:', error)
+    return []
+  }
+
+  if (!elements || elements.length === 0) return []
+
+  // Get the latest event for each element to determine when it entered current status
+  const elementIds = elements.map(e => e.id)
+  const { data: events } = await supabase
+    .from('element_events')
+    .select('element_id, status, created_at')
+    .in('element_id', elementIds)
+    .order('created_at', { ascending: false })
+
+  // Build map: elementId → timestamp when current status was entered
+  const statusEntryMap: Record<string, string> = {}
+  if (events) {
+    for (const event of events) {
+      // Only take the first (most recent) event matching current status
+      const el = elements.find(e => e.id === event.element_id)
+      if (el && event.status === el.status && !statusEntryMap[event.element_id]) {
+        statusEntryMap[event.element_id] = event.created_at || el.updated_at || ''
+      }
+    }
+  }
+
+  const now = new Date()
+  const stuckElements: Array<{
+    id: string
+    name: string
+    element_type: string
+    status: string
+    priority: number | null
+    floor: number | null
+    daysStuck: number
+    threshold: number
+    project: { id: string; name: string; companies: { name: string } | null } | null
+  }> = []
+
+  for (const el of elements) {
+    const elStatus = el.status || 'planned'
+    const threshold = thresholds[elStatus]
+    if (!threshold) continue
+
+    const entryTime = statusEntryMap[el.id] || el.updated_at
+    if (!entryTime) continue
+
+    const entryDate = new Date(entryTime)
+    const daysInStatus = Math.floor((now.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (daysInStatus > threshold) {
+      stuckElements.push({
+        id: el.id,
+        name: el.name,
+        element_type: el.element_type,
+        status: elStatus,
+        priority: el.priority,
+        floor: el.floor,
+        daysStuck: daysInStatus,
+        threshold,
+        project: el.projects as { id: string; name: string; companies: { name: string } | null } | null,
+      })
+    }
+  }
+
+  // Sort by days stuck descending (most stuck first)
+  stuckElements.sort((a, b) => b.daysStuck - a.daysStuck)
+
+  return stuckElements
+}
+
+/**
  * Get unread message count for factory managers
  */
 export async function getUnreadMessageCount() {

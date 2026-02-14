@@ -1,22 +1,46 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ElementStatusBadge } from '../ElementStatusBadge'
 import { PriorityRequestButton } from '../PriorityRequestButton'
 import { ElementDetailDialog } from '../ElementDetailDialog'
-import { Search, SlidersHorizontal } from 'lucide-react'
-import type { Element } from './types'
+import { Search, SlidersHorizontal, Truck } from 'lucide-react'
+import type { Element, Delivery } from './types'
+
+type DeliveryInfo = {
+  deliveryId: string
+  plannedDate: string | null
+  deliveryStatus: string | null
+}
 
 interface ElementsTabProps {
   elements: Element[]
+  deliveries?: Delivery[]
 }
 
-export function ElementsTab({ elements }: ElementsTabProps) {
+export function ElementsTab({ elements, deliveries = [] }: ElementsTabProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selectedElement, setSelectedElement] = useState<Element | null>(null)
+
+  // Build a map of elementId → delivery info from delivery items
+  const elementDeliveryMap = useMemo(() => {
+    const map: Record<string, DeliveryInfo> = {}
+    for (const delivery of deliveries) {
+      for (const item of delivery.items || []) {
+        if (item.element?.id) {
+          map[item.element.id] = {
+            deliveryId: delivery.id,
+            plannedDate: delivery.planned_date,
+            deliveryStatus: delivery.status,
+          }
+        }
+      }
+    }
+    return map
+  }, [deliveries])
 
   // Client-side filtering
   const filteredElements = elements.filter((element) => {
@@ -42,6 +66,14 @@ export function ElementsTab({ elements }: ElementsTabProps) {
     },
     {} as Record<string, number>
   )
+
+  const deliveryStatusLabels: Record<string, string> = {
+    planned: 'Skipulögð',
+    loading: 'Hleðsla',
+    in_transit: 'Á leiðinni',
+    arrived: 'Á staðnum',
+    completed: 'Lokið',
+  }
 
   return (
     <div className="space-y-4">
@@ -130,6 +162,9 @@ export function ElementsTab({ elements }: ElementsTabProps) {
                     Staða
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                    Afhending
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     Forgangur
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
@@ -142,6 +177,7 @@ export function ElementsTab({ elements }: ElementsTabProps) {
                   const pendingRequest = element.priority_requests?.find(
                     (request) => request.status === 'pending'
                   )
+                  const deliveryInfo = elementDeliveryMap[element.id]
 
                   return (
                     <tr
@@ -169,6 +205,18 @@ export function ElementsTab({ elements }: ElementsTabProps) {
                       </td>
                       <td className="px-4 py-3">
                         <ElementStatusBadge status={element.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {deliveryInfo ? (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                            <Truck className="w-3 h-3" />
+                            {deliveryInfo.plannedDate
+                              ? new Date(deliveryInfo.plannedDate).toLocaleDateString('is-IS', { day: 'numeric', month: 'short' })
+                              : deliveryStatusLabels[deliveryInfo.deliveryStatus || 'planned'] || 'Á áætlun'}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-zinc-400">Ekki á áætlun</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-600">
                         {(element.priority ?? 0) > 0 ? (

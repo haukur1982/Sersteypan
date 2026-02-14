@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ElementStatusBadge } from './ElementStatusBadge'
-import { ElementTimeline } from './ElementTimeline'
+import { ElementTimeline } from '@/components/shared/ElementTimeline'
 import { PhotoGallery } from '@/components/shared/PhotoGallery'
 import { Clock, Image as ImageIcon, Flag } from 'lucide-react'
 import type { Element } from '@/components/buyer/project/types'

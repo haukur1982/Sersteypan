@@ -1,6 +1,7 @@
 import { getServerUser } from '@/lib/auth/getServerUser'
 import { createClient } from '@/lib/supabase/server'
-import { getPriorityElements } from '@/lib/factory/queries'
+import { getPriorityElements, getStuckElements } from '@/lib/factory/queries'
+import { DailySummaryCard } from '@/components/shared/DailySummaryCard'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -65,6 +66,7 @@ export default async function FactoryDashboard() {
         totalElementsResult,
         priorityElements,
         fixInFactoryResult,
+        stuckElements,
     ] = await Promise.all([
         // All elements with status
         supabase.from('elements').select('status'),
@@ -96,6 +98,8 @@ export default async function FactoryDashboard() {
             .from('fix_in_factory')
             .select('id', { count: 'exact', head: true })
             .is('completed_at', null),
+        // Stuck elements
+        getStuckElements(),
     ])
 
     // Try to fetch stock alerts (may not exist yet)
@@ -147,6 +151,9 @@ export default async function FactoryDashboard() {
                         Velkomin {serverUser?.fullName} - Verkstjóri
                     </p>
                 </div>
+
+                {/* AI Daily Summary */}
+                <DailySummaryCard />
 
                 {/* Summary Stats Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -262,6 +269,56 @@ export default async function FactoryDashboard() {
                                     </Link>
                                 )
                             })}
+                        </div>
+                    </Card>
+                )}
+
+                {/* Stuck Elements Warning */}
+                {stuckElements.length > 0 && (
+                    <Card className="p-6 border-amber-200 bg-amber-50/30">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                                Viðvörun: Fastar einingar
+                            </h2>
+                            <span className="text-sm text-muted-foreground">{stuckElements.length} {stuckElements.length === 1 ? 'eining' : 'einingar'}</span>
+                        </div>
+                        <div className="space-y-2">
+                            {stuckElements.slice(0, 10).map((el) => {
+                                const elStatusInfo = elementStatusConfig[el.status] || elementStatusConfig.planned
+                                const project = el.project
+
+                                return (
+                                    <Link
+                                        key={el.id}
+                                        href={`/factory/production/${el.id}`}
+                                        className="flex items-center gap-3 p-3 rounded-lg border border-amber-200 bg-white hover:bg-amber-50 transition-colors"
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-medium text-foreground truncate">{el.name}</span>
+                                                <Badge variant="secondary" className={`${elStatusInfo.color} border-0 text-xs`}>
+                                                    {elStatusInfo.label}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-xs text-muted-foreground truncate">
+                                                    {project?.name}{project?.companies?.name ? ` — ${project.companies.name}` : ''}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <Badge variant="outline" className="border-amber-300 text-amber-700 text-xs flex-shrink-0">
+                                            <Clock className="w-3 h-3 mr-1" />
+                                            {el.daysStuck}d ({el.threshold}d mörk)
+                                        </Badge>
+                                    </Link>
+                                )
+                            })}
+                            {stuckElements.length > 10 && (
+                                <p className="text-xs text-amber-600 text-center pt-2">
+                                    +{stuckElements.length - 10} fleiri fastar einingar
+                                </p>
+                            )}
                         </div>
                     </Card>
                 )}

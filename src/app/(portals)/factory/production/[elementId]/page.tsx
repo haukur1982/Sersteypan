@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { ElementStatusUpdateForm } from '@/components/factory/ElementStatusUpdateForm'
 import { PhotoGallery } from '@/components/shared/PhotoGallery'
+import { ElementTimeline } from '@/components/shared/ElementTimeline'
 import { ElementDrawings } from '@/components/factory/ElementDrawings'
 import type { ElementPhoto } from '@/components/buyer/project/types'
 import type { Database } from '@/types/database'
@@ -344,50 +345,26 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                             </CardContent>
                         </Card>
 
-                        {/* Status History */}
-                        {historyList.length > 0 && (
-                            <Card className="border-zinc-200">
-                                <CardHeader>
-                                    <CardTitle>Stöðuferill (Status History)</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-3">
-                                        {historyList.map((event) => {
-                                            const eventStatusInfo = statusConfig[event.status as keyof typeof statusConfig]
-                                            const EventIcon = eventStatusInfo?.icon || Clock
-
-                                            return (
-                                                <div key={event.id} className="flex gap-3 pb-3 border-b border-zinc-100 last:border-0 last:pb-0">
-                                                    <div className="flex-shrink-0 mt-1">
-                                                        <div className={`p-2 rounded-full ${eventStatusInfo?.color || 'bg-zinc-100'}`}>
-                                                            <EventIcon className="w-4 h-4" />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <Badge variant="secondary" className={`${eventStatusInfo?.color || 'bg-zinc-100'} text-xs`}>
-                                                                {eventStatusInfo?.label || event.status}
-                                                            </Badge>
-                                                            <span className="text-xs text-zinc-500">
-                                                                {event.created_at ? new Date(event.created_at).toLocaleString('is-IS') : '-'}
-                                                            </span>
-                                                        </div>
-                                                        {event.profiles?.full_name && (
-                                                            <p className="text-sm text-zinc-600 mt-1">
-                                                                {event.profiles.full_name}
-                                                            </p>
-                                                        )}
-                                                        {event.notes && (
-                                                            <p className="text-sm text-zinc-700 mt-1">{event.notes}</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
+                        {/* Status History (shared timeline component) */}
+                        <Card className="border-zinc-200">
+                            <CardHeader>
+                                <CardTitle>Stöðuferill (Status History)</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ElementTimeline
+                                    events={historyList.map((event) => ({
+                                        id: event.id,
+                                        status: event.status,
+                                        previous_status: event.previous_status,
+                                        notes: event.notes,
+                                        created_at: event.created_at,
+                                        created_by: event.profiles
+                                            ? { id: event.created_by || '', full_name: event.profiles.full_name || '' }
+                                            : null,
+                                    }))}
+                                />
+                            </CardContent>
+                        </Card>
 
                         {/* Photo Gallery */}
                         <Card className="border-zinc-200">

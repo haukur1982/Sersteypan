@@ -199,6 +199,23 @@ export async function addElementToDelivery(
       }
     }
 
+    // 4b. QUALITY GATE: Check for open delivery-blocking defects
+    const { data: openDefects } = await supabase
+      .from('fix_in_factory')
+      .select('id, issue_description')
+      .eq('element_id', elementId)
+      .eq('delivery_impact', true)
+      .in('status', ['pending', 'in_progress'])
+      .limit(1)
+
+    if (openDefects && openDefects.length > 0) {
+      const defect = openDefects[0]
+      return {
+        success: false,
+        error: `Ekki er hægt að hlaða. Opinn galli: ${defect.issue_description}. Ljúktu viðgerð áður en hleðsla.`
+      }
+    }
+
     // 5. CHECK FOR DUPLICATE
     const { data: existingItem } = await supabase
       .from('delivery_items')
@@ -230,11 +247,11 @@ export async function addElementToDelivery(
     }
 
     // 6b. Update element status: ready → loaded
+    // Note: loaded_at is set automatically by the DB trigger (handle_element_status_change)
     const { error: updateElementError } = await supabase
       .from('elements')
       .update({
         status: 'loaded',
-        loaded_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       } as Database['public']['Tables']['elements']['Update'])
       .eq('id', elementId)
@@ -351,11 +368,11 @@ export async function removeElementFromDelivery(
     }
 
     // 5. REVERT ELEMENT STATUS: loaded → ready
+    // Note: loaded_at is nulled automatically by the DB trigger (handle_element_status_change)
     const { error: updateError } = await supabase
       .from('elements')
       .update({
         status: 'ready',
-        loaded_at: null,
         updated_at: new Date().toISOString()
       } as Database['public']['Tables']['elements']['Update'])
       .eq('id', elementId)
@@ -471,11 +488,11 @@ export async function confirmElementDelivered(
     }
 
     // 6. UPDATE ELEMENT STATUS: loaded → delivered
+    // Note: delivered_at is set automatically by the DB trigger (handle_element_status_change)
     const { error: updateElementError } = await supabase
       .from('elements')
       .update({
         status: 'delivered',
-        delivered_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       } as Database['public']['Tables']['elements']['Update'])
       .eq('id', elementId)

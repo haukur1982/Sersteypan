@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { TrendCard } from '@/components/admin/TrendCard'
 import { StatusDonutChart } from '@/components/admin/StatusDonutChart'
+import { DailySummaryCard } from '@/components/shared/DailySummaryCard'
 
 const statusConfig: Record<string, { label: string; color: string; chartColor: string }> = {
   planned: { label: 'Skipulögð', color: 'bg-zinc-100 text-zinc-700', chartColor: '#a1a1aa' },
@@ -137,6 +138,9 @@ export default async function AdminDashboard() {
           </Link>
         </Button>
       </div>
+
+      {/* AI Daily Summary */}
+      <DailySummaryCard />
 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

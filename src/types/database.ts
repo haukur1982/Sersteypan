@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_daily_summaries: {
+        Row: {
+          id: string
+          summary_date: string
+          summary_text: string
+          anomalies: Json
+          generated_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          summary_date: string
+          summary_text: string
+          anomalies?: Json
+          generated_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          summary_date?: string
+          summary_text?: string
+          anomalies?: Json
+          generated_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string

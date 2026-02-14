@@ -237,65 +237,70 @@ function DeliveryCard({ delivery, compact }: {
 
     if (compact) {
         return (
-            <Card className="border-zinc-200">
-                <CardContent className="py-3 flex items-center gap-4">
-                    <Badge variant="secondary" className={`${statusInfo.color} gap-1 text-xs`}>
-                        <StatusIcon className="w-3 h-3" />
-                        {statusInfo.label}
-                    </Badge>
-                    <span className="text-sm font-medium text-zinc-900">{project?.name}</span>
-                    <span className="text-xs text-zinc-500">{itemCount} einingar</span>
-                    {driver && <span className="text-xs text-zinc-500 ml-auto">{driver.full_name}</span>}
-                </CardContent>
-            </Card>
+            <Link href={`/factory/deliveries/${delivery.id}`}>
+                <Card className="border-zinc-200 hover:border-zinc-300 transition-colors">
+                    <CardContent className="py-3 flex items-center gap-4">
+                        <Badge variant="secondary" className={`${statusInfo.color} gap-1 text-xs`}>
+                            <StatusIcon className="w-3 h-3" />
+                            {statusInfo.label}
+                        </Badge>
+                        <span className="text-sm font-medium text-zinc-900">{project?.name}</span>
+                        <span className="text-xs text-zinc-500">{itemCount} einingar</span>
+                        {driver && <span className="text-xs text-zinc-500 ml-auto">{driver.full_name}</span>}
+                    </CardContent>
+                </Card>
+            </Link>
         )
     }
 
     return (
-        <Card className={`border-zinc-200 ${!driver ? 'border-amber-200' : ''}`}>
-            <CardContent className="py-4">
-                <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 flex-wrap">
-                            <Badge variant="secondary" className={`${statusInfo.color} gap-1`}>
-                                <StatusIcon className="w-3.5 h-3.5" />
-                                {statusInfo.label}
-                            </Badge>
-                            <h3 className="text-base font-semibold text-zinc-900 truncate">
-                                {project?.name || 'Óþekkt verkefni'}
-                            </h3>
-                        </div>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-zinc-600">
-                            {project?.company?.name && (
-                                <span>{project.company.name}</span>
-                            )}
-                            <span className="flex items-center gap-1">
-                                <Package className="w-3.5 h-3.5" />
-                                {itemCount} einingar
-                            </span>
-                            {delivery.truck_registration && (
+        <Link href={`/factory/deliveries/${delivery.id}`}>
+            <Card className={`border-zinc-200 hover:border-zinc-300 hover:shadow-md transition-all ${!driver ? 'border-amber-200' : ''}`}>
+                <CardContent className="py-4">
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <Badge variant="secondary" className={`${statusInfo.color} gap-1`}>
+                                    <StatusIcon className="w-3.5 h-3.5" />
+                                    {statusInfo.label}
+                                </Badge>
+                                <h3 className="text-base font-semibold text-zinc-900 truncate">
+                                    {project?.name || 'Óþekkt verkefni'}
+                                </h3>
+                            </div>
+                            <div className="flex items-center gap-4 mt-2 text-sm text-zinc-600">
+                                {project?.company?.name && (
+                                    <span>{project.company.name}</span>
+                                )}
                                 <span className="flex items-center gap-1">
-                                    <Truck className="w-3.5 h-3.5" />
-                                    {delivery.truck_registration}
+                                    <Package className="w-3.5 h-3.5" />
+                                    {itemCount} einingar
                                 </span>
-                            )}
+                                {delivery.truck_registration && (
+                                    <span className="flex items-center gap-1">
+                                        <Truck className="w-3.5 h-3.5" />
+                                        {delivery.truck_registration}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-4 mt-1.5 text-sm">
+                                {driver ? (
+                                    <span className="flex items-center gap-1 text-zinc-600">
+                                        <User className="w-3.5 h-3.5" />
+                                        {driver.full_name}
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-1 text-amber-700 font-medium">
+                                        <AlertTriangle className="w-3.5 h-3.5" />
+                                        Enginn bílstjóri úthlutaður
+                                    </span>
+                                )}
+                            </div>
                         </div>
-                        <div className="flex items-center gap-4 mt-1.5 text-sm">
-                            {driver ? (
-                                <span className="flex items-center gap-1 text-zinc-600">
-                                    <User className="w-3.5 h-3.5" />
-                                    {driver.full_name}
-                                </span>
-                            ) : (
-                                <span className="flex items-center gap-1 text-amber-700 font-medium">
-                                    <AlertTriangle className="w-3.5 h-3.5" />
-                                    Enginn bílstjóri úthlutaður
-                                </span>
-                            )}
-                        </div>
+                        <ArrowRight className="w-5 h-5 text-zinc-300 flex-shrink-0 mt-1" />
                     </div>
-                </div>
-            </CardContent>
-        </Card>
+                </CardContent>
+            </Card>
+        </Link>
     )
 }
