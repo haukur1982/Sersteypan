@@ -106,6 +106,11 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
         setRetryKey(k => k + 1)
     }, [])
 
+    // Reset PDF zoom by remounting the iframe (native viewer always starts at fit-to-screen)
+    const resetPdfZoom = useCallback(() => {
+        setRetryKey(k => k + 1)
+    }, [])
+
     return (
         <div
             className="fixed inset-0 z-50 bg-black flex flex-col select-none"
@@ -165,12 +170,24 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
                     iOS Safari and Android Chrome both render PDFs with their built-in viewers,
                     giving perfect vector rendering at any zoom level. */}
                 {!error && isPdf && (
-                    <iframe
-                        key={retryKey}
-                        src={proxyUrl}
-                        className="w-full h-full border-0 bg-white"
-                        title={document.name}
-                    />
+                    <>
+                        <iframe
+                            key={retryKey}
+                            src={proxyUrl}
+                            className="w-full h-full border-0 bg-white"
+                            title={document.name}
+                        />
+                        {/* Reset zoom button — reloads iframe to fit-to-screen */}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); resetPdfZoom() }}
+                            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 bg-black/70 backdrop-blur-sm text-white rounded-full text-sm active:bg-white/20"
+                            style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+                            aria-label="Endurstilla"
+                        >
+                            <RotateCcw className="h-4 w-4" />
+                            Endurstilla
+                        </button>
+                    </>
                 )}
 
                 {/* Image viewer — pinch/zoom via react-zoom-pan-pinch */}
