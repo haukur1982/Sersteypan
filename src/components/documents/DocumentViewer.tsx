@@ -1,17 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Document, Page, pdfjs } from 'react-pdf'
-import { TransformWrapper, TransformComponent, useControls, useTransformEffect } from 'react-zoom-pan-pinch'
-import { ArrowLeft, Download, ChevronLeft, ChevronRight, RotateCcw, Loader2, AlertCircle } from 'lucide-react'
-import 'react-pdf/dist/Page/AnnotationLayer.css'
-import 'react-pdf/dist/Page/TextLayer.css'
-
-// Set up pdfjs worker — import.meta.url lets webpack resolve the path at build time
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url,
-).toString()
+import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch'
+import { ArrowLeft, Download, RotateCcw, Loader2, AlertCircle } from 'lucide-react'
 
 interface ViewerDocument {
     id: string
@@ -53,202 +44,6 @@ function ZoomResetButton({ visible }: { visible: boolean }) {
     )
 }
 
-// ── High-resolution PDF rendering ────────────────────────────
-
-const NATIVE_DPR = typeof window !== 'undefined' ? window.devicePixelRatio : 2
-// iOS Safari hard limits for canvas
-const MAX_CANVAS_DIMENSION = 16384
-const MAX_CANVAS_PIXELS = 16777216 // ~16M pixels (safe for 256MB budget)
-// Debounce re-renders while user is actively zooming
-const DEBOUNCE_MS = 150 // fast sharpening after zoom settles
-const DEBOUNCE_DOWNSCALE_MS = 600 // reclaim memory on zoom-out
-// Skip re-render if DPR change is smaller than this
-const DPR_CHANGE_THRESHOLD = 0.15
-// Conservative initial DPR before we know the actual page dimensions
-const CONSERVATIVE_DPR = Math.min(NATIVE_DPR * 2, 6)
-
-/**
- * Calculate the maximum safe DPR that fills the iOS canvas pixel budget
- * for a given page size. This maximizes sharpness without exceeding memory limits.
- */
-function getMaxSafeDpr(containerWidth: number, pageAspectRatio: number): number {
-    const pageHeight = containerWidth * pageAspectRatio
-    const pageArea = containerWidth * pageHeight
-    const maxByPixels = Math.sqrt(MAX_CANVAS_PIXELS / pageArea)
-    const maxByDimension = MAX_CANVAS_DIMENSION / Math.max(containerWidth, pageHeight)
-    return Math.max(1, Math.min(maxByPixels, maxByDimension, NATIVE_DPR * 8, 12))
-}
-
-/**
- * Calculate a safe devicePixelRatio for the PDF canvas that stays within
- * iOS Safari memory limits while being as sharp as possible at the current zoom.
- */
-function calculateSafeDpr(
-    zoomScale: number,
-    nativeDpr: number,
-    containerWidth: number,
-    pageAspectRatio: number
-): number {
-    // Desired: render at enough pixels to look sharp at this zoom level
-    const desiredDpr = zoomScale * nativeDpr
-
-    // Cap #1: No single canvas dimension exceeds iOS limit
-    const largestDimension = Math.max(containerWidth, containerWidth * pageAspectRatio)
-    const maxByDimension = MAX_CANVAS_DIMENSION / largestDimension
-
-    // Cap #2: Total pixel count stays within memory budget
-    const pageArea = containerWidth * containerWidth * pageAspectRatio
-    const maxByPixels = Math.sqrt(MAX_CANVAS_PIXELS / pageArea)
-
-    // Cap #3: Absolute maximum (beyond 8× native there's no perceptual benefit)
-    const absoluteMax = nativeDpr * 8
-
-    const safeDpr = Math.min(desiredDpr, maxByDimension, maxByPixels, absoluteMax)
-
-    // Round to 0.25 increments — fine-grained quality without floating-point churn
-    return Math.max(1, Math.round(safeDpr * 4) / 4)
-}
-
-/** Subtle indicator shown while the PDF re-renders at higher resolution */
-function SharpeningIndicator() {
-    return (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full text-white/80 text-xs flex items-center gap-1.5 animate-pulse pointer-events-none">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Betrumbæti...
-        </div>
-    )
-}
-
-/**
- * Zoom-aware PDF page renderer.
- * Must be a child of TransformWrapper to access useTransformEffect.
- *
- * Strategy:
- * 1. Start with a conservative DPR (2× native) for fast initial render
- * 2. Once actual page dimensions are known, boost to max safe DPR (fills iOS canvas budget)
- * 3. On zoom beyond headroom, debounce re-render at higher DPR (150ms)
- * 4. On zoom-out, reduce DPR to reclaim memory (600ms delay)
- * 5. Sharpening indicator tied to actual canvas render completion (onRenderSuccess)
- */
-function ZoomAwarePdfPage({
-    proxyUrl,
-    currentPage,
-    containerWidth,
-    onDocumentLoadSuccess,
-    onDocumentLoadError,
-}: {
-    proxyUrl: string
-    currentPage: number
-    containerWidth: number
-    onDocumentLoadSuccess: (result: { numPages: number }) => void
-    onDocumentLoadError: (err: Error) => void
-}) {
-    const [renderDpr, setRenderDpr] = useState(CONSERVATIVE_DPR)
-    const [isSharpening, setIsSharpening] = useState(false)
-    const [pageAspectRatio, setPageAspectRatio] = useState(1.414) // A4 default
-    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const lastRenderDprRef = useRef(CONSERVATIVE_DPR)
-    const maxSafeDprRef = useRef(CONSERVATIVE_DPR)
-    const hasUpgradedDprRef = useRef(false)
-
-    // Cleanup debounce on unmount
-    useEffect(() => {
-        return () => {
-            if (debounceRef.current) clearTimeout(debounceRef.current)
-        }
-    }, [])
-
-    // Listen to zoom/pan transform changes
-    useTransformEffect(({ state }) => {
-        const zoomScale = state.scale
-        const neededDpr = calculateSafeDpr(
-            zoomScale,
-            NATIVE_DPR,
-            containerWidth,
-            pageAspectRatio
-        )
-
-        const currentDpr = lastRenderDprRef.current
-        const dprDelta = Math.abs(neededDpr - currentDpr)
-
-        // Skip if change is too small to matter
-        if (dprDelta < DPR_CHANGE_THRESHOLD) {
-            return
-        }
-
-        // Clear any pending debounce
-        if (debounceRef.current) {
-            clearTimeout(debounceRef.current)
-        }
-
-        // Zooming IN: increase DPR (needs more pixels)
-        if (neededDpr > currentDpr) {
-            setIsSharpening(true)
-            debounceRef.current = setTimeout(() => {
-                setRenderDpr(neededDpr)
-                lastRenderDprRef.current = neededDpr
-                // isSharpening cleared by onRenderSuccess, not here
-            }, DEBOUNCE_MS)
-            return
-        }
-
-        // Zooming OUT: reduce DPR when needed drops to 70% of current (saves memory)
-        if (neededDpr < currentDpr * 0.7) {
-            debounceRef.current = setTimeout(() => {
-                setRenderDpr(neededDpr)
-                lastRenderDprRef.current = neededDpr
-            }, DEBOUNCE_DOWNSCALE_MS)
-        }
-    })
-
-    // Capture page aspect ratio and boost to max safe DPR
-    const onPageLoadSuccess = useCallback((page: { getViewport: (params: { scale: number }) => { width: number; height: number } }) => {
-        const viewport = page.getViewport({ scale: 1 })
-        const aspectRatio = viewport.height / viewport.width
-        setPageAspectRatio(aspectRatio)
-
-        // Compute and apply maximum safe DPR for this specific page
-        if (!hasUpgradedDprRef.current && containerWidth > 0) {
-            const maxDpr = getMaxSafeDpr(containerWidth, aspectRatio)
-            maxSafeDprRef.current = maxDpr
-            if (maxDpr > lastRenderDprRef.current) {
-                setRenderDpr(maxDpr)
-                lastRenderDprRef.current = maxDpr
-                setIsSharpening(true) // will be cleared by onRenderSuccess
-            }
-            hasUpgradedDprRef.current = true
-        }
-    }, [containerWidth])
-
-    // Clear sharpening indicator when canvas actually finishes rendering
-    const onPageRenderSuccess = useCallback(() => {
-        setIsSharpening(false)
-    }, [])
-
-    return (
-        <>
-            <Document
-                file={proxyUrl}
-                onLoadSuccess={onDocumentLoadSuccess}
-                onLoadError={onDocumentLoadError}
-                loading=""
-            >
-                <Page
-                    pageNumber={currentPage}
-                    width={containerWidth > 0 ? containerWidth : undefined}
-                    devicePixelRatio={renderDpr}
-                    loading=""
-                    renderAnnotationLayer={false}
-                    renderTextLayer={false}
-                    onLoadSuccess={onPageLoadSuccess}
-                    onRenderSuccess={onPageRenderSuccess}
-                />
-            </Document>
-            {isSharpening && <SharpeningIndicator />}
-        </>
-    )
-}
-
 // ── Main DocumentViewer ──────────────────────────────────────
 
 export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
@@ -259,13 +54,12 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
     const [error, setError] = useState<string | null>(null)
     const [retryKey, setRetryKey] = useState(0)
 
-    // PDF state
-    const [pageCount, setPageCount] = useState(1)
-    const [currentPage, setCurrentPage] = useState(1)
-
-    // UI visibility — auto-hide after 3s
+    // UI visibility — auto-hide after 3s (images only; PDFs use native viewer)
     const [uiVisible, setUiVisible] = useState(true)
     const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    const isPdf = category === 'pdf'
+    const isImage = category === 'image'
 
     const showUi = useCallback(() => {
         setUiVisible(true)
@@ -273,11 +67,13 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
         hideTimer.current = setTimeout(() => setUiVisible(false), 3000)
     }, [])
 
-    // Start auto-hide on mount
+    // Start auto-hide on mount (for images)
     useEffect(() => {
-        hideTimer.current = setTimeout(() => setUiVisible(false), 3000)
+        if (!isPdf) {
+            hideTimer.current = setTimeout(() => setUiVisible(false), 3000)
+        }
         return () => { if (hideTimer.current) clearTimeout(hideTimer.current) }
-    }, [])
+    }, [isPdf])
 
     // Close on Escape key
     useEffect(() => {
@@ -294,17 +90,6 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
         return () => { body.style.overflow = prev }
     }, [])
 
-    const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
-        setPageCount(numPages)
-        setLoading(false)
-    }, [])
-
-    const onDocumentLoadError = useCallback((err: Error) => {
-        console.error('[DocumentViewer] PDF load error:', err)
-        setError('Villa kom upp við að opna PDF')
-        setLoading(false)
-    }, [])
-
     const onImageLoad = useCallback(() => {
         setLoading(false)
     }, [])
@@ -315,44 +100,20 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
         setLoading(false)
     }, [proxyUrl])
 
-    const goToPage = useCallback((page: number) => {
-        if (page < 1 || page > pageCount) return
-        setCurrentPage(page)
-    }, [pageCount])
-
     const retry = useCallback(() => {
         setError(null)
         setLoading(true)
         setRetryKey(k => k + 1)
     }, [])
 
-    const isPdf = category === 'pdf'
-    const isImage = category === 'image'
-    const showPageNav = isPdf && pageCount > 1
-
-    // Calculate page width to fit screen
-    const [containerWidth, setContainerWidth] = useState(0)
-    const containerRef = useRef<HTMLDivElement>(null)
-
-    useEffect(() => {
-        const updateWidth = () => {
-            if (containerRef.current) {
-                setContainerWidth(containerRef.current.clientWidth)
-            }
-        }
-        updateWidth()
-        window.addEventListener('resize', updateWidth)
-        return () => window.removeEventListener('resize', updateWidth)
-    }, [])
-
     return (
         <div
             className="fixed inset-0 z-50 bg-black flex flex-col select-none"
-            onClick={() => showUi()}
+            onClick={() => { if (!isPdf) showUi() }}
         >
-            {/* Header */}
+            {/* Header — always visible for PDF (native viewer handles its own UI below) */}
             <div
-                className={`absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-2 bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                className={`absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-2 bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${isPdf || uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                 style={{ height: 48, paddingTop: 'env(safe-area-inset-top)' }}
             >
                 <button
@@ -377,9 +138,9 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
             </div>
 
             {/* Main content area */}
-            <div ref={containerRef} className="flex-1 flex items-center justify-center overflow-hidden">
-                {/* Loading spinner */}
-                {loading && (
+            <div className="flex-1 flex items-center justify-center overflow-hidden" style={isPdf ? { paddingTop: 48 } : undefined}>
+                {/* Loading spinner (not shown for PDF — iframe handles its own loading) */}
+                {loading && !isPdf && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
                         <Loader2 className="h-10 w-10 animate-spin text-white/70" />
                         <p className="text-white/50 text-sm mt-3">Hleð inn...</p>
@@ -400,34 +161,19 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
                     </div>
                 )}
 
-                {/* PDF viewer — zoom-aware high-resolution rendering */}
+                {/* PDF viewer — native browser viewer via iframe
+                    iOS Safari and Android Chrome both render PDFs with their built-in viewers,
+                    giving perfect vector rendering at any zoom level. */}
                 {!error && isPdf && (
-                    <TransformWrapper
-                        key={`pdf-${retryKey}-${currentPage}`}
-                        initialScale={1}
-                        minScale={0.5}
-                        maxScale={5}
-                        doubleClick={{ mode: 'zoomIn', step: 1.5 }}
-                        pinch={{ step: 5 }}
-                        wheel={{ step: 0.1 }}
-                        centerOnInit
-                    >
-                        <TransformComponent
-                            wrapperStyle={{ width: '100%', height: '100%' }}
-                            contentStyle={{ width: '100%', display: 'flex', justifyContent: 'center' }}
-                        >
-                            <ZoomAwarePdfPage
-                                proxyUrl={proxyUrl}
-                                currentPage={currentPage}
-                                containerWidth={containerWidth}
-                                onDocumentLoadSuccess={onDocumentLoadSuccess}
-                                onDocumentLoadError={onDocumentLoadError}
-                            />
-                        </TransformComponent>
-                    </TransformWrapper>
+                    <iframe
+                        key={retryKey}
+                        src={proxyUrl}
+                        className="w-full h-full border-0 bg-white"
+                        title={document.name}
+                    />
                 )}
 
-                {/* Image viewer */}
+                {/* Image viewer — pinch/zoom via react-zoom-pan-pinch */}
                 {!error && isImage && (
                     <TransformWrapper
                         key={`img-${retryKey}`}
@@ -477,34 +223,6 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
                     </div>
                 )}
             </div>
-
-            {/* Bottom toolbar — PDF page navigation */}
-            {showPageNav && (
-                <div
-                    className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-2 bg-black/70 backdrop-blur-sm rounded-full transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-                    style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-                >
-                    <button
-                        onClick={(e) => { e.stopPropagation(); goToPage(currentPage - 1) }}
-                        disabled={currentPage <= 1}
-                        className="flex items-center justify-center h-12 w-12 text-white disabled:text-white/30 active:bg-white/20 rounded-full"
-                        aria-label="Fyrri síða"
-                    >
-                        <ChevronLeft className="h-6 w-6" />
-                    </button>
-                    <span className="text-white text-sm min-w-[4rem] text-center font-medium">
-                        Bls. {currentPage} / {pageCount}
-                    </span>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); goToPage(currentPage + 1) }}
-                        disabled={currentPage >= pageCount}
-                        className="flex items-center justify-center h-12 w-12 text-white disabled:text-white/30 active:bg-white/20 rounded-full"
-                        aria-label="Næsta síða"
-                    >
-                        <ChevronRight className="h-6 w-6" />
-                    </button>
-                </div>
-            )}
         </div>
     )
 }

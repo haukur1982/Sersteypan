@@ -3,8 +3,7 @@
 import dynamic from 'next/dynamic'
 import { Loader2 } from 'lucide-react'
 
-// Dynamic import with ssr: false — prevents pdfjs-dist from being imported on the server
-// (pdfjs-dist requires browser APIs like DOMMatrix, canvas, Web Workers)
+// Dynamic import with ssr: false — react-zoom-pan-pinch requires browser APIs
 const DocumentViewer = dynamic(
     () => import('./DocumentViewer').then(m => ({ default: m.DocumentViewer })),
     {
