@@ -56,16 +56,28 @@ function ZoomResetButton({ visible }: { visible: boolean }) {
 // ── High-resolution PDF rendering ────────────────────────────
 
 const NATIVE_DPR = typeof window !== 'undefined' ? window.devicePixelRatio : 2
-// Start at 2× native DPI — gives sharp baseline + zoom headroom up to 2×
-const INITIAL_DPR = Math.min(NATIVE_DPR * 2, 6)
 // iOS Safari hard limits for canvas
 const MAX_CANVAS_DIMENSION = 16384
 const MAX_CANVAS_PIXELS = 16777216 // ~16M pixels (safe for 256MB budget)
 // Debounce re-renders while user is actively zooming
-const DEBOUNCE_MS = 400
-const DEBOUNCE_DOWNSCALE_MS = 1000
+const DEBOUNCE_MS = 150 // fast sharpening after zoom settles
+const DEBOUNCE_DOWNSCALE_MS = 600 // reclaim memory on zoom-out
 // Skip re-render if DPR change is smaller than this
-const DPR_CHANGE_THRESHOLD = 0.3
+const DPR_CHANGE_THRESHOLD = 0.15
+// Conservative initial DPR before we know the actual page dimensions
+const CONSERVATIVE_DPR = Math.min(NATIVE_DPR * 2, 6)
+
+/**
+ * Calculate the maximum safe DPR that fills the iOS canvas pixel budget
+ * for a given page size. This maximizes sharpness without exceeding memory limits.
+ */
+function getMaxSafeDpr(containerWidth: number, pageAspectRatio: number): number {
+    const pageHeight = containerWidth * pageAspectRatio
+    const pageArea = containerWidth * pageHeight
+    const maxByPixels = Math.sqrt(MAX_CANVAS_PIXELS / pageArea)
+    const maxByDimension = MAX_CANVAS_DIMENSION / Math.max(containerWidth, pageHeight)
+    return Math.max(1, Math.min(maxByPixels, maxByDimension, NATIVE_DPR * 8, 12))
+}
 
 /**
  * Calculate a safe devicePixelRatio for the PDF canvas that stays within
@@ -93,8 +105,8 @@ function calculateSafeDpr(
 
     const safeDpr = Math.min(desiredDpr, maxByDimension, maxByPixels, absoluteMax)
 
-    // Round to 0.5 increments to reduce unnecessary re-renders
-    return Math.max(1, Math.round(safeDpr * 2) / 2)
+    // Round to 0.25 increments — fine-grained quality without floating-point churn
+    return Math.max(1, Math.round(safeDpr * 4) / 4)
 }
 
 /** Subtle indicator shown while the PDF re-renders at higher resolution */
@@ -110,8 +122,13 @@ function SharpeningIndicator() {
 /**
  * Zoom-aware PDF page renderer.
  * Must be a child of TransformWrapper to access useTransformEffect.
- * Listens to zoom scale changes and re-renders the canvas at higher DPI
- * so pinch-zoomed drawings stay sharp.
+ *
+ * Strategy:
+ * 1. Start with a conservative DPR (2× native) for fast initial render
+ * 2. Once actual page dimensions are known, boost to max safe DPR (fills iOS canvas budget)
+ * 3. On zoom beyond headroom, debounce re-render at higher DPR (150ms)
+ * 4. On zoom-out, reduce DPR to reclaim memory (600ms delay)
+ * 5. Sharpening indicator tied to actual canvas render completion (onRenderSuccess)
  */
 function ZoomAwarePdfPage({
     proxyUrl,
@@ -126,11 +143,13 @@ function ZoomAwarePdfPage({
     onDocumentLoadSuccess: (result: { numPages: number }) => void
     onDocumentLoadError: (err: Error) => void
 }) {
-    const [renderDpr, setRenderDpr] = useState(INITIAL_DPR)
+    const [renderDpr, setRenderDpr] = useState(CONSERVATIVE_DPR)
     const [isSharpening, setIsSharpening] = useState(false)
     const [pageAspectRatio, setPageAspectRatio] = useState(1.414) // A4 default
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const lastRenderDprRef = useRef(INITIAL_DPR)
+    const lastRenderDprRef = useRef(CONSERVATIVE_DPR)
+    const maxSafeDprRef = useRef(CONSERVATIVE_DPR)
+    const hasUpgradedDprRef = useRef(false)
 
     // Cleanup debounce on unmount
     useEffect(() => {
@@ -168,26 +187,42 @@ function ZoomAwarePdfPage({
             debounceRef.current = setTimeout(() => {
                 setRenderDpr(neededDpr)
                 lastRenderDprRef.current = neededDpr
-                setIsSharpening(false)
+                // isSharpening cleared by onRenderSuccess, not here
             }, DEBOUNCE_MS)
             return
         }
 
-        // Zooming OUT below 0.8×: decrease DPR to reclaim memory (longer delay)
-        if (neededDpr < currentDpr && zoomScale <= 0.8) {
+        // Zooming OUT: reduce DPR when needed drops to 70% of current (saves memory)
+        if (neededDpr < currentDpr * 0.7) {
             debounceRef.current = setTimeout(() => {
                 setRenderDpr(neededDpr)
                 lastRenderDprRef.current = neededDpr
-                setIsSharpening(false)
             }, DEBOUNCE_DOWNSCALE_MS)
         }
-        // Zooming out but still above 0.8×: keep current high DPR (it still looks good)
     })
 
-    // Capture page aspect ratio on first render for safe DPR calculation
+    // Capture page aspect ratio and boost to max safe DPR
     const onPageLoadSuccess = useCallback((page: { getViewport: (params: { scale: number }) => { width: number; height: number } }) => {
         const viewport = page.getViewport({ scale: 1 })
-        setPageAspectRatio(viewport.height / viewport.width)
+        const aspectRatio = viewport.height / viewport.width
+        setPageAspectRatio(aspectRatio)
+
+        // Compute and apply maximum safe DPR for this specific page
+        if (!hasUpgradedDprRef.current && containerWidth > 0) {
+            const maxDpr = getMaxSafeDpr(containerWidth, aspectRatio)
+            maxSafeDprRef.current = maxDpr
+            if (maxDpr > lastRenderDprRef.current) {
+                setRenderDpr(maxDpr)
+                lastRenderDprRef.current = maxDpr
+                setIsSharpening(true) // will be cleared by onRenderSuccess
+            }
+            hasUpgradedDprRef.current = true
+        }
+    }, [containerWidth])
+
+    // Clear sharpening indicator when canvas actually finishes rendering
+    const onPageRenderSuccess = useCallback(() => {
+        setIsSharpening(false)
     }, [])
 
     return (
@@ -206,6 +241,7 @@ function ZoomAwarePdfPage({
                     renderAnnotationLayer={false}
                     renderTextLayer={false}
                     onLoadSuccess={onPageLoadSuccess}
+                    onRenderSuccess={onPageRenderSuccess}
                 />
             </Document>
             {isSharpening && <SharpeningIndicator />}
