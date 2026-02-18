@@ -148,6 +148,18 @@ export function AnalysisStatusCard({
               </p>
             )}
 
+            {status === 'pending' && (
+              <p className="text-sm text-zinc-500 mb-2">
+                Greining hefst sjálfkrafa — bíðið augnablik...
+              </p>
+            )}
+
+            {status === 'processing' && (
+              <p className="text-sm text-blue-600 mb-2">
+                AI les teikninguna og dregur út einingar. Þetta getur tekið 30–60 sekúndur.
+              </p>
+            )}
+
             <p className="text-xs text-zinc-400">
               {new Date(analysis.created_at).toLocaleString('is-IS')}
             </p>

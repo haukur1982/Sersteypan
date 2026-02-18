@@ -126,27 +126,39 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
       }
 
       // Step 3: Trigger the AI analysis API for each
-      if (analysisResult.analyses) {
-        for (const analysis of analysisResult.analyses) {
-          // Fire and forget — the status card will poll for updates
-          fetch('/api/ai/analyze-drawing', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              documentId: analysis.documentId,
-              projectId,
-              analysisId: analysis.id,
-            }),
-          }).catch((err) => {
-            console.error('Error triggering analysis:', err)
-          })
-        }
-      }
-
-      // Refresh the page to show the new analysis cards
+      // Refresh immediately so analysis cards appear as "Í biðröð"
       setFiles([])
       setUploadProgress({})
       router.refresh()
+
+      if (analysisResult.analyses) {
+        for (const analysis of analysisResult.analyses) {
+          try {
+            const resp = await fetch('/api/ai/analyze-drawing', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                documentId: analysis.documentId,
+                projectId,
+                analysisId: analysis.id,
+              }),
+            })
+
+            if (!resp.ok) {
+              const errData = await resp.json().catch(() => ({}))
+              const errMsg = errData.error || `Villa ${resp.status}`
+              console.error('Analysis API error:', errMsg)
+              setError(errMsg)
+            }
+          } catch (err) {
+            console.error('Error triggering analysis:', err)
+            setError('Ekki tókst að ræsa AI greiningu. Athugaðu stillingar.')
+          }
+
+          // Refresh after each analysis completes/fails so cards update
+          router.refresh()
+        }
+      }
     } catch (err) {
       console.error('Upload error:', err)
       setError('Óvænt villa kom upp. Reyndu aftur.')
