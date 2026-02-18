@@ -21,6 +21,7 @@ import {
     BarChart3,
     Layers,
     ClipboardList,
+    HelpCircle,
     type LucideIcon
 } from 'lucide-react'
 import Link from 'next/link'
@@ -67,6 +68,7 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Skýrslur', englishName: 'Reports', href: '/admin/reports', icon: BarChart3 },
         { name: 'Stillingar', englishName: 'Settings', href: '/admin/settings/element-types', icon: Settings },
         { name: '3D Lab (Exp)', englishName: '3D Research', href: '/admin/lab/3d', icon: FlaskConical },
+        { name: 'Hjálp', englishName: 'Help', href: '/admin/help', icon: HelpCircle },
     ],
     factory_manager: [
         { name: 'Stjórnborð', englishName: 'Dashboard', href: '/factory', icon: LayoutDashboard },
@@ -82,6 +84,7 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Lager', englishName: 'Stock', href: '/factory/stock', icon: Package },
         { name: 'Viðgerðir', englishName: 'Fix in Factory', href: '/factory/fix-in-factory', icon: Wrench },
         { name: 'Skilaboð', englishName: 'Messages', href: '/factory/messages', icon: MessageSquare },
+        { name: 'Hjálp', englishName: 'Help', href: '/factory/help', icon: HelpCircle },
     ],
     buyer: [
         { name: 'Yfirlit', englishName: 'Dashboard', href: '/buyer', icon: LayoutDashboard },
@@ -89,11 +92,13 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Afhendingar', englishName: 'Deliveries', href: '/buyer/deliveries', icon: Truck },
         { name: 'Skilaboð', englishName: 'Messages', href: '/buyer/messages', icon: MessageSquare },
         { name: 'Prófíll', englishName: 'Profile', href: '/buyer/profile', icon: UserCircle },
+        { name: 'Hjálp', englishName: 'Help', href: '/buyer/help', icon: HelpCircle },
     ],
     driver: [
         { name: 'Stjórnborð', englishName: 'Dashboard', href: '/driver', icon: LayoutDashboard },
         { name: 'Afhendingar', englishName: 'Deliveries', href: '/driver/deliveries', icon: Truck },
         { name: 'Skanna QR', englishName: 'Scan QR', href: '/driver/scan', icon: QrCode },
+        { name: 'Hjálp', englishName: 'Help', href: '/driver/help', icon: HelpCircle },
     ]
 }
 
