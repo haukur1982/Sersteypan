@@ -273,7 +273,7 @@ export function ElementReviewTable({
 
       {/* Elements Table */}
       <div className="border rounded-lg overflow-auto max-h-[600px]">
-        <Table>
+        <Table className="min-w-[1000px]">
           <TableHeader className="bg-zinc-50 sticky top-0 z-10">
             <TableRow>
               {!isCommitted && (
@@ -286,31 +286,31 @@ export function ElementReviewTable({
                   />
                 </TableHead>
               )}
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase min-w-[100px]">
                 Nafn
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase min-w-[80px]">
                 Tegund
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase min-w-[70px]">
                 Bygging
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase w-[50px]">
                 Hæð
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase min-w-[180px]">
                 L × B × H (mm)
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase min-w-[90px]">
                 Þyngd (kg)
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase w-[50px]">
                 Magn
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase min-w-[200px]">
                 Járn
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase w-[70px]">
                 Öryggi
               </TableHead>
             </TableRow>
@@ -513,7 +513,6 @@ export function ElementReviewTable({
                       type="text"
                       disabled={!editable}
                       onSave={saveFn}
-                      className="max-w-[120px]"
                       mono
                     />
                   </TableCell>

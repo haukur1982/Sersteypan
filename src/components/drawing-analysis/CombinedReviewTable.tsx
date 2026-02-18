@@ -253,34 +253,34 @@ export function CombinedReviewTable({
 
       {/* Table */}
       <div className="border rounded-lg overflow-auto max-h-[600px]">
-        <Table>
+        <Table className="min-w-[1000px]">
           <TableHeader className="bg-zinc-50 sticky top-0 z-10">
             <TableRow>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase min-w-[100px]">
                 Teikning
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase min-w-[100px]">
                 Nafn
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase min-w-[80px]">
                 Tegund
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase min-w-[70px]">
                 Bygging
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase w-[50px]">
                 Hæð
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase min-w-[180px]">
                 L × B × H (mm)
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase min-w-[90px]">
                 Þyngd (kg)
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase w-[50px]">
                 Magn
               </TableHead>
-              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase">
+              <TableHead className="py-3 text-xs font-medium text-zinc-500 uppercase w-[70px]">
                 Öryggi
               </TableHead>
             </TableRow>
