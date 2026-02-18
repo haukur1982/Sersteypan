@@ -7,6 +7,7 @@ import { getFloorPlansForProject } from '@/lib/floor-plans/actions'
 import { getProjectMessages } from '@/lib/factory/queries'
 import { getProjectBuildings } from '@/lib/drawing-analysis/queries'
 import { getServerUser } from '@/lib/auth/getServerUser'
+import { createClient } from '@/lib/supabase/server'
 import { DocumentUploadTabs } from '@/components/documents/DocumentUploadTabs'
 import { DocumentListWithFilter } from '@/components/documents/DocumentListWithFilter'
 import { ProjectMessagesClient } from './ProjectMessagesClient'
@@ -78,6 +79,8 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
     const { projectId } = await params
     const user = await getServerUser()
 
+    const supabase = await createClient()
+
     // Fetch all data in parallel
     const [projectResult, elementsResult, documentsResult, floorPlans, messages, buildings] = await Promise.all([
         getProject(projectId),
@@ -95,6 +98,21 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
     const project = projectResult.data
     const elementList = (elementsResult.data ?? []) as ElementRow[]
     const documentList = (documentsResult.data ?? []) as ProjectDocumentWithProfile[]
+
+    // Fetch photo counts per element (separate query to avoid N+1)
+    const elementIds = elementList.map(e => e.id)
+    const photoCountMap: Record<string, number> = {}
+    if (elementIds.length > 0) {
+        const { data: photoCounts } = await supabase
+            .from('element_photos')
+            .select('element_id')
+            .in('element_id', elementIds)
+        if (photoCounts) {
+            for (const row of photoCounts) {
+                photoCountMap[row.element_id] = (photoCountMap[row.element_id] || 0) + 1
+            }
+        }
+    }
 
     return (
         <div className="space-y-8">
@@ -269,6 +287,7 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                                                         elementId={element.id}
                                                         elementName={element.name}
                                                         currentStatus={element.status || 'planned'}
+                                                        photoCount={photoCountMap[element.id] || 0}
                                                     />
                                                     <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-muted-foreground hover:text-blue-600">
                                                         <Link href={`/factory/production/${element.id}`}>

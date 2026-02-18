@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Camera, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { Camera, Loader2, CheckCircle, AlertCircle, ImageIcon, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { updateElementStatus } from '@/lib/elements/actions'
 
@@ -45,19 +45,23 @@ interface QuickPhotoActionProps {
     elementId: string
     elementName: string
     currentStatus: string
+    photoCount?: number
 }
 
-export function QuickPhotoAction({ elementId, elementName, currentStatus }: QuickPhotoActionProps) {
+export function QuickPhotoAction({ elementId, elementName, currentStatus, photoCount = 0 }: QuickPhotoActionProps) {
     const [state, setState] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
     const [errorMsg, setErrorMsg] = useState<string | null>(null)
-    const fileRef = useRef<HTMLInputElement>(null)
+    const [localPhotoCount, setLocalPhotoCount] = useState(photoCount)
+    const cameraRef = useRef<HTMLInputElement>(null)
+    const uploadRef = useRef<HTMLInputElement>(null)
 
     const status = (currentStatus || 'planned') as ElementStatus
     const nextStatus = nextStatusMap[status]
     const isDisabled = !nextStatus // No forward transition (loaded, delivered)
+    const hasPhotos = localPhotoCount > 0
 
-    // The photo stage corresponds to the NEXT status (the status we're advancing to)
-    const photoStage = nextStatus ? stageByStatus[nextStatus] : null
+    // The photo stage corresponds to the CURRENT status (documenting what was just done)
+    const photoStage = stageByStatus[status]
 
     async function handleCapture(e: React.ChangeEvent<HTMLInputElement>) {
         const files = e.target.files
@@ -80,7 +84,8 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus }: Quic
             return
         }
 
-        if (!nextStatus || !photoStage) return
+        const stage = photoStage || (nextStatus ? stageByStatus[nextStatus] : null)
+        if (!stage) return
 
         setState('uploading')
         setErrorMsg(null)
@@ -95,7 +100,7 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus }: Quic
             // Upload photo to storage
             const timestamp = Date.now()
             const ext = file.name.split('.').pop() || 'jpg'
-            const filePath = `${user.id}/${elementId}/${timestamp}_${photoStage}.${ext}`
+            const filePath = `${user.id}/${elementId}/${timestamp}_${stage}.${ext}`
 
             const { error: uploadError } = await supabase.storage
                 .from('element-photos')
@@ -114,7 +119,7 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus }: Quic
             // Create DB record
             const { error: dbError } = await supabase.from('element_photos').insert({
                 element_id: elementId,
-                stage: photoStage,
+                stage: stage,
                 photo_url: publicUrl,
                 taken_by: user.id,
             })
@@ -125,10 +130,16 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus }: Quic
                 throw dbError
             }
 
-            // Advance status
-            const result = await updateElementStatus(elementId, nextStatus)
-            if (result.error) {
-                throw new Error(result.error)
+            // Update local photo count
+            setLocalPhotoCount(prev => prev + 1)
+
+            // Only advance status if there's a next status and we haven't already advanced
+            if (nextStatus) {
+                const result = await updateElementStatus(elementId, nextStatus)
+                if (result.error) {
+                    // Photo was saved successfully, just couldn't advance status — that's OK
+                    console.warn('Status advance failed (photo saved):', result.error)
+                }
             }
 
             setState('success')
@@ -148,32 +159,61 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus }: Quic
         ? errorMsg
         : state === 'success'
         ? 'Sta\u00f0a uppf\u00e6r\u00f0!'
-        : `Taka mynd og f\u00e6ra \u00ed ${statusLabels[nextStatus!]}`
+        : hasPhotos
+        ? `${localPhotoCount} ${localPhotoCount === 1 ? 'mynd' : 'myndir'} \u2014 taka a\u00f0ra`
+        : nextStatus
+        ? `Taka mynd og f\u00e6ra \u00ed ${statusLabels[nextStatus]}`
+        : 'Taka mynd'
 
     if (isDisabled) {
         return (
-            <Button
-                variant="ghost"
-                size="icon"
-                className="h-11 w-11 md:h-8 md:w-8 text-muted-foreground/30 cursor-not-allowed"
-                disabled
-                title={tooltipText}
-            >
-                <Camera className="h-5 w-5 md:h-4 md:w-4" />
-            </Button>
+            <div className="relative inline-flex items-center">
+                {hasPhotos && (
+                    <span className="absolute -top-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white">
+                        {localPhotoCount > 9 ? '9+' : localPhotoCount}
+                    </span>
+                )}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-11 w-11 md:h-8 md:w-8 text-muted-foreground/30 cursor-not-allowed"
+                    disabled
+                    title={tooltipText}
+                >
+                    {hasPhotos ? <ImageIcon className="h-5 w-5 md:h-4 md:w-4" /> : <Camera className="h-5 w-5 md:h-4 md:w-4" />}
+                </Button>
+            </div>
         )
     }
 
     return (
-        <div className="relative inline-flex">
+        <div className="relative inline-flex items-center">
+            {/* Green badge showing photo count */}
+            {hasPhotos && state === 'idle' && (
+                <span className="absolute -top-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white">
+                    {localPhotoCount > 9 ? '9+' : localPhotoCount}
+                </span>
+            )}
+
+            {/* Camera input (mobile — opens rear camera directly) */}
             <input
-                ref={fileRef}
+                ref={cameraRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/heic"
                 capture="environment"
                 onChange={handleCapture}
                 className="hidden"
             />
+
+            {/* File upload input (no capture — opens file picker / gallery) */}
+            <input
+                ref={uploadRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic"
+                onChange={handleCapture}
+                className="hidden"
+            />
+
             <Button
                 variant="ghost"
                 size="icon"
@@ -182,16 +222,28 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus }: Quic
                         ? 'text-green-600 hover:text-green-700 bg-green-50'
                         : state === 'error'
                         ? 'text-red-600 hover:text-red-700 bg-red-50'
+                        : hasPhotos
+                        ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
                         : 'text-muted-foreground hover:text-orange-600 hover:bg-orange-50'
                 }`}
                 disabled={state === 'uploading'}
-                onClick={() => fileRef.current?.click()}
+                onClick={() => {
+                    // On mobile use camera capture, on desktop use file picker
+                    // Simple heuristic: check for touch support
+                    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+                    if (isMobile) {
+                        cameraRef.current?.click()
+                    } else {
+                        uploadRef.current?.click()
+                    }
+                }}
                 title={tooltipText}
             >
                 {state === 'uploading' && <Loader2 className="h-5 w-5 md:h-4 md:w-4 animate-spin" />}
                 {state === 'success' && <CheckCircle className="h-5 w-5 md:h-4 md:w-4" />}
                 {state === 'error' && <AlertCircle className="h-5 w-5 md:h-4 md:w-4" />}
-                {state === 'idle' && <Camera className="h-5 w-5 md:h-4 md:w-4" />}
+                {state === 'idle' && hasPhotos && <RefreshCw className="h-5 w-5 md:h-4 md:w-4" />}
+                {state === 'idle' && !hasPhotos && <Camera className="h-5 w-5 md:h-4 md:w-4" />}
             </Button>
         </div>
     )
