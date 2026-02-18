@@ -11,9 +11,10 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle, Loader2, Calculator } from 'lucide-react'
 import { validateElementCreate, formatZodError } from '@/lib/schemas'
 import { ElementTypeSelect } from '@/components/elements/ElementTypeSelect'
+import { estimateWeight, calculateAreaM2 } from '@/lib/drawing-analysis/weight'
 import type { Database } from '@/types/database'
 
 function FieldError({ message }: { message?: string }) {
@@ -49,6 +50,48 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
     )
     const [selectedElementType, setSelectedElementType] = useState<string>(initialData?.element_type || 'wall')
     const [selectedStatus, setSelectedStatus] = useState<string>(initialData?.status ?? 'planned')
+
+    // Auto weight calculation state
+    const [calculatedWeight, setCalculatedWeight] = useState<number | null>(null)
+    const [calculatedArea, setCalculatedArea] = useState<number | null>(null)
+    const [weightSource, setWeightSource] = useState<'calculated' | 'estimated' | null>(null)
+
+    // Recalculate weight from current dimension inputs
+    function recalculateDerived() {
+        const form = document.getElementById('element-form') as HTMLFormElement | null
+        if (!form) return
+
+        const formData = new FormData(form)
+        const length = parseNumberInput(formData.get('length_mm') as string)
+        const width = parseNumberInput(formData.get('width_mm') as string)
+        const height = parseNumberInput(formData.get('height_mm') as string)
+
+        // Calculate area
+        if (length && width) {
+            setCalculatedArea(calculateAreaM2(length, width))
+        } else {
+            setCalculatedArea(null)
+        }
+
+        // Estimate weight
+        const result = estimateWeight(
+            length ?? null,
+            width ?? null,
+            height ?? null,
+            selectedElementType
+        )
+        if (result) {
+            setCalculatedWeight(result.weightKg)
+            setWeightSource(result.source)
+        } else {
+            setCalculatedWeight(null)
+            setWeightSource(null)
+        }
+    }
+
+    // Recalculate derived fields when element type changes
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    useEffect(recalculateDerived, [selectedElementType])
 
     // Fetch projects on mount
     useEffect(() => {
@@ -109,6 +152,8 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
             height_mm: parseNumberInput(formData.get('height_mm') as string),
             weight_kg: parseNumberInput(formData.get('weight_kg') as string),
             drawing_reference: formData.get('drawing_reference') as string || undefined,
+            batch_number: formData.get('batch_number') as string || undefined,
+            rebar_spec: formData.get('rebar_spec') as string || undefined,
             production_notes: formData.get('production_notes') as string || undefined,
         }
     }
@@ -297,6 +342,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     defaultValue={initialData?.length_mm ?? ''}
                                     disabled={loading}
                                     onBlur={(e) => validateField('length_mm', parseNumberInput(e.target.value))}
+                                    onInput={() => recalculateDerived()}
                                     className={`border-zinc-300 ${fieldErrors.length_mm ? 'border-red-500' : ''}`}
                                 />
                                 <FieldError message={fieldErrors.length_mm} />
@@ -313,6 +359,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     defaultValue={initialData?.width_mm ?? ''}
                                     disabled={loading}
                                     onBlur={(e) => validateField('width_mm', parseNumberInput(e.target.value))}
+                                    onInput={() => recalculateDerived()}
                                     className={`border-zinc-300 ${fieldErrors.width_mm ? 'border-red-500' : ''}`}
                                 />
                                 <FieldError message={fieldErrors.width_mm} />
@@ -329,6 +376,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     defaultValue={initialData?.height_mm ?? ''}
                                     disabled={loading}
                                     onBlur={(e) => validateField('height_mm', parseNumberInput(e.target.value))}
+                                    onInput={() => recalculateDerived()}
                                     className={`border-zinc-300 ${fieldErrors.height_mm ? 'border-red-500' : ''}`}
                                 />
                                 <FieldError message={fieldErrors.height_mm} />
@@ -351,6 +399,56 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                 <FieldError message={fieldErrors.weight_kg} />
                             </div>
                         </div>
+
+                        {/* Auto-calculated weight info */}
+                        {(calculatedWeight || calculatedArea) && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                                <div className="flex items-start gap-2">
+                                    <Calculator className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1">
+                                        <p className="text-sm text-blue-900 font-medium">Sjálfvirk útreikningur</p>
+                                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                                            {calculatedArea && (
+                                                <p className="text-sm text-blue-800">
+                                                    Flatarmál: <span className="font-mono font-medium">{calculatedArea} m²</span>
+                                                </p>
+                                            )}
+                                            {calculatedWeight && (
+                                                <p className="text-sm text-blue-800">
+                                                    Þyngd: <span className="font-mono font-medium">{calculatedWeight.toLocaleString('is-IS')} kg</span>
+                                                    {weightSource === 'estimated' && (
+                                                        <span className="text-blue-600 text-xs ml-1">(áætluð — sjálfgefin þykkt)</span>
+                                                    )}
+                                                </p>
+                                            )}
+                                        </div>
+                                        {calculatedWeight && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="mt-2 h-7 text-xs bg-white border-blue-300 text-blue-700 hover:bg-blue-100"
+                                                onClick={() => {
+                                                    const weightInput = document.getElementById('weight_kg') as HTMLInputElement | null
+                                                    if (weightInput) {
+                                                        // Use native setter to properly trigger React
+                                                        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                                                            window.HTMLInputElement.prototype, 'value'
+                                                        )?.set
+                                                        nativeInputValueSetter?.call(weightInput, String(calculatedWeight))
+                                                        weightInput.dispatchEvent(new Event('input', { bubbles: true }))
+                                                        weightInput.dispatchEvent(new Event('change', { bubbles: true }))
+                                                    }
+                                                }}
+                                            >
+                                                <Calculator className="h-3 w-3 mr-1" />
+                                                Nota reiknuð þyngd
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Production Section */}
@@ -394,6 +492,36 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                 />
                                 <p className="text-xs text-zinc-500">Hærri tala = meiri forgangur (0-999)</p>
                                 <FieldError message={fieldErrors.priority} />
+                            </div>
+
+                            {/* Rebar Spec */}
+                            <div className="space-y-2 md:col-span-2">
+                                <Label htmlFor="rebar_spec">Járnauppsetning (Rebar Spec)</Label>
+                                <Input
+                                    id="rebar_spec"
+                                    name="rebar_spec"
+                                    placeholder="t.d. K10 c/c 200 + K12 c/c 300"
+                                    defaultValue={initialData?.rebar_spec ?? ''}
+                                    disabled={loading}
+                                    maxLength={500}
+                                    className="border-zinc-300 font-mono text-sm"
+                                />
+                                <p className="text-xs text-zinc-500">Járnabinding úr teikningu, t.d. K10 c/c 200</p>
+                            </div>
+
+                            {/* Batch Number */}
+                            <div className="space-y-2">
+                                <Label htmlFor="batch_number">Lotunúmer (Batch Number)</Label>
+                                <Input
+                                    id="batch_number"
+                                    name="batch_number"
+                                    placeholder="t.d. LOTA-2026-001"
+                                    defaultValue={initialData?.batch_number ?? ''}
+                                    disabled={loading}
+                                    maxLength={50}
+                                    className="border-zinc-300 font-mono text-sm"
+                                />
+                                <p className="text-xs text-zinc-500">Sjálfvirkt frá steypulotu ef einingin er í lotu</p>
                             </div>
 
                             {/* Production Notes */}

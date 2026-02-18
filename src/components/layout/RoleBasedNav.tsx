@@ -19,6 +19,8 @@ import {
     CalendarDays,
     FileText,
     BarChart3,
+    Layers,
+    ClipboardList,
     type LucideIcon
 } from 'lucide-react'
 import Link from 'next/link'
@@ -68,7 +70,9 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
     ],
     factory_manager: [
         { name: 'Stjórnborð', englishName: 'Dashboard', href: '/factory', icon: LayoutDashboard },
+        { name: 'Framleiðslustjórn', englishName: 'Manage Production', href: '/factory/manage', icon: ClipboardList },
         { name: 'Framleiðsla', englishName: 'Production', href: '/factory/production', icon: Factory },
+        { name: 'Steypulotur', englishName: 'Batches', href: '/factory/batches', icon: Layers },
         { name: 'Áætlun', englishName: 'Schedule', href: '/factory/schedule', icon: CalendarDays },
         { name: 'Afhendingar', englishName: 'Deliveries', href: '/factory/deliveries', icon: Truck },
         { name: 'Teikningar', englishName: 'Drawings', href: '/factory/drawings', icon: FileText },

@@ -1,7 +1,12 @@
 import { getFixRequests } from '@/lib/factory/fix-factory-actions'
 import { FixInFactoryList } from '@/components/factory/FixInFactoryList'
 
-export default async function FixInFactoryPage() {
+export default async function FixInFactoryPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ element?: string; project?: string }>
+}) {
+    const params = await searchParams
     const requests = await getFixRequests()
 
     return (
@@ -11,7 +16,11 @@ export default async function FixInFactoryPage() {
                     <p className="text-muted-foreground">Track items that need repair or rework</p>
                 </div>
 
-                <FixInFactoryList requests={requests} />
+                <FixInFactoryList
+                    requests={requests}
+                    elementId={params.element}
+                    projectId={params.project}
+                />
         </div>
     )
 }

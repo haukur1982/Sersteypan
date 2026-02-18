@@ -72,6 +72,7 @@ export const elementCreateSchema = z.object({
   height_mm: dimensionSchema.describe('Hæð (mm)'),
   weight_kg: weightSchema.describe('Þyngd (kg)'),
   drawing_reference: optionalStringSchema(200).describe('Teikningarnúmer'),
+  rebar_spec: optionalStringSchema(500).describe('Járnauppsetning'),
   batch_number: optionalStringSchema(100).describe('Lotu númer'),
   production_notes: optionalStringSchema(2000).describe('Framleiðsluathugasemdir'),
   qr_code: optionalStringSchema(500).describe('QR kóði')
@@ -91,6 +92,7 @@ export const elementUpdateSchema = z.object({
   height_mm: dimensionSchema,
   weight_kg: weightSchema,
   drawing_reference: optionalStringSchema(200),
+  rebar_spec: optionalStringSchema(500),
   batch_number: optionalStringSchema(100),
   production_notes: optionalStringSchema(2000),
   qr_code: optionalStringSchema(500)

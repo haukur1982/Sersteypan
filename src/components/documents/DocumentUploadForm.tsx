@@ -13,16 +13,28 @@ interface ElementOption {
   name: string
 }
 
+interface BuildingOption {
+  id: string
+  name: string
+  floors: number | null
+}
+
 interface DocumentUploadFormProps {
   projectId: string
   elements?: ElementOption[]
   defaultElementId?: string
+  buildings?: BuildingOption[]
 }
 
-export function DocumentUploadForm({ projectId, elements, defaultElementId }: DocumentUploadFormProps) {
+export function DocumentUploadForm({ projectId, elements, defaultElementId, buildings }: DocumentUploadFormProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [selectedBuilding, setSelectedBuilding] = useState('')
+
+  // Generate floor options based on selected building
+  const selectedBuildingData = buildings?.find(b => b.id === selectedBuilding)
+  const maxFloors = selectedBuildingData?.floors || 0
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -43,6 +55,7 @@ export function DocumentUploadForm({ projectId, elements, defaultElementId }: Do
         setSuccess(result.message || 'Document uploaded successfully')
         // Reset form safely
         form.reset()
+        setSelectedBuilding('')
         // Refresh page after a short delay
         setTimeout(() => {
           window.location.reload()
@@ -85,6 +98,41 @@ export function DocumentUploadForm({ projectId, elements, defaultElementId }: Do
           <option value="other">Annað</option>
         </select>
       </div>
+
+      {/* Building selector */}
+      {buildings && buildings.length > 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="building_id">Bygging</Label>
+            <select
+              id="building_id"
+              name="building_id"
+              value={selectedBuilding}
+              onChange={(e) => setSelectedBuilding(e.target.value)}
+              disabled={isUploading}
+              className="w-full px-3 py-2 border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">— Engin bygging</option>
+              {buildings.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="floor">Hæð</Label>
+            <Input
+              id="floor"
+              name="floor"
+              type="number"
+              min="0"
+              max={maxFloors || 99}
+              placeholder="t.d. 3"
+              disabled={isUploading || !selectedBuilding}
+              className="border-zinc-300"
+            />
+          </div>
+        </div>
+      )}
 
       {elements && elements.length > 0 && (
         <div className="space-y-2">

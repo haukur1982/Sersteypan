@@ -15,6 +15,10 @@ export type FixRequestRecord = {
     category: FixCategory | string | null
     delivery_impact: boolean | null
     resolution_notes: string | null
+    root_cause: string | null
+    corrective_action: string | null
+    lessons_learned: string | null
+    photos: unknown[]
     completed_at: string | null
     created_at: string | null
     updated_at: string | null
@@ -31,6 +35,7 @@ interface CreateFixRequestData {
     priority?: FixPriority
     category?: FixCategory
     delivery_impact?: boolean
+    root_cause?: string
 }
 
 /**
@@ -51,6 +56,7 @@ export async function createFixRequest(data: CreateFixRequestData) {
             priority: data.priority || 'normal',
             category: data.category || 'other',
             delivery_impact: data.delivery_impact || false,
+            root_cause: data.root_cause || null,
             reported_by: user.id,
         })
 
@@ -70,7 +76,9 @@ export async function createFixRequest(data: CreateFixRequestData) {
 export async function updateFixStatus(
     requestId: string,
     status: FixStatus,
-    resolutionNotes?: string
+    resolutionNotes?: string,
+    correctiveAction?: string,
+    lessonsLearned?: string
 ) {
     const supabase = await createClient()
 
@@ -92,6 +100,12 @@ export async function updateFixStatus(
         if (resolutionNotes) {
             updateData.resolution_notes = resolutionNotes
         }
+        if (correctiveAction) {
+            updateData.corrective_action = correctiveAction
+        }
+        if (lessonsLearned) {
+            updateData.lessons_learned = lessonsLearned
+        }
     }
 
     const { error } = await supabase
@@ -106,6 +120,36 @@ export async function updateFixStatus(
 
     revalidatePath('/factory/fix-in-factory')
     revalidatePath('/factory')
+    return { success: true }
+}
+
+/**
+ * Update photos on a fix request.
+ * Photos are stored in the element-photos bucket under defects/{requestId}/
+ */
+export async function updateDefectPhotos(
+    requestId: string,
+    photos: Array<{ url: string; name: string; uploaded_at: string }>
+) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { error } = await supabase
+        .from('fix_in_factory')
+        .update({
+            photos: JSON.parse(JSON.stringify(photos)),
+            updated_at: new Date().toISOString(),
+        })
+        .eq('id', requestId)
+
+    if (error) {
+        console.error('Error updating defect photos:', error)
+        return { error: error.message }
+    }
+
+    revalidatePath('/factory/fix-in-factory')
     return { success: true }
 }
 
@@ -125,6 +169,10 @@ export async function getFixRequests(statusFilter?: FixStatus): Promise<FixReque
             category,
             delivery_impact,
             resolution_notes,
+            root_cause,
+            corrective_action,
+            lessons_learned,
+            photos,
             completed_at,
             created_at,
             updated_at,

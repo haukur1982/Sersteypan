@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { getProject } from '@/lib/projects/actions'
 import { getElementsForProject } from '@/lib/elements/actions'
 import { getProjectDocuments } from '@/lib/documents/actions'
+import { getProjectBuildings } from '@/lib/drawing-analysis/queries'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -24,9 +25,10 @@ import {
     Minus,
     CircleDot,
     HelpCircle,
-    Map
+    Map,
+    Sparkles,
 } from 'lucide-react'
-import { DocumentUploadForm } from '@/components/documents/DocumentUploadForm'
+import { DocumentUploadTabs } from '@/components/documents/DocumentUploadTabs'
 import { DocumentListWithFilter } from '@/components/documents/DocumentListWithFilter'
 import { ProjectActionButtons } from '@/components/admin/ProjectActionButtons'
 import type { Database } from '@/types/database'
@@ -80,8 +82,12 @@ export default async function ProjectPage({
     const elementList = (elements ?? []) as ElementRow[]
     const elementIds = elementList.map((el) => el.id)
 
-    // Fetch documents for this project
-    const { data: documents, error: documentsError } = await getProjectDocuments(projectId)
+    // Fetch documents and buildings for this project
+    const [documentsResult, buildings] = await Promise.all([
+        getProjectDocuments(projectId),
+        getProjectBuildings(projectId),
+    ])
+    const { data: documents, error: documentsError } = documentsResult
     const documentList = (documents ?? []) as ProjectDocumentWithProfile[]
 
     return (
@@ -146,12 +152,20 @@ export default async function ProjectPage({
                     <h2 className="text-xl font-semibold text-zinc-900">
                         Einingar ({elementList.length}) (Elements)
                     </h2>
-                    <Button asChild className="bg-blue-600 hover:bg-blue-700">
-                        <Link href={`/admin/projects/${projectId}/elements/new`}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Ný eining
-                        </Link>
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button asChild className="bg-purple-600 hover:bg-purple-700">
+                            <Link href={`/admin/projects/${projectId}/analyze-drawings`}>
+                                <Sparkles className="mr-2 h-4 w-4" />
+                                Greina teikningar
+                            </Link>
+                        </Button>
+                        <Button asChild className="bg-blue-600 hover:bg-blue-700">
+                            <Link href={`/admin/projects/${projectId}/elements/new`}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Ný eining
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Error State for Elements */}
@@ -263,10 +277,10 @@ export default async function ProjectPage({
                     {/* Upload Form */}
                     <Card className="border-zinc-200">
                         <CardContent className="pt-6">
-                            <h3 className="font-semibold text-zinc-900 mb-4">Hlaða upp skjali</h3>
-                            <DocumentUploadForm
+                            <DocumentUploadTabs
                                 projectId={projectId}
                                 elements={elementList.map(e => ({ id: e.id, name: e.name }))}
+                                buildings={buildings}
                             />
                         </CardContent>
                     </Card>

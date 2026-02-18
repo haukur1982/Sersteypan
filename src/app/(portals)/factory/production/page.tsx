@@ -13,7 +13,7 @@ import {
     Timer,
     CheckCircle,
     Truck,
-    ArrowLeft
+    ArrowLeft,
 } from 'lucide-react'
 
 const statusConfig = {
@@ -78,13 +78,21 @@ export default async function ProductionQueuePage({ searchParams }: ProductionQu
                         )}
                     </div>
                 </div>
-                {validStatus && (
+                <div className="flex items-center gap-2">
                     <Button variant="outline" asChild>
-                        <Link href="/factory/production">
-                            Sjá allt
+                        <Link href="/factory/batches">
+                            <Layers className="w-4 h-4 mr-2" />
+                            Steypulotur
                         </Link>
                     </Button>
-                )}
+                    {validStatus && (
+                        <Button variant="outline" asChild>
+                            <Link href="/factory/production">
+                                Sjá allt
+                            </Link>
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {!validStatus && (

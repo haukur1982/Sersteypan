@@ -19,6 +19,7 @@ type ProductionElement = Pick<
   'id' | 'name' | 'element_type' | 'status' | 'priority' | 'floor' | 'created_at'
 > & {
   projects?: (Pick<ProjectRow, 'id' | 'name'> & { companies?: Pick<CompanyRow, 'name'> | null }) | null
+  production_batches?: { id: string; batch_number: string } | null
 }
 
 /**
@@ -95,6 +96,10 @@ export async function getProductionQueuePaginated(
         companies (
           name
         )
+      ),
+      production_batches!elements_batch_id_fkey (
+        id,
+        batch_number
       )
     `
     )

@@ -32,6 +32,10 @@ export async function getProjectDocuments(projectId: string) {
       *,
       profiles (
         full_name
+      ),
+      building:buildings (
+        id,
+        name
       )
     `)
     .eq('project_id', projectId)
@@ -97,6 +101,9 @@ export async function uploadDocument(projectId: string, formData: FormData) {
   const description = formData.get('description') as string
   const category = (formData.get('category') as string) || 'other'
   const elementId = (formData.get('element_id') as string) || null
+  const buildingId = (formData.get('building_id') as string) || null
+  const floorStr = formData.get('floor') as string
+  const floor = floorStr ? parseInt(floorStr, 10) : null
 
   if (!file) {
     return { error: 'No file provided' }
@@ -152,7 +159,7 @@ export async function uploadDocument(projectId: string, formData: FormData) {
   else if (file.type.includes('word') || file.type.includes('document')) fileType = 'word'
 
   // Create document record
-  const { error: dbError } = await supabase
+  const { data: docRecord, error: dbError } = await supabase
     .from('project_documents')
     .insert({
       project_id: projectId,
@@ -164,7 +171,11 @@ export async function uploadDocument(projectId: string, formData: FormData) {
       uploaded_by: user.id,
       category,
       element_id: elementId,
+      building_id: buildingId,
+      floor: floor,
     })
+    .select('id')
+    .single()
 
   if (dbError) {
     console.error('Error creating document record:', dbError)
@@ -177,7 +188,7 @@ export async function uploadDocument(projectId: string, formData: FormData) {
   revalidatePath(`/admin/projects/${projectId}`)
   revalidatePath(`/factory/projects/${projectId}`)
 
-  return { success: true, message: 'Document uploaded successfully' }
+  return { success: true, message: 'Document uploaded successfully', documentId: docRecord?.id }
 }
 
 // Delete document

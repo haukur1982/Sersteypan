@@ -5,8 +5,9 @@ import { getElementsForProject } from '@/lib/elements/actions'
 import { getProjectDocuments } from '@/lib/documents/actions'
 import { getFloorPlansForProject } from '@/lib/floor-plans/actions'
 import { getProjectMessages } from '@/lib/factory/queries'
+import { getProjectBuildings } from '@/lib/drawing-analysis/queries'
 import { getServerUser } from '@/lib/auth/getServerUser'
-import { DocumentUploadForm } from '@/components/documents/DocumentUploadForm'
+import { DocumentUploadTabs } from '@/components/documents/DocumentUploadTabs'
 import { DocumentListWithFilter } from '@/components/documents/DocumentListWithFilter'
 import { ProjectMessagesClient } from './ProjectMessagesClient'
 import { Button } from '@/components/ui/button'
@@ -33,6 +34,7 @@ import {
     Map,
     MessageSquare,
 } from 'lucide-react'
+import { BatchCreateDialog } from '@/components/factory/BatchCreateDialog'
 import type { Database } from '@/types/database'
 
 type ElementRow = Database['public']['Tables']['elements']['Row']
@@ -76,12 +78,13 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
     const user = await getServerUser()
 
     // Fetch all data in parallel
-    const [projectResult, elementsResult, documentsResult, floorPlans, messages] = await Promise.all([
+    const [projectResult, elementsResult, documentsResult, floorPlans, messages, buildings] = await Promise.all([
         getProject(projectId),
         getElementsForProject(projectId),
         getProjectDocuments(projectId),
         getFloorPlansForProject(projectId).catch(() => []),
         getProjectMessages(projectId).catch(() => []),
+        getProjectBuildings(projectId),
     ])
 
     if (projectResult.error || !projectResult.data) {
@@ -151,6 +154,7 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                     <h2 className="text-xl font-semibold text-foreground">
                         Einingar ({elementList.length})
                     </h2>
+                    <BatchCreateDialog projectId={projectId} />
                 </div>
 
                 {elementsResult.error && (
@@ -237,10 +241,10 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                     {/* Upload Form */}
                     <Card className="border-border">
                         <CardContent className="pt-6">
-                            <h3 className="font-semibold text-foreground mb-4">Hlaða upp skjali</h3>
-                            <DocumentUploadForm
+                            <DocumentUploadTabs
                                 projectId={projectId}
                                 elements={elementList.map(e => ({ id: e.id, name: e.name }))}
+                                buildings={buildings}
                             />
                         </CardContent>
                     </Card>

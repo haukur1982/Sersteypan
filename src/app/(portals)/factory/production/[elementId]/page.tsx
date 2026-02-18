@@ -23,6 +23,9 @@ import { ElementStatusUpdateForm } from '@/components/factory/ElementStatusUpdat
 import { PhotoGallery } from '@/components/shared/PhotoGallery'
 import { ElementTimeline } from '@/components/shared/ElementTimeline'
 import { ElementDrawings } from '@/components/factory/ElementDrawings'
+import { BatchDetailCard } from '@/components/factory/BatchDetailCard'
+import { TraceabilityTimeline } from '@/components/factory/TraceabilityTimeline'
+import { getBatchForElement } from '@/lib/factory/batch-actions'
 import type { ElementPhoto } from '@/components/buyer/project/types'
 import type { Database } from '@/types/database'
 
@@ -47,6 +50,8 @@ type ElementDetail = Pick<
     | 'weight_kg'
     | 'drawing_reference'
     | 'batch_number'
+    | 'batch_id'
+    | 'rebar_spec'
     | 'production_notes'
     | 'created_at'
     | 'updated_at'
@@ -79,7 +84,9 @@ const typeConfig = {
     wall: { label: 'Veggur' },
     filigran: { label: 'Filigran' },
     staircase: { label: 'Stigi' },
+    stair: { label: 'Stigi' },
     balcony: { label: 'Svalir' },
+    svalagangur: { label: 'Svalagangur' },
     ceiling: { label: 'Þak' },
     column: { label: 'Súla' },
     beam: { label: 'Bita' },
@@ -113,6 +120,8 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
             weight_kg,
             drawing_reference,
             batch_number,
+            batch_id,
+            rebar_spec,
             production_notes,
             created_at,
             updated_at,
@@ -158,9 +167,9 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
         .limit(10)
     const historyList = (history ?? []) as ElementEvent[]
 
-    // Fetch element photos, fix-in-factory requests, document count, and element drawings in parallel
+    // Fetch element photos, fix-in-factory requests, document count, element drawings, and batch in parallel
     const projectId = elementDetail.projects?.id || ''
-    const [photosResult, fixRequestsResult, documentsCountResult, drawingsResult] = await Promise.all([
+    const [photosResult, fixRequestsResult, documentsCountResult, drawingsResult, batchResult] = await Promise.all([
         supabase
             .from('element_photos')
             .select(`
@@ -188,11 +197,14 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
             .or(`element_id.eq.${elementId},and(category.eq.drawing,element_id.is.null)`)
             .order('created_at', { ascending: false })
             .limit(20),
+        // Fetch batch data for this element
+        getBatchForElement(elementId),
     ])
     const photoList = (photosResult.data ?? []) as ElementPhoto[]
     const fixRequests = fixRequestsResult.data ?? []
     const projectDocCount = documentsCountResult.count ?? 0
     const drawings = drawingsResult.data ?? []
+    const batch = batchResult.data
 
     const statusInfo = statusConfig[elementDetail.status as keyof typeof statusConfig] || statusConfig.planned
     const typeInfo = typeConfig[elementDetail.element_type as keyof typeof typeConfig] || typeConfig.other
@@ -304,6 +316,13 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                                     </div>
                                 )}
 
+                                {elementDetail.rebar_spec && (
+                                    <div>
+                                        <p className="text-sm font-medium text-zinc-500">Járnauppsetning</p>
+                                        <p className="mt-1 text-zinc-900 font-mono text-sm">{elementDetail.rebar_spec}</p>
+                                    </div>
+                                )}
+
                                 {(elementDetail.length_mm || elementDetail.width_mm || elementDetail.height_mm || elementDetail.weight_kg) && (
                                     <div className="pt-4 border-t border-zinc-200">
                                         <p className="text-sm font-medium text-zinc-500 mb-3">Mál og þyngd</p>
@@ -366,6 +385,26 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                             </CardContent>
                         </Card>
 
+                        {/* Traceability Timeline */}
+                        <TraceabilityTimeline
+                            element={elementDetail}
+                            batch={batch ? {
+                                id: batch.id,
+                                batch_number: batch.batch_number,
+                                batch_date: batch.batch_date,
+                                concrete_grade: batch.concrete_grade,
+                                concrete_slip_url: batch.concrete_slip_url,
+                                checklist: batch.checklist,
+                            } : null}
+                            fixRequests={fixRequests.map(f => ({
+                                id: f.id,
+                                status: f.status || 'pending',
+                                issue_description: f.issue_description,
+                                created_at: f.created_at,
+                            }))}
+                            photoCount={photoList.length}
+                        />
+
                         {/* Photo Gallery */}
                         <Card className="border-zinc-200">
                             <CardHeader>
@@ -413,6 +452,15 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {/* Batch Info */}
+                        {batch && (
+                            <BatchDetailCard
+                                batch={batch}
+                                showElements
+                                currentElementId={elementId}
+                            />
+                        )}
 
                         {/* Drawings */}
                         <Card className={drawings.length > 0 ? 'border-blue-200 bg-blue-50/20' : 'border-zinc-200'}>

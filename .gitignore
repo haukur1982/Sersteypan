@@ -48,3 +48,7 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /3D TRAINING/
+
+# E2E workflow test cache (AI results)
+scripts/.e2e-cache/
+scripts/e2e-report-*.json

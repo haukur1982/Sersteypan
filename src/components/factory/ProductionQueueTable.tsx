@@ -72,6 +72,10 @@ interface ProductionElement {
         name: string
         companies?: { name: string } | null
     } | null
+    production_batches?: {
+        id: string
+        batch_number: string
+    } | null
 }
 
 interface ProductionQueueTableProps {
@@ -173,6 +177,9 @@ export function ProductionQueueTable({ elements }: ProductionQueueTableProps) {
                             Verkefni
                         </TableHead>
                         <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider">
+                            Lota
+                        </TableHead>
+                        <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider">
                             Tegund
                         </TableHead>
                         <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider">
@@ -226,6 +233,18 @@ export function ProductionQueueTable({ elements }: ProductionQueueTableProps) {
                                         </div>
                                     </TableCell>
                                     <TableCell className="py-4">
+                                        {element.production_batches ? (
+                                            <Link
+                                                href={`/factory/batches/${element.production_batches.id}`}
+                                                className="text-sm font-mono text-blue-600 hover:underline"
+                                            >
+                                                {element.production_batches.batch_number}
+                                            </Link>
+                                        ) : (
+                                            <span className="text-zinc-400 text-sm">—</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="py-4">
                                         <Badge variant="secondary" className="text-xs font-normal">
                                             {typeInfo.label}
                                         </Badge>
@@ -251,7 +270,7 @@ export function ProductionQueueTable({ elements }: ProductionQueueTableProps) {
                         })
                     ) : (
                         <TableRow>
-                            <TableCell colSpan={8} className="h-32 text-center text-zinc-500">
+                            <TableCell colSpan={9} className="h-32 text-center text-zinc-500">
                                 Engar einingar fundust
                             </TableCell>
                         </TableRow>

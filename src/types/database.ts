@@ -41,6 +41,101 @@ export type Database = {
         }
         Relationships: []
       }
+      drawing_analyses: {
+        Row: {
+          id: string
+          project_id: string
+          document_id: string | null
+          status: string
+          document_name: string
+          page_count: number | null
+          pages_analyzed: number | null
+          extracted_elements: Json
+          ai_summary: string | null
+          ai_model: string | null
+          ai_confidence_notes: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          review_notes: string | null
+          elements_created: number | null
+          error_message: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          document_id?: string | null
+          status?: string
+          document_name: string
+          page_count?: number | null
+          pages_analyzed?: number | null
+          extracted_elements?: Json
+          ai_summary?: string | null
+          ai_model?: string | null
+          ai_confidence_notes?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          review_notes?: string | null
+          elements_created?: number | null
+          error_message?: string | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          document_id?: string | null
+          status?: string
+          document_name?: string
+          page_count?: number | null
+          pages_analyzed?: number | null
+          extracted_elements?: Json
+          ai_summary?: string | null
+          ai_model?: string | null
+          ai_confidence_notes?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          review_notes?: string | null
+          elements_created?: number | null
+          error_message?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drawing_analyses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drawing_analyses_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "project_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drawing_analyses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drawing_analyses_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -530,6 +625,7 @@ export type Database = {
       }
       elements: {
         Row: {
+          batch_id: string | null
           batch_number: string | null
           building_id: string | null
           cast_at: string | null
@@ -553,12 +649,14 @@ export type Database = {
           qr_code_url: string | null
           ready_at: string | null
           rebar_completed_at: string | null
+          rebar_spec: string | null
           status: string | null
           updated_at: string | null
           weight_kg: number | null
           width_mm: number | null
         }
         Insert: {
+          batch_id?: string | null
           batch_number?: string | null
           building_id?: string | null
           cast_at?: string | null
@@ -582,12 +680,14 @@ export type Database = {
           qr_code_url?: string | null
           ready_at?: string | null
           rebar_completed_at?: string | null
+          rebar_spec?: string | null
           status?: string | null
           updated_at?: string | null
           weight_kg?: number | null
           width_mm?: number | null
         }
         Update: {
+          batch_id?: string | null
           batch_number?: string | null
           building_id?: string | null
           cast_at?: string | null
@@ -611,6 +711,7 @@ export type Database = {
           qr_code_url?: string | null
           ready_at?: string | null
           rebar_completed_at?: string | null
+          rebar_spec?: string | null
           status?: string | null
           updated_at?: string | null
           weight_kg?: number | null
@@ -636,6 +737,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "elements_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "production_batches"
             referencedColumns: ["id"]
           },
         ]
@@ -704,16 +812,20 @@ export type Database = {
           assigned_to: string | null
           category: string | null
           completed_at: string | null
+          corrective_action: string | null
           created_at: string | null
           delivery_impact: boolean | null
           element_id: string | null
           id: string
           issue_description: string
+          lessons_learned: string | null
+          photos: Json
           priority: string | null
           project_id: string | null
           reported_by: string | null
           resolution_notes: string | null
           resolved_by: string | null
+          root_cause: string | null
           status: string | null
           updated_at: string | null
         }
@@ -721,16 +833,20 @@ export type Database = {
           assigned_to?: string | null
           category?: string | null
           completed_at?: string | null
+          corrective_action?: string | null
           created_at?: string | null
           delivery_impact?: boolean | null
           element_id?: string | null
           id?: string
           issue_description: string
+          lessons_learned?: string | null
+          photos?: Json
           priority?: string | null
           project_id?: string | null
           reported_by?: string | null
           resolution_notes?: string | null
           resolved_by?: string | null
+          root_cause?: string | null
           status?: string | null
           updated_at?: string | null
         }
@@ -738,16 +854,20 @@ export type Database = {
           assigned_to?: string | null
           category?: string | null
           completed_at?: string | null
+          corrective_action?: string | null
           created_at?: string | null
           delivery_impact?: boolean | null
           element_id?: string | null
           id?: string
           issue_description?: string
+          lessons_learned?: string | null
+          photos?: Json
           priority?: string | null
           project_id?: string | null
           reported_by?: string | null
           resolution_notes?: string | null
           resolved_by?: string | null
+          root_cause?: string | null
           status?: string | null
           updated_at?: string | null
         }
@@ -1057,8 +1177,91 @@ export type Database = {
           },
         ]
       }
+      production_batches: {
+        Row: {
+          id: string
+          project_id: string
+          batch_number: string
+          batch_date: string
+          status: string
+          concrete_slip_url: string | null
+          concrete_slip_name: string | null
+          concrete_supplier: string | null
+          concrete_grade: string | null
+          checklist: Json
+          notes: string | null
+          air_temperature_c: number | null
+          created_by: string
+          completed_by: string | null
+          completed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          batch_number: string
+          batch_date?: string
+          status?: string
+          concrete_slip_url?: string | null
+          concrete_slip_name?: string | null
+          concrete_supplier?: string | null
+          concrete_grade?: string | null
+          checklist?: Json
+          notes?: string | null
+          air_temperature_c?: number | null
+          created_by: string
+          completed_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          batch_number?: string
+          batch_date?: string
+          status?: string
+          concrete_slip_url?: string | null
+          concrete_slip_name?: string | null
+          concrete_supplier?: string | null
+          concrete_grade?: string | null
+          checklist?: Json
+          notes?: string | null
+          air_temperature_c?: number | null
+          created_by?: string
+          completed_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_batches_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_batches_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_documents: {
         Row: {
+          building_id: string | null
           category: string
           created_at: string | null
           description: string | null
@@ -1066,12 +1269,14 @@ export type Database = {
           file_size_bytes: number | null
           file_type: string | null
           file_url: string
+          floor: number | null
           id: string
           name: string
           project_id: string
           uploaded_by: string | null
         }
         Insert: {
+          building_id?: string | null
           category?: string
           created_at?: string | null
           description?: string | null
@@ -1079,12 +1284,14 @@ export type Database = {
           file_size_bytes?: number | null
           file_type?: string | null
           file_url: string
+          floor?: number | null
           id?: string
           name: string
           project_id: string
           uploaded_by?: string | null
         }
         Update: {
+          building_id?: string | null
           category?: string
           created_at?: string | null
           description?: string | null
@@ -1092,12 +1299,20 @@ export type Database = {
           file_size_bytes?: number | null
           file_type?: string | null
           file_url?: string
+          floor?: number | null
           id?: string
           name?: string
           project_id?: string
           uploaded_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "project_documents_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_documents_element_id_fkey"
             columns: ["element_id"]
@@ -1530,6 +1745,29 @@ export type Database = {
       is_element_for_driver: {
         Args: { driver_id: string; element_id: string }
         Returns: boolean
+      }
+      generate_batch_number: {
+        Args: Record<string, never>
+        Returns: string
+      }
+      create_batch_with_elements: {
+        Args: {
+          p_project_id: string
+          p_element_ids: string[]
+          p_created_by: string
+          p_concrete_supplier?: string
+          p_concrete_grade?: string
+          p_notes?: string
+          p_air_temperature_c?: number
+        }
+        Returns: Json
+      }
+      complete_batch: {
+        Args: {
+          p_batch_id: string
+          p_completed_by: string
+        }
+        Returns: Json
       }
       is_project_for_driver: {
         Args: { driver_id: string; project_id: string }

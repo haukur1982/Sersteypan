@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, Download, Trash2, Loader2, Check, X } from 'lucide-react'
+import { Eye, Download, Trash2, Loader2, Check, X, Building2 } from 'lucide-react'
 import { DocumentPreview } from './DocumentPreview'
 import { deleteDocument } from '@/lib/documents/actions'
 
@@ -25,6 +25,9 @@ interface Document {
     created_at: string | null
     element_id?: string | null
     element?: { id: string; name: string } | null
+    building_id?: string | null
+    building?: { id: string; name: string } | null
+    floor?: number | null
     profiles?: { full_name: string } | null
 }
 
@@ -37,19 +40,30 @@ interface DocumentListWithFilterProps {
 export function DocumentListWithFilter({ documents, projectId, canDelete = false }: DocumentListWithFilterProps) {
     const router = useRouter()
     const [activeFilter, setActiveFilter] = useState<string | null>(null)
+    const [buildingFilter, setBuildingFilter] = useState<string | null>(null)
     const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
     const [confirmingId, setConfirmingId] = useState<string | null>(null)
     const [deletingId, setDeletingId] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
 
-    const filtered = activeFilter
-        ? documents.filter(d => d.category === activeFilter)
-        : documents
+    const filtered = documents.filter(d => {
+        if (activeFilter && d.category !== activeFilter) return false
+        if (buildingFilter && d.building_id !== buildingFilter) return false
+        return true
+    })
 
     const categoryCounts: Record<string, number> = {}
     for (const doc of documents) {
         const cat = doc.category || 'other'
         categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
+    }
+
+    // Collect unique buildings for filter
+    const buildingMap = new Map<string, string>()
+    for (const doc of documents) {
+        if (doc.building_id && doc.building?.name) {
+            buildingMap.set(doc.building_id, doc.building.name)
+        }
     }
 
     async function handleDelete(docId: string) {
@@ -98,6 +112,34 @@ export function DocumentListWithFilter({ documents, projectId, canDelete = false
                     })}
                 </div>
             )}
+            {/* Building filter */}
+            {buildingMap.size > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                    <span className="text-xs text-muted-foreground self-center mr-1">
+                        <Building2 className="h-3 w-3 inline mr-0.5" />
+                        Bygging:
+                    </span>
+                    <Button
+                        variant={buildingFilter === null ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setBuildingFilter(null)}
+                        className="h-6 text-xs px-2"
+                    >
+                        Allar
+                    </Button>
+                    {Array.from(buildingMap).map(([id, name]) => (
+                        <Button
+                            key={id}
+                            variant={buildingFilter === id ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setBuildingFilter(id)}
+                            className="h-6 text-xs px-2"
+                        >
+                            {name}
+                        </Button>
+                    ))}
+                </div>
+            )}
 
             {error && (
                 <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
@@ -133,6 +175,11 @@ export function DocumentListWithFilter({ documents, projectId, canDelete = false
                                             {doc.element?.name && (
                                                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0 border-purple-200 text-purple-700">
                                                     {doc.element.name}
+                                                </Badge>
+                                            )}
+                                            {doc.building?.name && (
+                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0 border-teal-200 text-teal-700">
+                                                    {doc.building.name}{doc.floor != null ? ` / hæð ${doc.floor}` : ''}
                                                 </Badge>
                                             )}
                                         </div>

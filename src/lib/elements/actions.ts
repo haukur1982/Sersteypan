@@ -37,6 +37,7 @@ function parseElementFormData(formData: FormData) {
     height_mm: parseNumber(formData.get('height_mm')),
     weight_kg: parseNumber(formData.get('weight_kg')),
     drawing_reference: formData.get('drawing_reference') as string || undefined,
+    rebar_spec: formData.get('rebar_spec') as string || undefined,
     batch_number: formData.get('batch_number') as string || undefined,
     production_notes: formData.get('production_notes') as string || undefined,
   }
@@ -92,6 +93,7 @@ export async function createElement(formData: FormData) {
     name: validatedData.name,
     element_type: validatedData.element_type,
     drawing_reference: validatedData.drawing_reference || null,
+    rebar_spec: validatedData.rebar_spec || null,
     floor: validatedData.floor || null,
     position_description: validatedData.position_description || null,
     length_mm: validatedData.length_mm || null,
@@ -101,6 +103,7 @@ export async function createElement(formData: FormData) {
     status: validatedData.status,
     priority: validatedData.priority,
     production_notes: validatedData.production_notes || null,
+    batch_number: validatedData.batch_number || null,
     delivery_notes: (formData.get('delivery_notes') as string)?.trim() || null,
     created_by: user.id
   }
@@ -311,6 +314,7 @@ export async function updateElement(id: string, formData: FormData) {
     name: name.trim(),
     element_type,
     drawing_reference: (formData.get('drawing_reference') as string)?.trim() || null,
+    rebar_spec: (formData.get('rebar_spec') as string)?.trim() || null,
     floor: formData.get('floor') ? parseInt(formData.get('floor') as string) : null,
     position_description: (formData.get('position_description') as string)?.trim() || null,
     length_mm: formData.get('length_mm') ? parseInt(formData.get('length_mm') as string) : null,
@@ -320,6 +324,7 @@ export async function updateElement(id: string, formData: FormData) {
     status: (formData.get('status') as string) || 'planned',
     priority: formData.get('priority') ? parseInt(formData.get('priority') as string) : 0,
     production_notes: (formData.get('production_notes') as string)?.trim() || null,
+    batch_number: (formData.get('batch_number') as string)?.trim() || null,
     delivery_notes: (formData.get('delivery_notes') as string)?.trim() || null,
     updated_at: new Date().toISOString()
   }
