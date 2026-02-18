@@ -73,7 +73,7 @@ export default async function BatchesPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Card className="border-yellow-200 bg-yellow-50/50">
           <CardContent className="py-3 flex items-center gap-3">
             <Clock className="h-5 w-5 text-yellow-600" />

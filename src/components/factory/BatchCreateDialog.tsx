@@ -293,7 +293,7 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
         )}
 
         {/* Concrete info */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label htmlFor="concrete_supplier">Steypuverksmiðja</Label>
             <Input

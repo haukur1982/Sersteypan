@@ -144,7 +144,7 @@ export function RoleBasedNav({ role, onItemClick }: { role: AuthUser['role'] | u
                         onClick={onItemClick}
                         title={item.englishName}
                         className={cn(
-                            'group flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all',
+                            'group flex items-center gap-3 px-3 py-3 rounded-md text-sm font-medium transition-all min-h-[44px]',
                             isActive
                                 ? 'bg-sidebar-accent text-white border-l-[3px] border-sidebar-primary pl-2.5 shadow-sm'
                                 : 'text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground border-l-[3px] border-transparent'

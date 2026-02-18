@@ -165,7 +165,60 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                     </div>
                 )}
 
-                <Card className="border-border shadow-sm overflow-hidden">
+                {/* Mobile: Card layout */}
+                <div className="md:hidden space-y-2">
+                    {elementList.length > 0 ? (
+                        elementList.map((element) => {
+                            const typeInfo = typeConfig[element.element_type as keyof typeof typeConfig] || typeConfig.other
+                            const statusInfo = statusConfig[element.status as keyof typeof statusConfig] || statusConfig.planned
+                            const TypeIcon = typeInfo.icon
+
+                            return (
+                                <div key={element.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg">
+                                    {/* Left: Info */}
+                                    <Link href={`/factory/production/${element.id}`} className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-semibold text-foreground truncate">{element.name}</span>
+                                            {(element.priority ?? 0) > 0 && (
+                                                <span className="text-xs font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
+                                                    P{element.priority}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <Badge variant="secondary" className={`${typeInfo.color} gap-1 border-0 font-normal text-xs`}>
+                                                <TypeIcon className="h-3 w-3" />
+                                                {typeInfo.label}
+                                            </Badge>
+                                            <Badge variant="secondary" className={`${statusInfo.color} border-0 font-medium text-xs`}>
+                                                {statusInfo.label}
+                                            </Badge>
+                                            {element.floor && (
+                                                <span className="text-xs text-muted-foreground">H. {element.floor}</span>
+                                            )}
+                                        </div>
+                                    </Link>
+
+                                    {/* Right: Quick photo action — large touch target */}
+                                    <div className="flex-shrink-0">
+                                        <QuickPhotoAction
+                                            elementId={element.id}
+                                            elementName={element.name}
+                                            currentStatus={element.status || 'planned'}
+                                        />
+                                    </div>
+                                </div>
+                            )
+                        })
+                    ) : (
+                        <div className="py-12 text-center text-muted-foreground">
+                            Engar einingar skráðar.
+                        </div>
+                    )}
+                </div>
+
+                {/* Desktop: Table layout */}
+                <Card className="border-border shadow-sm overflow-hidden hidden md:block">
                     <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>

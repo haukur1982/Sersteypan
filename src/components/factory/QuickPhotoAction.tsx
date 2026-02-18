@@ -155,11 +155,11 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus }: Quic
             <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground/30 cursor-not-allowed"
+                className="h-11 w-11 md:h-8 md:w-8 text-muted-foreground/30 cursor-not-allowed"
                 disabled
                 title={tooltipText}
             >
-                <Camera className="h-4 w-4" />
+                <Camera className="h-5 w-5 md:h-4 md:w-4" />
             </Button>
         )
     }
@@ -177,21 +177,21 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus }: Quic
             <Button
                 variant="ghost"
                 size="icon"
-                className={`h-8 w-8 ${
+                className={`h-11 w-11 md:h-8 md:w-8 ${
                     state === 'success'
-                        ? 'text-green-600 hover:text-green-700'
+                        ? 'text-green-600 hover:text-green-700 bg-green-50'
                         : state === 'error'
-                        ? 'text-red-600 hover:text-red-700'
-                        : 'text-muted-foreground hover:text-orange-600'
+                        ? 'text-red-600 hover:text-red-700 bg-red-50'
+                        : 'text-muted-foreground hover:text-orange-600 hover:bg-orange-50'
                 }`}
                 disabled={state === 'uploading'}
                 onClick={() => fileRef.current?.click()}
                 title={tooltipText}
             >
-                {state === 'uploading' && <Loader2 className="h-4 w-4 animate-spin" />}
-                {state === 'success' && <CheckCircle className="h-4 w-4" />}
-                {state === 'error' && <AlertCircle className="h-4 w-4" />}
-                {state === 'idle' && <Camera className="h-4 w-4" />}
+                {state === 'uploading' && <Loader2 className="h-5 w-5 md:h-4 md:w-4 animate-spin" />}
+                {state === 'success' && <CheckCircle className="h-5 w-5 md:h-4 md:w-4" />}
+                {state === 'error' && <AlertCircle className="h-5 w-5 md:h-4 md:w-4" />}
+                {state === 'idle' && <Camera className="h-5 w-5 md:h-4 md:w-4" />}
             </Button>
         </div>
     )
