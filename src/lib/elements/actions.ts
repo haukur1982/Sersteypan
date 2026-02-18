@@ -595,6 +595,8 @@ export async function updateElementStatus(id: string, newStatus: string, notes?:
   revalidatePath('/factory')
   revalidatePath('/factory/production')
   revalidatePath(`/factory/production/${id}`)
+  revalidatePath('/factory/projects')
+  revalidatePath(`/factory/projects/${element.project_id}`)
 
   return { success: true }
 }

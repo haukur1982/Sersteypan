@@ -35,6 +35,7 @@ import {
     MessageSquare,
 } from 'lucide-react'
 import { BatchCreateDialog } from '@/components/factory/BatchCreateDialog'
+import { QuickPhotoAction } from '@/components/factory/QuickPhotoAction'
 import type { Database } from '@/types/database'
 
 type ElementRow = Database['public']['Tables']['elements']['Row']
@@ -210,11 +211,18 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                                                 {element.floor || '-'}
                                             </TableCell>
                                             <TableCell className="py-4 text-right">
-                                                <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-muted-foreground hover:text-blue-600">
-                                                    <Link href={`/factory/production/${element.id}`}>
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Link>
-                                                </Button>
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <QuickPhotoAction
+                                                        elementId={element.id}
+                                                        elementName={element.name}
+                                                        currentStatus={element.status || 'planned'}
+                                                    />
+                                                    <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-muted-foreground hover:text-blue-600">
+                                                        <Link href={`/factory/production/${element.id}`}>
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Link>
+                                                    </Button>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     )

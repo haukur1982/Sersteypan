@@ -21,7 +21,8 @@ import {
     CheckCircle,
     Truck,
     Loader2,
-    CheckCheck
+    CheckCheck,
+    Camera,
 } from 'lucide-react'
 import { updateElementStatus } from '@/lib/elements/actions'
 import { PhotoUploadForm } from '@/components/shared/PhotoUploadForm'
@@ -82,10 +83,18 @@ export function ElementStatusUpdateForm({ element }: ElementStatusUpdateFormProp
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
+    const [uploadedPhotoCount, setUploadedPhotoCount] = useState(0)
 
     const currentStatus = (element.status || 'planned') as ElementStatus
     const allowedNextStatuses = validTransitions[currentStatus] || []
     const uploadStage = stageByStatus[selectedStatus]
+    const photoRequired = uploadStage !== null && selectedStatus !== currentStatus
+    const photoSatisfied = !photoRequired || uploadedPhotoCount > 0
+
+    const handleStatusChange = (value: string) => {
+        setSelectedStatus(value as ElementStatus)
+        setUploadedPhotoCount(0)
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -125,7 +134,7 @@ export function ElementStatusUpdateForm({ element }: ElementStatusUpdateFormProp
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
                 <Label htmlFor="status">Ný staða (New Status)</Label>
-                <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as ElementStatus)}>
+                <Select value={selectedStatus} onValueChange={handleStatusChange}>
                     <SelectTrigger id="status" className="w-full mt-1.5">
                         <SelectValue />
                     </SelectTrigger>
@@ -191,8 +200,15 @@ export function ElementStatusUpdateForm({ element }: ElementStatusUpdateFormProp
                             <PhotoUploadForm
                                 elementId={element.id}
                                 stage={uploadStage}
+                                onUploadComplete={() => setUploadedPhotoCount(prev => prev + 1)}
                                 onUploadError={(err: string) => setError(err)}
                             />
+                            {photoRequired && uploadedPhotoCount === 0 && (
+                                <p className="text-sm text-amber-600 flex items-center gap-1 mt-2">
+                                    <Camera className="w-4 h-4" />
+                                    Mynd er nauðsynleg til að uppfæra stöðu
+                                </p>
+                            )}
                         </div>
                     )}
                 </div>
@@ -216,7 +232,7 @@ export function ElementStatusUpdateForm({ element }: ElementStatusUpdateFormProp
             <div className="flex gap-3 pt-2">
                 <Button
                     type="submit"
-                    disabled={isSubmitting || selectedStatus === currentStatus || allowedNextStatuses.length === 0}
+                    disabled={isSubmitting || selectedStatus === currentStatus || allowedNextStatuses.length === 0 || !photoSatisfied}
                     className="flex-1"
                 >
                     {isSubmitting ? (
