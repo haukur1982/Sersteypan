@@ -193,7 +193,7 @@ export function ManageProductionView({
             router.push(`/factory/manage?project=${val}`)
           }}
         >
-          <SelectTrigger className="w-72">
+          <SelectTrigger className="w-full md:w-72">
             <SelectValue placeholder="Veldu verkefni..." />
           </SelectTrigger>
           <SelectContent>
@@ -407,51 +407,35 @@ export function ManageProductionView({
                                     const sInfo = statusConfig[el.status || 'planned'] || statusConfig.planned
                                     const StatusIcon = sInfo.icon
                                     return (
-                                      <div
+                                      <Link
                                         key={el.id}
-                                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50/50"
+                                        href={`/factory/production/${el.id}`}
+                                        className="flex items-center gap-3 px-3 md:px-4 py-3 md:py-2.5 hover:bg-zinc-50/50 active:bg-zinc-100"
                                       >
-                                        {/* Status icon */}
+                                        {/* Status badge */}
                                         <Badge
                                           variant="secondary"
-                                          className={`${sInfo.color} gap-1 text-[11px] min-w-[70px] justify-center border-0`}
+                                          className={`${sInfo.color} gap-1 text-[11px] min-w-[70px] justify-center border-0 flex-shrink-0`}
                                         >
                                           <StatusIcon className="w-3 h-3" />
                                           {sInfo.label}
                                         </Badge>
 
-                                        {/* Element name */}
-                                        <span className="font-medium text-sm text-zinc-900 min-w-[120px]">
-                                          {el.name}
-                                        </span>
-
-                                        {/* Batch info */}
-                                        <div className="flex items-center gap-4 text-xs text-zinc-500 flex-1">
-                                          {el.production_batches ? (
-                                            <>
-                                              <span>Batch: {el.production_batches.batch_date}</span>
-                                              <Link
-                                                href={`/factory/batches/${el.production_batches.id}`}
-                                                className="font-mono text-blue-600 hover:underline"
-                                              >
-                                                {el.production_batches.batch_number}
-                                              </Link>
-                                            </>
-                                          ) : (
-                                            <span className="text-zinc-400">Engin lota</span>
+                                        {/* Element name + batch info */}
+                                        <div className="flex-1 min-w-0">
+                                          <span className="font-medium text-sm text-zinc-900 truncate block">
+                                            {el.name}
+                                          </span>
+                                          {el.production_batches && (
+                                            <span className="text-xs text-zinc-500">
+                                              {el.production_batches.batch_number}
+                                            </span>
                                           )}
-
                                         </div>
 
-                                        {/* Link to detail */}
-                                        <Link
-                                          href={`/factory/production/${el.id}`}
-                                          className="text-xs text-blue-600 hover:underline flex items-center gap-1 flex-shrink-0"
-                                        >
-                                          Upplýsingar
-                                          <ExternalLink className="h-3 w-3" />
-                                        </Link>
-                                      </div>
+                                        {/* Arrow */}
+                                        <ChevronRight className="h-4 w-4 text-zinc-400 flex-shrink-0" />
+                                      </Link>
                                     )
                                   })}
                                 </div>
