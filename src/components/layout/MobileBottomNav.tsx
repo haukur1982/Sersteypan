@@ -112,13 +112,25 @@ function isTabActive(pathname: string, href: string): boolean {
         : pathname === href || pathname?.startsWith(`${href}/`)
 }
 
+/**
+ * Detect user role from URL path as a fallback
+ * Ensures the bottom nav renders immediately without waiting for auth
+ */
+function getRoleFromPath(pathname: string): string | null {
+    if (pathname.startsWith('/admin')) return 'admin'
+    if (pathname.startsWith('/factory')) return 'factory_manager'
+    if (pathname.startsWith('/buyer')) return 'buyer'
+    if (pathname.startsWith('/driver')) return 'driver'
+    return null
+}
+
 export function MobileBottomNav({ user: serverUser }: { user?: { role: string } | null }) {
     const pathname = usePathname()
     const { user: clientUser } = useAuth()
     const [moreOpen, setMoreOpen] = useState(false)
 
-    // Use server-provided user first, fall back to client auth hook
-    const role = serverUser?.role || clientUser?.role
+    // Use server-provided user first, fall back to client auth hook, then URL path
+    const role = serverUser?.role || clientUser?.role || getRoleFromPath(pathname)
     if (!role) return null
 
     const config = tabsByRole[role]
@@ -133,7 +145,7 @@ export function MobileBottomNav({ user: serverUser }: { user?: { role: string } 
     return (
         <>
             <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-zinc-200 pb-[env(safe-area-inset-bottom)]">
-                <div className="flex items-center justify-around h-14">
+                <div className="flex items-center justify-around h-16">
                     {tabs.map((tab) => {
                         const isActive = isTabActive(pathname, tab.href)
 
@@ -147,8 +159,8 @@ export function MobileBottomNav({ user: serverUser }: { user?: { role: string } 
                                     isActive ? 'text-primary' : 'text-zinc-400'
                                 )}
                             >
-                                <tab.icon className={cn('h-5 w-5', isActive && 'text-primary')} />
-                                <span className={cn('text-[10px] leading-tight truncate', isActive ? 'font-semibold' : 'font-medium')}>
+                                <tab.icon className={cn('h-6 w-6', isActive && 'text-primary')} />
+                                <span className={cn('text-[11px] leading-tight truncate', isActive ? 'font-semibold' : 'font-medium')}>
                                     {tab.name}
                                 </span>
                             </Link>
@@ -165,8 +177,8 @@ export function MobileBottomNav({ user: serverUser }: { user?: { role: string } 
                                 isMoreActive ? 'text-primary' : 'text-zinc-400'
                             )}
                         >
-                            <MoreHorizontal className={cn('h-5 w-5', isMoreActive && 'text-primary')} />
-                            <span className={cn('text-[10px] leading-tight', isMoreActive ? 'font-semibold' : 'font-medium')}>
+                            <MoreHorizontal className={cn('h-6 w-6', isMoreActive && 'text-primary')} />
+                            <span className={cn('text-[11px] leading-tight', isMoreActive ? 'font-semibold' : 'font-medium')}>
                                 Meira
                             </span>
                         </button>

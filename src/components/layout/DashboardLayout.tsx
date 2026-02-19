@@ -30,7 +30,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                 <Header user={user} />
 
                 {/* Page Content — extra bottom padding on mobile for fixed bottom nav */}
-                <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8 overflow-y-auto">
+                <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 overflow-y-auto">
                     <div className="mx-auto max-w-7xl w-full">
                         {children}
                     </div>

@@ -1,6 +1,7 @@
 import { getServerUser } from '@/lib/auth/getServerUser'
 import { createClient } from '@/lib/supabase/server'
-import { getPriorityElements, getStuckElements } from '@/lib/factory/queries'
+import { getPriorityElements, getStuckElements, getElementCountsByProject } from '@/lib/factory/queries'
+import { getProjects } from '@/lib/projects/actions'
 import { DailySummaryCard } from '@/components/shared/DailySummaryCard'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +21,7 @@ import {
     TrendingUp,
     AlertTriangle,
     Flame,
+    FolderKanban,
 } from 'lucide-react'
 
 const typeConfig: Record<string, { color: string; label: string }> = {
@@ -67,6 +69,8 @@ export default async function FactoryDashboard() {
         priorityElements,
         fixInFactoryResult,
         stuckElements,
+        projectsResult,
+        elementCounts,
     ] = await Promise.all([
         // All elements with status
         supabase.from('elements').select('status'),
@@ -100,6 +104,10 @@ export default async function FactoryDashboard() {
             .is('completed_at', null),
         // Stuck elements
         getStuckElements(),
+        // Active projects for quick access
+        getProjects(),
+        // Element counts per project
+        getElementCountsByProject(),
     ])
 
     // Try to fetch stock alerts (may not exist yet)
@@ -140,359 +148,421 @@ export default async function FactoryDashboard() {
     const todoCount = todoCountResult.count || 0
     const fixInFactoryCount = fixInFactoryResult.count || 0
 
+    // Active projects (filter to active/planning only, limit to 6)
+    const allProjects = projectsResult.data || []
+    const activeProjects = allProjects
+        .filter((p) => p.status === 'active' || p.status === 'planning')
+        .slice(0, 6)
+
     return (
         <div className="space-y-8">
             {/* Header */}
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-                        Verksmiðja
-                    </h1>
-                    <p className="text-sm md:text-base text-muted-foreground mt-1">
-                        Velkomin {serverUser?.fullName}
-                    </p>
-                </div>
+            <div>
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+                    Verksmiðja
+                </h1>
+                <p className="text-sm md:text-base text-muted-foreground mt-1">
+                    Velkomin {serverUser?.fullName}
+                </p>
+            </div>
 
-                {/* AI Daily Summary */}
-                <DailySummaryCard />
+            {/* AI Daily Summary */}
+            <DailySummaryCard />
 
-                {/* Summary Stats Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    {/* In Production */}
-                    <Card className="p-4 border-yellow-200 bg-yellow-50/50">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-yellow-100">
-                                <Wrench className="w-5 h-5 text-yellow-600" />
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold text-yellow-700">{inProduction}</p>
-                                <p className="text-xs text-yellow-600">Í framleiðslu</p>
-                            </div>
+            {/* Summary Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {/* In Production */}
+                <Card className="p-4 border-yellow-200 bg-yellow-50/50">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-yellow-100">
+                            <Wrench className="w-5 h-5 text-yellow-600" />
                         </div>
-                    </Card>
-
-                    {/* Ready to Ship */}
-                    <Card className="p-4 border-green-200 bg-green-50/50">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-green-100">
-                                <CheckCircle className="w-5 h-5 text-green-600" />
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold text-green-700">{readyToShip}</p>
-                                <p className="text-xs text-green-600">Tilbúið</p>
-                            </div>
-                        </div>
-                    </Card>
-
-                    {/* Shipped Today */}
-                    <Card className="p-4 border-blue-200 bg-blue-50/50">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-blue-100">
-                                <Truck className="w-5 h-5 text-blue-600" />
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold text-blue-700">{deliveredToday}</p>
-                                <p className="text-xs text-blue-600">Afhent í dag</p>
-                            </div>
-                        </div>
-                    </Card>
-
-                    {/* Stock Alerts */}
-                    <Card className={`p-4 ${stockAlertsCount > 0 ? 'border-red-200 bg-red-50/50' : 'border-zinc-200'}`}>
-                        <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${stockAlertsCount > 0 ? 'bg-red-100' : 'bg-zinc-100'}`}>
-                                <AlertTriangle className={`w-5 h-5 ${stockAlertsCount > 0 ? 'text-red-600' : 'text-zinc-600'}`} />
-                            </div>
-                            <div>
-                                <p className={`text-2xl font-bold ${stockAlertsCount > 0 ? 'text-red-700' : 'text-zinc-700'}`}>{stockAlertsCount}</p>
-                                <p className={`text-xs ${stockAlertsCount > 0 ? 'text-red-600' : 'text-zinc-600'}`}>Birgðaviðvaranir</p>
-                            </div>
-                        </div>
-                    </Card>
-
-                    {/* Fix in Factory */}
-                    <Link href="/factory/fix-in-factory">
-                        <Card className={`p-4 transition-all hover:shadow-md ${fixInFactoryCount > 0 ? 'border-red-200 bg-red-50/50 hover:border-red-300' : 'border-zinc-200 hover:border-zinc-300'}`}>
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${fixInFactoryCount > 0 ? 'bg-red-100' : 'bg-zinc-100'}`}>
-                                    <Wrench className={`w-5 h-5 ${fixInFactoryCount > 0 ? 'text-red-600' : 'text-zinc-600'}`} />
-                                </div>
-                                <div>
-                                    <p className={`text-2xl font-bold ${fixInFactoryCount > 0 ? 'text-red-700' : 'text-zinc-700'}`}>{fixInFactoryCount}</p>
-                                    <p className={`text-xs ${fixInFactoryCount > 0 ? 'text-red-600' : 'text-zinc-600'}`}>Lagfæringar</p>
-                                </div>
-                            </div>
-                        </Card>
-                    </Link>
-                </div>
-
-                {/* Priority Elements */}
-                {priorityElements.length > 0 && (
-                    <Card className="p-6 border-orange-200 bg-orange-50/30">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                                <Flame className="w-5 h-5 text-orange-500" />
-                                Forgangur
-                            </h2>
-                            <span className="text-sm text-muted-foreground">{priorityElements.length} stykki</span>
-                        </div>
-                        <div className="space-y-2">
-                            {priorityElements.map((el) => {
-                                const typeInfo = typeConfig[el.element_type as string] || typeConfig.other
-                                const elStatusInfo = elementStatusConfig[el.status as string] || elementStatusConfig.planned
-                                const project = el.projects as { id: string; name: string; companies: { name: string } | null } | null
-
-                                return (
-                                    <Link
-                                        key={el.id}
-                                        href={`/factory/production/${el.id}`}
-                                        className="flex items-center gap-3 p-3 rounded-lg border border-orange-200 bg-white hover:bg-orange-50 transition-colors"
-                                    >
-                                        <span className="text-lg font-bold text-orange-600 w-8 text-center flex-shrink-0">
-                                            {el.priority}
-                                        </span>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-medium text-foreground truncate">{el.name}</span>
-                                                <Badge variant="secondary" className={`${typeInfo.color} border-0 text-xs`}>
-                                                    {typeInfo.label}
-                                                </Badge>
-                                            </div>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                <span className="text-xs text-muted-foreground truncate">
-                                                    {project?.name}{project?.companies?.name ? ` — ${project.companies.name}` : ''}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <Badge variant="secondary" className={`${elStatusInfo.color} border-0 text-xs flex-shrink-0`}>
-                                            {elStatusInfo.label}
-                                        </Badge>
-                                    </Link>
-                                )
-                            })}
-                        </div>
-                    </Card>
-                )}
-
-                {/* Stuck Elements Warning */}
-                {stuckElements.length > 0 && (
-                    <Card className="p-6 border-amber-200 bg-amber-50/30">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                                <AlertTriangle className="w-5 h-5 text-amber-500" />
-                                Viðvörun: Fastar einingar
-                            </h2>
-                            <span className="text-sm text-muted-foreground">{stuckElements.length} {stuckElements.length === 1 ? 'eining' : 'einingar'}</span>
-                        </div>
-                        <div className="space-y-2">
-                            {stuckElements.slice(0, 10).map((el) => {
-                                const elStatusInfo = elementStatusConfig[el.status] || elementStatusConfig.planned
-                                const project = el.project
-
-                                return (
-                                    <Link
-                                        key={el.id}
-                                        href={`/factory/production/${el.id}`}
-                                        className="flex items-center gap-3 p-3 rounded-lg border border-amber-200 bg-white hover:bg-amber-50 transition-colors"
-                                    >
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-medium text-foreground truncate">{el.name}</span>
-                                                <Badge variant="secondary" className={`${elStatusInfo.color} border-0 text-xs`}>
-                                                    {elStatusInfo.label}
-                                                </Badge>
-                                            </div>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                <span className="text-xs text-muted-foreground truncate">
-                                                    {project?.name}{project?.companies?.name ? ` — ${project.companies.name}` : ''}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <Badge variant="outline" className="border-amber-300 text-amber-700 text-xs flex-shrink-0">
-                                            <Clock className="w-3 h-3 mr-1" />
-                                            {el.daysStuck}d ({el.threshold}d mörk)
-                                        </Badge>
-                                    </Link>
-                                )
-                            })}
-                            {stuckElements.length > 10 && (
-                                <p className="text-xs text-amber-600 text-center pt-2">
-                                    +{stuckElements.length - 10} fleiri fastar einingar
-                                </p>
-                            )}
-                        </div>
-                    </Card>
-                )}
-
-                {/* Production Pipeline Progress */}
-                <Card className="p-4 md:p-6">
-                    <div className="flex items-center justify-between mb-3 md:mb-4">
-                        <h2 className="text-base md:text-lg font-semibold text-foreground">Framleiðslulína</h2>
-                        <TrendingUp className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
-                        {/* Planned */}
                         <div>
-                            <div className="flex justify-between text-sm mb-1">
-                                <span className="text-muted-foreground">Skipulagt</span>
-                                <span className="font-medium">{statusCounts['planned'] || 0}</span>
-                            </div>
-                            <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-gray-500 rounded-full"
-                                    style={{ width: `${totalElements > 0 ? ((statusCounts['planned'] || 0) / totalElements) * 100 : 0}%` }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Rebar */}
-                        <div>
-                            <div className="flex justify-between text-sm mb-1">
-                                <span className="text-muted-foreground">Járnabundið</span>
-                                <span className="font-medium">{statusCounts['rebar'] || 0}</span>
-                            </div>
-                            <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-yellow-500 rounded-full"
-                                    style={{ width: `${totalElements > 0 ? ((statusCounts['rebar'] || 0) / totalElements) * 100 : 0}%` }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Cast */}
-                        <div>
-                            <div className="flex justify-between text-sm mb-1">
-                                <span className="text-muted-foreground">Steypt</span>
-                                <span className="font-medium">{statusCounts['cast'] || 0}</span>
-                            </div>
-                            <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-orange-500 rounded-full"
-                                    style={{ width: `${totalElements > 0 ? ((statusCounts['cast'] || 0) / totalElements) * 100 : 0}%` }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Curing */}
-                        <div>
-                            <div className="flex justify-between text-sm mb-1">
-                                <span className="text-muted-foreground">Þornar</span>
-                                <span className="font-medium">{statusCounts['curing'] || 0}</span>
-                            </div>
-                            <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-amber-500 rounded-full"
-                                    style={{ width: `${totalElements > 0 ? ((statusCounts['curing'] || 0) / totalElements) * 100 : 0}%` }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Ready */}
-                        <div>
-                            <div className="flex justify-between text-sm mb-1">
-                                <span className="text-muted-foreground">Tilbúið</span>
-                                <span className="font-medium">{statusCounts['ready'] || 0}</span>
-                            </div>
-                            <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-green-500 rounded-full"
-                                    style={{ width: `${totalElements > 0 ? ((statusCounts['ready'] || 0) / totalElements) * 100 : 0}%` }}
-                                />
-                            </div>
+                            <p className="text-2xl font-bold text-yellow-700">{inProduction}</p>
+                            <p className="text-xs text-yellow-600">Í framleiðslu</p>
                         </div>
                     </div>
                 </Card>
 
-                {/* Two Column Layout: Recent Diary + Detail Status */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Recent Diary Entries */}
-                    <Card className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold text-foreground">Nýlegar dagbókarfærslur</h2>
-                            <Link href="/factory/diary" className="text-sm text-primary hover:underline flex items-center gap-1">
-                                Sjá allt <ArrowRight className="w-4 h-4" />
-                            </Link>
+                {/* Ready to Ship */}
+                <Card className="p-4 border-green-200 bg-green-50/50">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-green-100">
+                            <CheckCircle className="w-5 h-5 text-green-600" />
                         </div>
-                        {recentDiaryEntries.length === 0 ? (
-                            <p className="text-muted-foreground text-sm">Engar dagbókarfærslur ennþá</p>
-                        ) : (
-                            <div className="space-y-3">
-                                {recentDiaryEntries.map((entry) => (
-                                    <div key={entry.id} className="py-2 border-b border-border last:border-0">
-                                        <p className="font-medium text-foreground">{entry.title || 'Dagbókarfærsla'}</p>
-                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                            {entry.content}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            {entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('is-IS') : '-'}
-                                        </p>
-                                    </div>
-                                ))}
+                        <div>
+                            <p className="text-2xl font-bold text-green-700">{readyToShip}</p>
+                            <p className="text-xs text-green-600">Tilbúið</p>
+                        </div>
+                    </div>
+                </Card>
+
+                {/* Shipped Today */}
+                <Card className="p-4 border-blue-200 bg-blue-50/50">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-blue-100">
+                            <Truck className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-blue-700">{deliveredToday}</p>
+                            <p className="text-xs text-blue-600">Afhent í dag</p>
+                        </div>
+                    </div>
+                </Card>
+
+                {/* Stock Alerts */}
+                <Card className={`p-4 ${stockAlertsCount > 0 ? 'border-red-200 bg-red-50/50' : 'border-zinc-200'}`}>
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${stockAlertsCount > 0 ? 'bg-red-100' : 'bg-zinc-100'}`}>
+                            <AlertTriangle className={`w-5 h-5 ${stockAlertsCount > 0 ? 'text-red-600' : 'text-zinc-600'}`} />
+                        </div>
+                        <div>
+                            <p className={`text-2xl font-bold ${stockAlertsCount > 0 ? 'text-red-700' : 'text-zinc-700'}`}>{stockAlertsCount}</p>
+                            <p className={`text-xs ${stockAlertsCount > 0 ? 'text-red-600' : 'text-zinc-600'}`}>Birgðaviðvaranir</p>
+                        </div>
+                    </div>
+                </Card>
+
+                {/* Fix in Factory */}
+                <Link href="/factory/fix-in-factory">
+                    <Card className={`p-4 transition-all hover:shadow-md ${fixInFactoryCount > 0 ? 'border-red-200 bg-red-50/50 hover:border-red-300' : 'border-zinc-200 hover:border-zinc-300'}`}>
+                        <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${fixInFactoryCount > 0 ? 'bg-red-100' : 'bg-zinc-100'}`}>
+                                <Wrench className={`w-5 h-5 ${fixInFactoryCount > 0 ? 'text-red-600' : 'text-zinc-600'}`} />
                             </div>
-                        )}
-                    </Card>
-
-                    {/* Detailed Status Breakdown */}
-                    <Card className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold text-foreground">Nákvæm staða</h2>
-                            <Link href="/factory/production" className="text-sm text-primary hover:underline flex items-center gap-1">
-                                Sjá allt <ArrowRight className="w-4 h-4" />
-                            </Link>
+                            <div>
+                                <p className={`text-2xl font-bold ${fixInFactoryCount > 0 ? 'text-red-700' : 'text-zinc-700'}`}>{fixInFactoryCount}</p>
+                                <p className={`text-xs ${fixInFactoryCount > 0 ? 'text-red-600' : 'text-zinc-600'}`}>Lagfæringar</p>
+                            </div>
                         </div>
-                        <div className="space-y-3">
-                            {Object.entries(statusConfig).map(([status, config]) => {
-                                const count = statusCounts[status] || 0
-                                const Icon = config.icon
-                                return (
-                                    <Link
-                                        key={status}
-                                        href={`/factory/production?status=${status}`}
-                                        className="flex items-center justify-between py-2 border-b border-border last:border-0 hover:bg-accent/50 rounded px-2 -mx-2"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <Icon className="w-4 h-4 text-muted-foreground" />
-                                            <span className="text-sm text-foreground">{config.label}</span>
+                    </Card>
+                </Link>
+            </div>
+
+            {/* Active Projects — Quick Access */}
+            {activeProjects.length > 0 && (
+                <div>
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-base md:text-lg font-semibold text-foreground flex items-center gap-2">
+                            <FolderKanban className="w-5 h-5 text-primary" />
+                            Virk verkefni
+                        </h2>
+                        <Link href="/factory/projects" className="text-sm text-primary hover:underline flex items-center gap-1">
+                            Sjá öll <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {activeProjects.map((project) => {
+                            const counts = elementCounts[project.id] || {}
+                            const projectTotal = Object.values(counts).reduce((sum: number, c: number) => sum + c, 0)
+                            const readyAndDelivered = (counts['ready'] || 0) + (counts['delivered'] || 0) + (counts['loaded'] || 0)
+                            const progressPct = projectTotal > 0 ? Math.round((readyAndDelivered / projectTotal) * 100) : 0
+
+                            return (
+                                <Link key={project.id} href={`/factory/projects/${project.id}`}>
+                                    <Card className="p-4 hover:shadow-md transition-all active:scale-[0.98] cursor-pointer border-border h-full">
+                                        <div className="flex items-start justify-between mb-2">
+                                            <h3 className="font-semibold text-foreground text-base leading-tight truncate pr-2">
+                                                {project.name}
+                                            </h3>
+                                            <Badge variant="secondary" className="text-xs flex-shrink-0">
+                                                {projectTotal}
+                                            </Badge>
                                         </div>
-                                        <Badge variant="secondary" className={config.color}>
-                                            {count}
-                                        </Badge>
-                                    </Link>
-                                )
-                            })}
-                        </div>
-                    </Card>
+                                        {project.companies?.name && (
+                                            <p className="text-xs text-muted-foreground mb-2 truncate">
+                                                {project.companies.name}
+                                            </p>
+                                        )}
+                                        {/* Mini progress bar */}
+                                        <div className="mt-auto">
+                                            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                                                <span>Framvinda</span>
+                                                <span className="font-medium">{progressPct}%</span>
+                                            </div>
+                                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-green-500 rounded-full transition-all"
+                                                    style={{ width: `${progressPct}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </Card>
+                                </Link>
+                            )
+                        })}
+                    </div>
                 </div>
+            )}
 
-                {/* Quick Actions */}
-                <Card className="p-4 md:p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-                    <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Flýtiaðgerðir</h2>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <Button asChild variant="outline" className="bg-card hover:bg-accent">
-                            <Link href="/factory/production">
-                                <Wrench className="w-4 h-4 mr-2" />
-                                Vinnuröð
-                            </Link>
-                        </Button>
-                        <Button asChild variant="outline" className="bg-card hover:bg-accent">
-                            <Link href="/factory/diary">
-                                <BookOpen className="w-4 h-4 mr-2" />
-                                Dagbók
-                            </Link>
-                        </Button>
-                        <Button asChild variant="outline" className="bg-card hover:bg-accent">
-                            <Link href="/factory/todos">
-                                <CheckSquare className="w-4 h-4 mr-2" />
-                                Verkefni ({todoCount})
-                            </Link>
-                        </Button>
-                        <Button asChild variant="outline" className="bg-card hover:bg-accent">
-                            <Link href="/factory/stock">
-                                <Package className="w-4 h-4 mr-2" />
-                                Birgðir
-                            </Link>
-                        </Button>
+            {/* Priority Elements */}
+            {priorityElements.length > 0 && (
+                <Card className="p-6 border-orange-200 bg-orange-50/30">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                            <Flame className="w-5 h-5 text-orange-500" />
+                            Forgangur
+                        </h2>
+                        <span className="text-sm text-muted-foreground">{priorityElements.length} stykki</span>
+                    </div>
+                    <div className="space-y-2">
+                        {priorityElements.map((el) => {
+                            const typeInfo = typeConfig[el.element_type as string] || typeConfig.other
+                            const elStatusInfo = elementStatusConfig[el.status as string] || elementStatusConfig.planned
+                            const project = el.projects as { id: string; name: string; companies: { name: string } | null } | null
+
+                            return (
+                                <Link
+                                    key={el.id}
+                                    href={`/factory/production/${el.id}`}
+                                    className="flex items-center gap-3 p-3 rounded-lg border border-orange-200 bg-white hover:bg-orange-50 transition-colors"
+                                >
+                                    <span className="text-lg font-bold text-orange-600 w-8 text-center flex-shrink-0">
+                                        {el.priority}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium text-foreground truncate">{el.name}</span>
+                                            <Badge variant="secondary" className={`${typeInfo.color} border-0 text-xs`}>
+                                                {typeInfo.label}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="text-xs text-muted-foreground truncate">
+                                                {project?.name}{project?.companies?.name ? ` — ${project.companies.name}` : ''}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <Badge variant="secondary" className={`${elStatusInfo.color} border-0 text-xs flex-shrink-0`}>
+                                        {elStatusInfo.label}
+                                    </Badge>
+                                </Link>
+                            )
+                        })}
+                    </div>
+                </Card>
+            )}
+
+            {/* Stuck Elements Warning */}
+            {stuckElements.length > 0 && (
+                <Card className="p-6 border-amber-200 bg-amber-50/30">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                            <AlertTriangle className="w-5 h-5 text-amber-500" />
+                            Viðvörun: Fastar einingar
+                        </h2>
+                        <span className="text-sm text-muted-foreground">{stuckElements.length} {stuckElements.length === 1 ? 'eining' : 'einingar'}</span>
+                    </div>
+                    <div className="space-y-2">
+                        {stuckElements.slice(0, 10).map((el) => {
+                            const elStatusInfo = elementStatusConfig[el.status] || elementStatusConfig.planned
+                            const project = el.project
+
+                            return (
+                                <Link
+                                    key={el.id}
+                                    href={`/factory/production/${el.id}`}
+                                    className="flex items-center gap-3 p-3 rounded-lg border border-amber-200 bg-white hover:bg-amber-50 transition-colors"
+                                >
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium text-foreground truncate">{el.name}</span>
+                                            <Badge variant="secondary" className={`${elStatusInfo.color} border-0 text-xs`}>
+                                                {elStatusInfo.label}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="text-xs text-muted-foreground truncate">
+                                                {project?.name}{project?.companies?.name ? ` — ${project.companies.name}` : ''}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <Badge variant="outline" className="border-amber-300 text-amber-700 text-xs flex-shrink-0">
+                                        <Clock className="w-3 h-3 mr-1" />
+                                        {el.daysStuck}d ({el.threshold}d mörk)
+                                    </Badge>
+                                </Link>
+                            )
+                        })}
+                        {stuckElements.length > 10 && (
+                            <p className="text-xs text-amber-600 text-center pt-2">
+                                +{stuckElements.length - 10} fleiri fastar einingar
+                            </p>
+                        )}
+                    </div>
+                </Card>
+            )}
+
+            {/* Production Pipeline Progress */}
+            <Card className="p-4 md:p-6">
+                <div className="flex items-center justify-between mb-3 md:mb-4">
+                    <h2 className="text-base md:text-lg font-semibold text-foreground">Framleiðslulína</h2>
+                    <TrendingUp className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
+                    {/* Planned */}
+                    <div>
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="text-muted-foreground">Skipulagt</span>
+                            <span className="font-medium">{statusCounts['planned'] || 0}</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-gray-500 rounded-full"
+                                style={{ width: `${totalElements > 0 ? ((statusCounts['planned'] || 0) / totalElements) * 100 : 0}%` }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Rebar */}
+                    <div>
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="text-muted-foreground">Járnabundið</span>
+                            <span className="font-medium">{statusCounts['rebar'] || 0}</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-yellow-500 rounded-full"
+                                style={{ width: `${totalElements > 0 ? ((statusCounts['rebar'] || 0) / totalElements) * 100 : 0}%` }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Cast */}
+                    <div>
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="text-muted-foreground">Steypt</span>
+                            <span className="font-medium">{statusCounts['cast'] || 0}</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-orange-500 rounded-full"
+                                style={{ width: `${totalElements > 0 ? ((statusCounts['cast'] || 0) / totalElements) * 100 : 0}%` }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Curing */}
+                    <div>
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="text-muted-foreground">Þornar</span>
+                            <span className="font-medium">{statusCounts['curing'] || 0}</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-amber-500 rounded-full"
+                                style={{ width: `${totalElements > 0 ? ((statusCounts['curing'] || 0) / totalElements) * 100 : 0}%` }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Ready */}
+                    <div>
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="text-muted-foreground">Tilbúið</span>
+                            <span className="font-medium">{statusCounts['ready'] || 0}</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-green-500 rounded-full"
+                                style={{ width: `${totalElements > 0 ? ((statusCounts['ready'] || 0) / totalElements) * 100 : 0}%` }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </Card>
+
+            {/* Two Column Layout: Recent Diary + Detail Status */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Recent Diary Entries */}
+                <Card className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-semibold text-foreground">Nýlegar dagbókarfærslur</h2>
+                        <Link href="/factory/diary" className="text-sm text-primary hover:underline flex items-center gap-1">
+                            Sjá allt <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </div>
+                    {recentDiaryEntries.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">Engar dagbókarfærslur ennþá</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {recentDiaryEntries.map((entry) => (
+                                <div key={entry.id} className="py-2 border-b border-border last:border-0">
+                                    <p className="font-medium text-foreground">{entry.title || 'Dagbókarfærsla'}</p>
+                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                        {entry.content}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('is-IS') : '-'}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </Card>
+
+                {/* Detailed Status Breakdown */}
+                <Card className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-semibold text-foreground">Nákvæm staða</h2>
+                        <Link href="/factory/production" className="text-sm text-primary hover:underline flex items-center gap-1">
+                            Sjá allt <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </div>
+                    <div className="space-y-3">
+                        {Object.entries(statusConfig).map(([status, config]) => {
+                            const count = statusCounts[status] || 0
+                            const Icon = config.icon
+                            return (
+                                <Link
+                                    key={status}
+                                    href={`/factory/production?status=${status}`}
+                                    className="flex items-center justify-between py-2 border-b border-border last:border-0 hover:bg-accent/50 rounded px-2 -mx-2"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Icon className="w-4 h-4 text-muted-foreground" />
+                                        <span className="text-sm text-foreground">{config.label}</span>
+                                    </div>
+                                    <Badge variant="secondary" className={config.color}>
+                                        {count}
+                                    </Badge>
+                                </Link>
+                            )
+                        })}
                     </div>
                 </Card>
             </div>
+
+            {/* Quick Actions */}
+            <Card className="p-4 md:p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+                <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Flýtiaðgerðir</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <Button asChild variant="outline" className="bg-card hover:bg-accent">
+                        <Link href="/factory/production">
+                            <Wrench className="w-4 h-4 mr-2" />
+                            Vinnuröð
+                        </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="bg-card hover:bg-accent">
+                        <Link href="/factory/diary">
+                            <BookOpen className="w-4 h-4 mr-2" />
+                            Dagbók
+                        </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="bg-card hover:bg-accent">
+                        <Link href="/factory/todos">
+                            <CheckSquare className="w-4 h-4 mr-2" />
+                            Verkefni ({todoCount})
+                        </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="bg-card hover:bg-accent">
+                        <Link href="/factory/stock">
+                            <Package className="w-4 h-4 mr-2" />
+                            Birgðir
+                        </Link>
+                    </Button>
+                </div>
+            </Card>
+        </div>
     )
 }

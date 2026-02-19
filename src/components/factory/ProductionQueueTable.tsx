@@ -22,6 +22,7 @@ import {
     Truck,
     Pencil,
     Loader2,
+    ChevronRight,
 } from 'lucide-react'
 import {
     Dialog,
@@ -88,6 +89,30 @@ export function ProductionQueueTable({ elements }: ProductionQueueTableProps) {
     const [bulkStatus, setBulkStatus] = useState<string>('')
     const [isPending, startTransition] = useTransition()
     const [bulkResult, setBulkResult] = useState<string | null>(null)
+    const [quickUpdatePending, setQuickUpdatePending] = useState<string | null>(null)
+
+    // Production pipeline: each status maps to its logical next step
+    const nextStatusMap: Record<string, { next: string; label: string; color: string; icon: typeof Clock }> = {
+        planned: { next: 'rebar', label: 'Byrja járn', color: 'bg-yellow-500 hover:bg-yellow-600 text-white', icon: Wrench },
+        rebar: { next: 'cast', label: 'Skrá steypt', color: 'bg-orange-500 hover:bg-orange-600 text-white', icon: Layers },
+        cast: { next: 'curing', label: 'Þornar', color: 'bg-amber-500 hover:bg-amber-600 text-white', icon: Timer },
+        curing: { next: 'ready', label: 'Tilbúið', color: 'bg-green-500 hover:bg-green-600 text-white', icon: CheckCircle },
+        ready: { next: 'loaded', label: 'Á bíl', color: 'bg-blue-500 hover:bg-blue-600 text-white', icon: Truck },
+    }
+
+    const handleQuickStatusUpdate = (elementId: string, newStatus: string) => {
+        setQuickUpdatePending(elementId)
+        startTransition(async () => {
+            const result = await bulkUpdateElementStatus([elementId], newStatus)
+            if (result.success) {
+                setBulkResult(`Eining uppfærð`)
+                setTimeout(() => setBulkResult(null), 2000)
+            } else {
+                setBulkResult(result.error || 'Villa')
+            }
+            setQuickUpdatePending(null)
+        })
+    }
 
     const toggleAll = () => {
         if (selected.size === elements.length) {
@@ -156,56 +181,85 @@ export function ProductionQueueTable({ elements }: ProductionQueueTableProps) {
                 </div>
             )}
 
-            {/* Mobile: Card layout */}
-            <div className="md:hidden space-y-2 p-2">
+            {/* Mobile: Enhanced Card layout */}
+            <div className="md:hidden space-y-3 p-2">
                 {elements.length > 0 ? (
                     elements.map((element) => {
                         const statusInfo = statusConfig[(element.status || 'planned') as keyof typeof statusConfig] || statusConfig.planned
                         const typeInfo = typeConfig[element.element_type] || typeConfig.other
                         const StatusIcon = statusInfo.icon
                         const isSelected = selected.has(element.id)
+                        const nextAction = nextStatusMap[element.status || 'planned']
+                        const isUpdating = quickUpdatePending === element.id
 
                         return (
                             <div
                                 key={element.id}
-                                className={`flex items-center gap-3 p-3 rounded-lg border ${isSelected ? 'border-blue-300 bg-blue-50/50' : 'border-zinc-200 bg-white'}`}
+                                className={`rounded-xl border-l-4 ${isSelected ? 'border-l-blue-500 border-blue-300 bg-blue-50/50' : `border-l-current border-zinc-200 bg-white`} border shadow-sm`}
+                                style={!isSelected ? { borderLeftColor: `var(--status-${element.status || 'planned'})` } : undefined}
                             >
-                                <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={() => toggleOne(element.id)}
-                                    aria-label={`Velja ${element.name}`}
-                                    className="flex-shrink-0"
-                                />
-                                <Link href={`/factory/production/${element.id}`} className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="font-semibold text-zinc-900 truncate">{element.name}</span>
-                                        {(element.priority ?? 0) > 0 && (
-                                            <span className="text-xs font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
-                                                P{element.priority}
-                                            </span>
+                                {/* Main content — tappable link area */}
+                                <div className="flex items-start gap-3 p-4">
+                                    <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={() => toggleOne(element.id)}
+                                        aria-label={`Velja ${element.name}`}
+                                        className="flex-shrink-0 mt-1 h-5 w-5"
+                                    />
+                                    <Link href={`/factory/production/${element.id}`} className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <span className="font-bold text-zinc-900 text-base truncate">{element.name}</span>
+                                            {(element.priority ?? 0) > 0 && (
+                                                <span className="text-xs font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
+                                                    P{element.priority}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                                            <Badge variant="secondary" className={`${statusInfo.color} gap-1 border-0 font-medium text-xs`}>
+                                                <StatusIcon className="w-3 h-3" />
+                                                {statusInfo.label}
+                                            </Badge>
+                                            <Badge variant="secondary" className="text-xs font-normal">
+                                                {typeInfo.label}
+                                            </Badge>
+                                        </div>
+                                        {element.projects?.name && (
+                                            <p className="text-xs text-zinc-500 truncate">
+                                                {element.projects.name}
+                                                {element.projects.companies?.name ? ` — ${element.projects.companies.name}` : ''}
+                                            </p>
                                         )}
-                                    </div>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <Badge variant="secondary" className={`${statusInfo.color} gap-1 border-0 font-medium text-xs`}>
-                                            <StatusIcon className="w-3 h-3" />
-                                            {statusInfo.label}
-                                        </Badge>
-                                        <Badge variant="secondary" className="text-xs font-normal">
-                                            {typeInfo.label}
-                                        </Badge>
-                                    </div>
-                                    {element.projects?.name && (
-                                        <p className="text-xs text-zinc-500 mt-1 truncate">
-                                            {element.projects.name}
-                                            {element.projects.companies?.name ? ` — ${element.projects.companies.name}` : ''}
-                                        </p>
-                                    )}
-                                </Link>
-                                <Button variant="ghost" size="icon" asChild className="h-11 w-11 text-zinc-500 hover:text-blue-600 flex-shrink-0">
-                                    <Link href={`/factory/production/${element.id}`}>
-                                        <Pencil className="h-4 w-4" />
                                     </Link>
-                                </Button>
+                                    <Button variant="ghost" size="icon" asChild className="h-12 w-12 text-zinc-400 hover:text-blue-600 flex-shrink-0">
+                                        <Link href={`/factory/production/${element.id}`}>
+                                            <ChevronRight className="h-5 w-5" />
+                                        </Link>
+                                    </Button>
+                                </div>
+
+                                {/* Quick Action Bar */}
+                                {nextAction && (
+                                    <div className="px-4 pb-3">
+                                        <Button
+                                            size="sm"
+                                            className={`w-full h-11 text-sm font-medium ${nextAction.color} rounded-lg`}
+                                            disabled={isUpdating || isPending}
+                                            onClick={(e) => {
+                                                e.preventDefault()
+                                                e.stopPropagation()
+                                                handleQuickStatusUpdate(element.id, nextAction.next)
+                                            }}
+                                        >
+                                            {isUpdating ? (
+                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            ) : (
+                                                <nextAction.icon className="w-4 h-4 mr-2" />
+                                            )}
+                                            {nextAction.label}
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         )
                     })
