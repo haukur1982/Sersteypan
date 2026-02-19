@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import { MobileSidebar } from './Sidebar'
 import type { AuthUser } from '@/lib/hooks/useAuth'
 import { NotificationBell, type NotificationItem } from '@/components/notifications/NotificationBell'
 
 /**
  * Map URL paths to Icelandic page titles.
- * Longer paths are checked first so /factory/projects/[id] matches before /factory/projects.
  */
 const pageTitles: Record<string, Record<string, string>> = {
     factory_manager: {
@@ -108,9 +108,12 @@ export function Header({ user }: { user?: AuthUser | null }) {
 
     return (
         <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-zinc-200 bg-white px-4 md:hidden">
-            <h1 className="font-semibold text-zinc-900 truncate">
-                {title}
-            </h1>
+            <div className="flex items-center gap-2">
+                <MobileSidebar user={user} />
+                <h1 className="font-semibold text-zinc-900 truncate text-sm">
+                    {title}
+                </h1>
+            </div>
             {user && (
                 <NotificationBell notifications={notifications} />
             )}

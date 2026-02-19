@@ -38,7 +38,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
             </div>
 
             {/* Mobile Bottom Tab Bar */}
-            <MobileBottomNav />
+            <MobileBottomNav user={user} />
         </div>
     )
 }

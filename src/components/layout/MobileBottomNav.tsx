@@ -112,12 +112,13 @@ function isTabActive(pathname: string, href: string): boolean {
         : pathname === href || pathname?.startsWith(`${href}/`)
 }
 
-export function MobileBottomNav() {
+export function MobileBottomNav({ user: serverUser }: { user?: { role: string } | null }) {
     const pathname = usePathname()
-    const { user } = useAuth()
+    const { user: clientUser } = useAuth()
     const [moreOpen, setMoreOpen] = useState(false)
 
-    const role = user?.role
+    // Use server-provided user first, fall back to client auth hook
+    const role = serverUser?.role || clientUser?.role
     if (!role) return null
 
     const config = tabsByRole[role]
