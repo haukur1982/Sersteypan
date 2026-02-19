@@ -117,26 +117,28 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
     return (
         <div className="space-y-8">
             {/* Header Section */}
-            <div className="flex justify-between items-start">
-                <div className="flex items-center gap-4">
+            <div className="space-y-3">
+                <div className="flex items-center gap-3">
                     <Button variant="ghost" size="icon" asChild>
                         <Link href="/factory/projects">
                             <ArrowLeft className="h-5 w-5" />
                         </Link>
                     </Button>
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground">{project.name}</h1>
-                        <p className="text-muted-foreground mt-1">{project.companies?.name}</p>
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground truncate">{project.name}</h1>
+                        <p className="text-sm text-muted-foreground">{project.companies?.name}</p>
                     </div>
+                    {floorPlans && floorPlans.length > 0 && (
+                        <Button variant="outline" size="sm" asChild className="flex-shrink-0">
+                            <Link href={`/factory/projects/${projectId}/floor-plans`}>
+                                <Map className="mr-1.5 h-4 w-4" />
+                                <span className="hidden sm:inline">Hæðarteikningar</span>
+                                <span className="sm:hidden">Teikn.</span>
+                                {' '}({floorPlans.length})
+                            </Link>
+                        </Button>
+                    )}
                 </div>
-                {floorPlans && floorPlans.length > 0 && (
-                    <Button variant="outline" asChild>
-                        <Link href={`/factory/projects/${projectId}/floor-plans`}>
-                            <Map className="mr-2 h-4 w-4" />
-                            Hæðarteikningar ({floorPlans.length})
-                        </Link>
-                    </Button>
-                )}
             </div>
 
             {/* Project Details Card */}
@@ -223,6 +225,7 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                                             elementId={element.id}
                                             elementName={element.name}
                                             currentStatus={element.status || 'planned'}
+                                            photoCount={photoCountMap[element.id] || 0}
                                         />
                                     </div>
                                 </div>
@@ -317,7 +320,7 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                     Skjöl og teikningar ({documentList.length})
                 </h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Upload Form */}
                     <Card className="border-border">
                         <CardContent className="pt-6">

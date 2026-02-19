@@ -227,46 +227,49 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                             <ArrowLeft className="w-4 h-4" />
                         </Link>
                     </Button>
-                    <div className="flex-1">
-                        <div className="flex items-center gap-3 flex-wrap">
-                            <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-zinc-900 truncate">
                                 {elementDetail.name}
                             </h1>
                             <Badge variant="secondary" className={`${statusInfo.color} gap-1`}>
                                 <StatusIcon className="w-3 h-3" />
                                 {statusInfo.label}
                             </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap mt-1">
                             {daysInStatus > 0 && (
-                                <Badge variant="outline" className={daysInStatus > 7 ? 'border-red-300 text-red-700' : 'text-zinc-600'}>
+                                <Badge variant="outline" className={`text-xs ${daysInStatus > 7 ? 'border-red-300 text-red-700' : 'text-zinc-600'}`}>
                                     <Clock className="w-3 h-3 mr-1" />
-                                    {daysInStatus} {daysInStatus === 1 ? 'dagur' : 'dagar'} í þessari stöðu
+                                    {daysInStatus} {daysInStatus === 1 ? 'dagur' : 'dagar'}
                                 </Badge>
                             )}
+                            {elementDetail.projects?.name && (
+                                <span className="text-sm text-zinc-500 truncate">{elementDetail.projects.name}</span>
+                            )}
                         </div>
-                        <p className="text-zinc-600 mt-1">
-                            Uppfæra framleiðslustöðu
-                        </p>
                     </div>
                 </div>
+
+                {/* Status Update Form — shown first on mobile for fast access */}
+                <Card className="border-zinc-200">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center justify-between text-base md:text-lg">
+                            <span>Uppfæra stöðu</span>
+                            <Badge variant="secondary" className={`${statusInfo.color} gap-1`}>
+                                <StatusIcon className="w-3 h-3" />
+                                {statusInfo.label}
+                            </Badge>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ElementStatusUpdateForm element={elementDetail} />
+                    </CardContent>
+                </Card>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Left Column: Element Details */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Current Status Card */}
-                        <Card className="border-zinc-200">
-                            <CardHeader>
-                                <CardTitle className="flex items-center justify-between">
-                                    <span>Núverandi staða (Current Status)</span>
-                                    <Badge variant="secondary" className={`${statusInfo.color} gap-1`}>
-                                        <StatusIcon className="w-3 h-3" />
-                                        {statusInfo.label}
-                                    </Badge>
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <ElementStatusUpdateForm element={elementDetail} />
-                            </CardContent>
-                        </Card>
 
                         {/* Element Details */}
                         <Card className="border-zinc-200">

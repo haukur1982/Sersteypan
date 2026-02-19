@@ -53,51 +53,51 @@ export default async function ProductionQueuePage({ searchParams }: ProductionQu
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <div className="flex items-center gap-3 mb-2">
-                        <Button variant="ghost" size="icon" asChild>
-                            <Link href="/factory">
-                                <ArrowLeft className="w-4 h-4" />
-                            </Link>
-                        </Button>
-                        <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
-                            {validStatus ? 'Sía einingar' : 'Vinnuröð'} (Production Queue)
-                        </h1>
-                    </div>
-                    <div className="ml-12 flex items-center gap-2">
-                        {validStatus && (
-                            <Badge variant="secondary" className={statusConfig[validStatus as keyof typeof statusConfig]?.color}>
-                                {statusConfig[validStatus as keyof typeof statusConfig]?.label}
-                            </Badge>
-                        )}
-                        {paginationMeta.total > 0 && (
-                            <span className="text-sm text-zinc-600">
-                                — {paginationMeta.total} einingar samtals
-                            </span>
-                        )}
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" asChild>
-                        <Link href="/factory/batches">
-                            <Layers className="w-4 h-4 mr-2" />
-                            Steypulotur
+            <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" asChild>
+                        <Link href="/factory">
+                            <ArrowLeft className="w-4 h-4" />
                         </Link>
                     </Button>
-                    {validStatus && (
-                        <Button variant="outline" asChild>
-                            <Link href="/factory/production">
-                                Sjá allt
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-zinc-900">
+                            {validStatus ? 'Sía einingar' : 'Vinnuröð'}
+                        </h1>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            {validStatus && (
+                                <Badge variant="secondary" className={statusConfig[validStatus as keyof typeof statusConfig]?.color}>
+                                    {statusConfig[validStatus as keyof typeof statusConfig]?.label}
+                                </Badge>
+                            )}
+                            {paginationMeta.total > 0 && (
+                                <span className="text-sm text-zinc-600">
+                                    {paginationMeta.total} einingar
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button variant="outline" size="sm" asChild className="hidden sm:flex">
+                            <Link href="/factory/batches">
+                                <Layers className="w-4 h-4 mr-2" />
+                                Steypulotur
                             </Link>
                         </Button>
-                    )}
+                        {validStatus && (
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href="/factory/production">
+                                    Sjá allt
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
 
             {!validStatus && (
-                <Card className="p-4 border-zinc-200">
-                    <p className="text-sm font-medium text-zinc-700 mb-3">Sía eftir stöðu:</p>
+                <Card className="p-3 md:p-4 border-zinc-200">
+                    <p className="text-sm font-medium text-zinc-700 mb-2 md:mb-3">Sía eftir stöðu:</p>
                     <div className="flex flex-wrap gap-2">
                         {Object.entries(statusConfig).map(([status, config]) => {
                             const Icon = config.icon
@@ -107,7 +107,7 @@ export default async function ProductionQueuePage({ searchParams }: ProductionQu
                                     variant="outline"
                                     size="sm"
                                     asChild
-                                    className="gap-2"
+                                    className="gap-1.5 min-h-[40px] md:min-h-0"
                                 >
                                     <Link href={`/factory/production?status=${status}`}>
                                         <Icon className="w-4 h-4" />

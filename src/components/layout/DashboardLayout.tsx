@@ -1,6 +1,7 @@
 import React from 'react'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
+import { MobileBottomNav } from './MobileBottomNav'
 import type { AuthUser } from '@/lib/providers/AuthProvider'
 
 interface DashboardLayoutProps {
@@ -28,13 +29,16 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                 {/* Mobile Header (Top) */}
                 <Header user={user} />
 
-                {/* Page Content */}
-                <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+                {/* Page Content — extra bottom padding on mobile for fixed bottom nav */}
+                <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8 overflow-y-auto">
                     <div className="mx-auto max-w-7xl w-full">
                         {children}
                     </div>
                 </main>
             </div>
+
+            {/* Mobile Bottom Tab Bar */}
+            <MobileBottomNav />
         </div>
     )
 }

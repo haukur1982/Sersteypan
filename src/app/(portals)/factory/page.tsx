@@ -144,11 +144,11 @@ export default async function FactoryDashboard() {
         <div className="space-y-8">
             {/* Header */}
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
                         Verksmiðja
                     </h1>
-                    <p className="text-muted-foreground mt-2">
-                        Velkomin {serverUser?.fullName} - Verkstjóri
+                    <p className="text-sm md:text-base text-muted-foreground mt-1">
+                        Velkomin {serverUser?.fullName}
                     </p>
                 </div>
 
@@ -324,12 +324,12 @@ export default async function FactoryDashboard() {
                 )}
 
                 {/* Production Pipeline Progress */}
-                <Card className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold text-foreground">Framleiðslulína</h2>
+                <Card className="p-4 md:p-6">
+                    <div className="flex items-center justify-between mb-3 md:mb-4">
+                        <h2 className="text-base md:text-lg font-semibold text-foreground">Framleiðslulína</h2>
                         <TrendingUp className="w-5 h-5 text-muted-foreground" />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
                         {/* Planned */}
                         <div>
                             <div className="flex justify-between text-sm mb-1">
@@ -464,8 +464,8 @@ export default async function FactoryDashboard() {
                 </div>
 
                 {/* Quick Actions */}
-                <Card className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-                    <h2 className="text-lg font-semibold text-foreground mb-4">Flýtiaðgerðir</h2>
+                <Card className="p-4 md:p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+                    <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Flýtiaðgerðir</h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <Button asChild variant="outline" className="bg-card hover:bg-accent">
                             <Link href="/factory/production">

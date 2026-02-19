@@ -156,8 +156,68 @@ export function ProductionQueueTable({ elements }: ProductionQueueTableProps) {
                 </div>
             )}
 
-            {/* Table */}
-            <Table>
+            {/* Mobile: Card layout */}
+            <div className="md:hidden space-y-2 p-2">
+                {elements.length > 0 ? (
+                    elements.map((element) => {
+                        const statusInfo = statusConfig[(element.status || 'planned') as keyof typeof statusConfig] || statusConfig.planned
+                        const typeInfo = typeConfig[element.element_type] || typeConfig.other
+                        const StatusIcon = statusInfo.icon
+                        const isSelected = selected.has(element.id)
+
+                        return (
+                            <div
+                                key={element.id}
+                                className={`flex items-center gap-3 p-3 rounded-lg border ${isSelected ? 'border-blue-300 bg-blue-50/50' : 'border-zinc-200 bg-white'}`}
+                            >
+                                <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={() => toggleOne(element.id)}
+                                    aria-label={`Velja ${element.name}`}
+                                    className="flex-shrink-0"
+                                />
+                                <Link href={`/factory/production/${element.id}`} className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="font-semibold text-zinc-900 truncate">{element.name}</span>
+                                        {(element.priority ?? 0) > 0 && (
+                                            <span className="text-xs font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
+                                                P{element.priority}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <Badge variant="secondary" className={`${statusInfo.color} gap-1 border-0 font-medium text-xs`}>
+                                            <StatusIcon className="w-3 h-3" />
+                                            {statusInfo.label}
+                                        </Badge>
+                                        <Badge variant="secondary" className="text-xs font-normal">
+                                            {typeInfo.label}
+                                        </Badge>
+                                    </div>
+                                    {element.projects?.name && (
+                                        <p className="text-xs text-zinc-500 mt-1 truncate">
+                                            {element.projects.name}
+                                            {element.projects.companies?.name ? ` — ${element.projects.companies.name}` : ''}
+                                        </p>
+                                    )}
+                                </Link>
+                                <Button variant="ghost" size="icon" asChild className="h-11 w-11 text-zinc-500 hover:text-blue-600 flex-shrink-0">
+                                    <Link href={`/factory/production/${element.id}`}>
+                                        <Pencil className="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </div>
+                        )
+                    })
+                ) : (
+                    <div className="py-12 text-center text-zinc-500">
+                        Engar einingar fundust
+                    </div>
+                )}
+            </div>
+
+            {/* Desktop: Table layout */}
+            <Table className="hidden md:table">
                 <TableHeader className="bg-zinc-50">
                     <TableRow>
                         <TableHead className="py-4 w-10">
