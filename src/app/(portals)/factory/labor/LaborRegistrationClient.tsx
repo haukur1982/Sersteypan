@@ -9,6 +9,7 @@ import { Search, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { toast } from 'sonner'
 
 interface Element {
     id: string
@@ -32,8 +33,6 @@ export function LaborRegistrationClient({ elements, workers }: { elements: any[]
     const [selectedWorkers, setSelectedWorkers] = useState<Set<string>>(new Set())
     const [taskType, setTaskType] = useState('rebar') // Default task type
     const [submitting, setSubmitting] = useState(false)
-    const [errorMsg, setErrorMsg] = useState('')
-    const [successMsg, setSuccessMsg] = useState('')
 
     // Filter elements
     const filteredElements = elements.filter(el =>
@@ -58,17 +57,15 @@ export function LaborRegistrationClient({ elements, workers }: { elements: any[]
     const handleSubmit = async () => {
         if (!user) return
         if (selectedElements.size === 0) {
-            setErrorMsg('Vinsamlegast veldu a.m.k eina einingu.')
+            toast.error('Vinsamlegast veldu a.m.k eina einingu.')
             return
         }
         if (selectedWorkers.size === 0) {
-            setErrorMsg('Vinsamlegast veldu a.m.k einn starfsmann.')
+            toast.error('Vinsamlegast veldu a.m.k einn starfsmann.')
             return
         }
 
         setSubmitting(true)
-        setErrorMsg('')
-        setSuccessMsg('')
 
         try {
             const supabase = createClient()
@@ -105,19 +102,19 @@ export function LaborRegistrationClient({ elements, workers }: { elements: any[]
 
             if (workersError) throw workersError
 
-            setSuccessMsg(`Tókst að skrá vinnu (${selectedWorkers.size} m. á ${selectedElements.size} einingum).`)
+            toast.success(`Tókst að skrá vinnu (${selectedWorkers.size} m. á ${selectedElements.size} einingum).`)
+
             setSelectedElements(new Set())
             setSelectedWorkers(new Set())
 
             // Optional: Auto refresh data
             setTimeout(() => {
-                setSuccessMsg('')
                 router.refresh()
-            }, 3000)
+            }, 1000)
 
         } catch (err: any) {
             console.error('Submit error:', err)
-            setErrorMsg(err.message || 'Villa við vistun.')
+            toast.error(err.message || 'Villa við vistun.')
         } finally {
             setSubmitting(false)
         }
@@ -222,28 +219,19 @@ export function LaborRegistrationClient({ elements, workers }: { elements: any[]
                             </div>
                         </div>
 
-                        {errorMsg && (
-                            <div className="flex items-start gap-2 p-3 bg-red-50 text-red-700 text-sm rounded-md border border-red-100">
-                                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                <span>{errorMsg}</span>
-                            </div>
-                        )}
-
-                        {successMsg && (
-                            <div className="flex items-start gap-2 p-3 bg-green-50 text-green-700 text-sm rounded-md border border-green-100">
-                                <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                <span>{successMsg}</span>
-                            </div>
-                        )}
-
                         <Button
-                            className="w-full"
+                            className="w-full h-auto py-3 px-4 flex-col gap-1 items-center justify-center text-center whitespace-normal"
                             size="lg"
                             disabled={submitting || selectedElements.size === 0 || selectedWorkers.size === 0}
                             onClick={handleSubmit}
                         >
-                            {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                            Skrá {selectedElements.size} einingar á {selectedWorkers.size} verkamenn
+                            <span className="flex items-center text-base font-semibold">
+                                {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                                Skrá vinnu
+                            </span>
+                            <span className="text-xs font-normal opacity-80">
+                                {selectedElements.size} {selectedElements.size === 1 ? 'eining' : 'einingar'} á {selectedWorkers.size} {selectedWorkers.size === 1 ? 'mann' : 'menn'}
+                            </span>
                         </Button>
                     </CardContent>
                 </Card>
