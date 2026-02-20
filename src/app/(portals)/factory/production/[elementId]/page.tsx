@@ -18,6 +18,7 @@ import {
     AlertTriangle,
     FileWarning,
     FileText,
+    Users,
 } from 'lucide-react'
 import { ElementStatusUpdateForm } from '@/components/factory/ElementStatusUpdateForm'
 import { PhotoGallery } from '@/components/shared/PhotoGallery'
@@ -167,9 +168,9 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
         .limit(10)
     const historyList = (history ?? []) as ElementEvent[]
 
-    // Fetch element photos, fix-in-factory requests, document count, element drawings, and batch in parallel
+    // Fetch element photos, fix-in-factory requests, document count, element drawings, batch, and element tasks in parallel
     const projectId = elementDetail.projects?.id || ''
-    const [photosResult, fixRequestsResult, documentsCountResult, drawingsResult, batchResult] = await Promise.all([
+    const [photosResult, fixRequestsResult, documentsCountResult, drawingsResult, batchResult, tasksResult] = await Promise.all([
         supabase
             .from('element_photos')
             .select(`
@@ -199,12 +200,28 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
             .limit(20),
         // Fetch batch data for this element
         getBatchForElement(elementId),
+        // Fetch tasks
+        supabase
+            .from('element_tasks')
+            .select(`
+                id,
+                task_type,
+                created_at,
+                element_task_workers (
+                    profiles (
+                        full_name
+                    )
+                )
+            `)
+            .eq('element_id', elementId)
+            .order('created_at', { ascending: false })
     ])
     const photoList = (photosResult.data ?? []) as ElementPhoto[]
     const fixRequests = fixRequestsResult.data ?? []
     const projectDocCount = documentsCountResult.count ?? 0
     const drawings = drawingsResult.data ?? []
     const batch = batchResult.data
+    const laborTasks = tasksResult.data ?? []
 
     const statusInfo = statusConfig[elementDetail.status as keyof typeof statusConfig] || statusConfig.planned
     const typeInfo = typeConfig[elementDetail.element_type as keyof typeof typeConfig] || typeConfig.other
@@ -220,378 +237,414 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
-                {/* Header with back button */}
-                <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" asChild>
-                        <Link href="/factory/production">
-                            <ArrowLeft className="w-4 h-4" />
-                        </Link>
-                    </Button>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-zinc-900 truncate">
-                                {elementDetail.name}
-                            </h1>
-                            <Badge variant="secondary" className={`${statusInfo.color} gap-1`}>
-                                <StatusIcon className="w-3 h-3" />
-                                {statusInfo.label}
+            {/* Header with back button */}
+            <div className="flex items-center gap-3">
+                <Button variant="ghost" size="icon" asChild>
+                    <Link href="/factory/production">
+                        <ArrowLeft className="w-4 h-4" />
+                    </Link>
+                </Button>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-zinc-900 truncate">
+                            {elementDetail.name}
+                        </h1>
+                        <Badge variant="secondary" className={`${statusInfo.color} gap-1`}>
+                            <StatusIcon className="w-3 h-3" />
+                            {statusInfo.label}
+                        </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap mt-1">
+                        {daysInStatus > 0 && (
+                            <Badge variant="outline" className={`text-xs ${daysInStatus > 7 ? 'border-red-300 text-red-700' : 'text-zinc-600'}`}>
+                                <Clock className="w-3 h-3 mr-1" />
+                                {daysInStatus} {daysInStatus === 1 ? 'dagur' : 'dagar'}
                             </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap mt-1">
-                            {daysInStatus > 0 && (
-                                <Badge variant="outline" className={`text-xs ${daysInStatus > 7 ? 'border-red-300 text-red-700' : 'text-zinc-600'}`}>
-                                    <Clock className="w-3 h-3 mr-1" />
-                                    {daysInStatus} {daysInStatus === 1 ? 'dagur' : 'dagar'}
-                                </Badge>
-                            )}
-                            {elementDetail.projects?.name && (
-                                <span className="text-sm text-zinc-500 truncate">{elementDetail.projects.name}</span>
-                            )}
-                        </div>
+                        )}
+                        {elementDetail.projects?.name && (
+                            <span className="text-sm text-zinc-500 truncate">{elementDetail.projects.name}</span>
+                        )}
                     </div>
                 </div>
+            </div>
 
-                {/* Status Update Form — shown first on mobile for fast access */}
-                <Card className="border-zinc-200">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center justify-between text-base md:text-lg">
-                            <span>Uppfæra stöðu</span>
-                            <Badge variant="secondary" className={`${statusInfo.color} gap-1`}>
-                                <StatusIcon className="w-3 h-3" />
-                                {statusInfo.label}
-                            </Badge>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ElementStatusUpdateForm element={elementDetail} />
-                    </CardContent>
-                </Card>
+            {/* Status Update Form — shown first on mobile for fast access */}
+            <Card className="border-zinc-200">
+                <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center justify-between text-base md:text-lg">
+                        <span>Uppfæra stöðu</span>
+                        <Badge variant="secondary" className={`${statusInfo.color} gap-1`}>
+                            <StatusIcon className="w-3 h-3" />
+                            {statusInfo.label}
+                        </Badge>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <ElementStatusUpdateForm element={elementDetail} />
+                </CardContent>
+            </Card>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left Column: Element Details */}
-                    <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Column: Element Details */}
+                <div className="lg:col-span-2 space-y-6">
 
-                        {/* Element Details */}
-                        <Card className="border-zinc-200">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Box className="w-5 h-5" />
-                                    Upplýsingar um einingu (Element Details)
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <p className="text-sm font-medium text-zinc-500">Tegund</p>
-                                        <p className="mt-1 text-zinc-900">{typeInfo.label}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-zinc-500">Forgangur</p>
-                                        <p className="mt-1 text-zinc-900">
-                                            {(elementDetail.priority ?? 0) > 0 ? (
-                                                <span className="font-bold text-orange-600">{elementDetail.priority}</span>
-                                            ) : (
-                                                <span className="text-zinc-400">0</span>
-                                            )}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-zinc-500">Hæð (Floor)</p>
-                                        <p className="mt-1 text-zinc-900">{elementDetail.floor || '-'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-zinc-500">Batch númer</p>
-                                        <p className="mt-1 text-zinc-900 font-mono text-sm">{elementDetail.batch_number || '-'}</p>
-                                    </div>
-                                </div>
-
-                                {elementDetail.position_description && (
-                                    <div>
-                                        <p className="text-sm font-medium text-zinc-500">Staðsetning</p>
-                                        <p className="mt-1 text-zinc-900">{elementDetail.position_description}</p>
-                                    </div>
-                                )}
-
-                                {elementDetail.drawing_reference && (
-                                    <div>
-                                        <p className="text-sm font-medium text-zinc-500">Teikning</p>
-                                        <p className="mt-1 text-zinc-900">{elementDetail.drawing_reference}</p>
-                                    </div>
-                                )}
-
-                                {elementDetail.rebar_spec && (
-                                    <div>
-                                        <p className="text-sm font-medium text-zinc-500">Járnauppsetning</p>
-                                        <p className="mt-1 text-zinc-900 font-mono text-sm">{elementDetail.rebar_spec}</p>
-                                    </div>
-                                )}
-
-                                {(elementDetail.length_mm || elementDetail.width_mm || elementDetail.height_mm || elementDetail.weight_kg) && (
-                                    <div className="pt-4 border-t border-zinc-200">
-                                        <p className="text-sm font-medium text-zinc-500 mb-3">Mál og þyngd</p>
-                                        <div className="grid grid-cols-2 gap-4 text-sm">
-                                            {elementDetail.length_mm && (
-                                                <div>
-                                                    <span className="text-zinc-600">Lengd:</span>{' '}
-                                                    <span className="font-medium text-zinc-900">{elementDetail.length_mm} mm</span>
-                                                </div>
-                                            )}
-                                            {elementDetail.width_mm && (
-                                                <div>
-                                                    <span className="text-zinc-600">Breidd:</span>{' '}
-                                                    <span className="font-medium text-zinc-900">{elementDetail.width_mm} mm</span>
-                                                </div>
-                                            )}
-                                            {elementDetail.height_mm && (
-                                                <div>
-                                                    <span className="text-zinc-600">Hæð:</span>{' '}
-                                                    <span className="font-medium text-zinc-900">{elementDetail.height_mm} mm</span>
-                                                </div>
-                                            )}
-                                            {elementDetail.weight_kg && (
-                                                <div>
-                                                    <span className="text-zinc-600">Þyngd:</span>{' '}
-                                                    <span className="font-medium text-zinc-900">{elementDetail.weight_kg} kg</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {elementDetail.production_notes && (
-                                    <div className="pt-4 border-t border-zinc-200">
-                                        <p className="text-sm font-medium text-zinc-500">Athugasemdir</p>
-                                        <p className="mt-1 text-sm text-zinc-700">{elementDetail.production_notes}</p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {/* Status History (shared timeline component) */}
-                        <Card className="border-zinc-200">
-                            <CardHeader>
-                                <CardTitle>Stöðuferill (Status History)</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <ElementTimeline
-                                    events={historyList.map((event) => ({
-                                        id: event.id,
-                                        status: event.status,
-                                        previous_status: event.previous_status,
-                                        notes: event.notes,
-                                        created_at: event.created_at,
-                                        created_by: event.profiles
-                                            ? { id: event.created_by || '', full_name: event.profiles.full_name || '' }
-                                            : null,
-                                    }))}
-                                />
-                            </CardContent>
-                        </Card>
-
-                        {/* Traceability Timeline */}
-                        <TraceabilityTimeline
-                            element={elementDetail}
-                            batch={batch ? {
-                                id: batch.id,
-                                batch_number: batch.batch_number,
-                                batch_date: batch.batch_date,
-                                concrete_grade: batch.concrete_grade,
-                                concrete_slip_url: batch.concrete_slip_url,
-                                checklist: batch.checklist,
-                            } : null}
-                            fixRequests={fixRequests.map(f => ({
-                                id: f.id,
-                                status: f.status || 'pending',
-                                issue_description: f.issue_description,
-                                created_at: f.created_at,
-                            }))}
-                            photoCount={photoList.length}
-                        />
-
-                        {/* Photo Gallery */}
-                        <Card className="border-zinc-200">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <ImageIcon className="w-5 h-5 flex-shrink-0" />
-                                    Myndasafn (Photo Gallery)
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <PhotoGallery photos={photoList} />
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Right Column: Project Info */}
-                    <div className="space-y-6">
-                        <Card className="border-zinc-200">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-lg">
-                                    <Building className="w-5 h-5" />
-                                    Verkefni (Project)
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
+                    {/* Element Details */}
+                    <Card className="border-zinc-200">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Box className="w-5 h-5" />
+                                Upplýsingar um einingu (Element Details)
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-sm font-medium text-zinc-500">Nafn</p>
-                                    <p className="mt-1 text-zinc-900 font-semibold">{elementDetail.projects?.name}</p>
+                                    <p className="text-sm font-medium text-zinc-500">Tegund</p>
+                                    <p className="mt-1 text-zinc-900">{typeInfo.label}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-zinc-500">Fyrirtæki</p>
-                                    <p className="mt-1 text-zinc-900">{elementDetail.projects?.companies?.name}</p>
+                                    <p className="text-sm font-medium text-zinc-500">Forgangur</p>
+                                    <p className="mt-1 text-zinc-900">
+                                        {(elementDetail.priority ?? 0) > 0 ? (
+                                            <span className="font-bold text-orange-600">{elementDetail.priority}</span>
+                                        ) : (
+                                            <span className="text-zinc-400">0</span>
+                                        )}
+                                    </p>
                                 </div>
-                                {elementDetail.projects?.address && (
-                                    <div>
-                                        <p className="text-sm font-medium text-zinc-500">Heimilisfang</p>
-                                        <p className="mt-1 text-sm text-zinc-700">{elementDetail.projects.address}</p>
-                                    </div>
-                                )}
+                                <div>
+                                    <p className="text-sm font-medium text-zinc-500">Hæð (Floor)</p>
+                                    <p className="mt-1 text-zinc-900">{elementDetail.floor || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-zinc-500">Batch númer</p>
+                                    <p className="mt-1 text-zinc-900 font-mono text-sm">{elementDetail.batch_number || '-'}</p>
+                                </div>
+                            </div>
+
+                            {elementDetail.position_description && (
+                                <div>
+                                    <p className="text-sm font-medium text-zinc-500">Staðsetning</p>
+                                    <p className="mt-1 text-zinc-900">{elementDetail.position_description}</p>
+                                </div>
+                            )}
+
+                            {elementDetail.drawing_reference && (
+                                <div>
+                                    <p className="text-sm font-medium text-zinc-500">Teikning</p>
+                                    <p className="mt-1 text-zinc-900">{elementDetail.drawing_reference}</p>
+                                </div>
+                            )}
+
+                            {elementDetail.rebar_spec && (
+                                <div>
+                                    <p className="text-sm font-medium text-zinc-500">Járnauppsetning</p>
+                                    <p className="mt-1 text-zinc-900 font-mono text-sm">{elementDetail.rebar_spec}</p>
+                                </div>
+                            )}
+
+                            {(elementDetail.length_mm || elementDetail.width_mm || elementDetail.height_mm || elementDetail.weight_kg) && (
                                 <div className="pt-4 border-t border-zinc-200">
-                                    <Button asChild variant="outline" className="w-full" size="sm">
-                                        <Link href={`/factory/projects/${elementDetail.projects?.id}`}>
-                                            Sjá verkefni
-                                        </Link>
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Batch Info */}
-                        {batch && (
-                            <BatchDetailCard
-                                batch={batch}
-                                showElements
-                                currentElementId={elementId}
-                            />
-                        )}
-
-                        {/* Drawings */}
-                        <Card className={drawings.length > 0 ? 'border-blue-200 bg-blue-50/20' : 'border-zinc-200'}>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="flex items-center gap-2 text-lg">
-                                    <FileText className="w-5 h-5 text-blue-600" />
-                                    Teikningar ({drawings.length})
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {drawings.length > 0 ? (
-                                    <ElementDrawings drawings={drawings} elementId={elementId} />
-                                ) : (
-                                    <div className="text-center py-4">
-                                        <p className="text-sm text-zinc-500">Engar teikningar tengdar</p>
-                                        {projectId && (
-                                            <Button asChild variant="link" size="sm" className="mt-1 text-blue-600">
-                                                <Link href={`/factory/projects/${projectId}`}>
-                                                    Hlaða upp í verkefni
-                                                </Link>
-                                            </Button>
+                                    <p className="text-sm font-medium text-zinc-500 mb-3">Mál og þyngd</p>
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        {elementDetail.length_mm && (
+                                            <div>
+                                                <span className="text-zinc-600">Lengd:</span>{' '}
+                                                <span className="font-medium text-zinc-900">{elementDetail.length_mm} mm</span>
+                                            </div>
+                                        )}
+                                        {elementDetail.width_mm && (
+                                            <div>
+                                                <span className="text-zinc-600">Breidd:</span>{' '}
+                                                <span className="font-medium text-zinc-900">{elementDetail.width_mm} mm</span>
+                                            </div>
+                                        )}
+                                        {elementDetail.height_mm && (
+                                            <div>
+                                                <span className="text-zinc-600">Hæð:</span>{' '}
+                                                <span className="font-medium text-zinc-900">{elementDetail.height_mm} mm</span>
+                                            </div>
+                                        )}
+                                        {elementDetail.weight_kg && (
+                                            <div>
+                                                <span className="text-zinc-600">Þyngd:</span>{' '}
+                                                <span className="font-medium text-zinc-900">{elementDetail.weight_kg} kg</span>
+                                            </div>
                                         )}
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                </div>
+                            )}
 
-                        {/* Status Timestamps */}
+                            {elementDetail.production_notes && (
+                                <div className="pt-4 border-t border-zinc-200">
+                                    <p className="text-sm font-medium text-zinc-500">Athugasemdir</p>
+                                    <p className="mt-1 text-sm text-zinc-700">{elementDetail.production_notes}</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Status History (shared timeline component) */}
+                    <Card className="border-zinc-200">
+                        <CardHeader>
+                            <CardTitle>Stöðuferill (Status History)</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ElementTimeline
+                                events={historyList.map((event) => ({
+                                    id: event.id,
+                                    status: event.status,
+                                    previous_status: event.previous_status,
+                                    notes: event.notes,
+                                    created_at: event.created_at,
+                                    created_by: event.profiles
+                                        ? { id: event.created_by || '', full_name: event.profiles.full_name || '' }
+                                        : null,
+                                }))}
+                            />
+                        </CardContent>
+                    </Card>
+
+                    {/* Traceability Timeline */}
+                    <TraceabilityTimeline
+                        element={elementDetail}
+                        batch={batch ? {
+                            id: batch.id,
+                            batch_number: batch.batch_number,
+                            batch_date: batch.batch_date,
+                            concrete_grade: batch.concrete_grade,
+                            concrete_slip_url: batch.concrete_slip_url,
+                            checklist: batch.checklist,
+                        } : null}
+                        fixRequests={fixRequests.map(f => ({
+                            id: f.id,
+                            status: f.status || 'pending',
+                            issue_description: f.issue_description,
+                            created_at: f.created_at,
+                        }))}
+                        photoCount={photoList.length}
+                    />
+
+                    {/* Labor Logs */}
+                    {laborTasks.length > 0 && (
                         <Card className="border-zinc-200">
                             <CardHeader>
-                                <CardTitle className="text-lg">Dagsetningar (Timestamps)</CardTitle>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Users className="w-5 h-5 flex-shrink-0" />
+                                    Vinnuskrá (Labor Logs)
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-3 text-sm">
-                                {elementDetail.rebar_completed_at && (
-                                    <div>
-                                        <p className="text-zinc-500">Járnabundið</p>
-                                        <p className="text-zinc-900 font-medium">
-                                            {new Date(elementDetail.rebar_completed_at).toLocaleString('is-IS')}
-                                        </p>
-                                    </div>
-                                )}
-                                {elementDetail.cast_at && (
-                                    <div>
-                                        <p className="text-zinc-500">Steypt</p>
-                                        <p className="text-zinc-900 font-medium">
-                                            {new Date(elementDetail.cast_at).toLocaleString('is-IS')}
-                                        </p>
-                                    </div>
-                                )}
-                                {elementDetail.curing_completed_at && (
-                                    <div>
-                                        <p className="text-zinc-500">Þurrkun lokið</p>
-                                        <p className="text-zinc-900 font-medium">
-                                            {new Date(elementDetail.curing_completed_at).toLocaleString('is-IS')}
-                                        </p>
-                                    </div>
-                                )}
-                                {elementDetail.ready_at && (
-                                    <div>
-                                        <p className="text-zinc-500">Tilbúið</p>
-                                        <p className="text-zinc-900 font-medium">
-                                            {new Date(elementDetail.ready_at).toLocaleString('is-IS')}
-                                        </p>
-                                    </div>
-                                )}
-                                {!elementDetail.rebar_completed_at && !elementDetail.cast_at && !elementDetail.curing_completed_at && !elementDetail.ready_at && (
-                                    <p className="text-zinc-500 text-center py-4">
-                                        Engar tímastimplar enn
-                                    </p>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {/* Fix-in-Factory Requests */}
-                        {openFixRequests.length > 0 && (
-                            <Card className="border-red-200 bg-red-50/30">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="flex items-center gap-2 text-lg text-red-800">
-                                        <AlertTriangle className="w-5 h-5 text-red-600" />
-                                        Lagfæringar ({openFixRequests.length})
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                    {openFixRequests.map((fix) => (
-                                        <div key={fix.id} className="p-3 bg-white rounded-lg border border-red-200">
-                                            <div className="flex items-center justify-between">
-                                                <Badge variant="secondary" className={
-                                                    fix.priority === 'high' ? 'bg-red-100 text-red-800' :
-                                                    fix.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                                    'bg-zinc-100 text-zinc-700'
-                                                }>
-                                                    {fix.priority === 'high' ? 'Hár forgangur' :
-                                                     fix.priority === 'medium' ? 'Meðal' : 'Lágur'}
-                                                </Badge>
-                                                <span className="text-xs text-zinc-500">
-                                                    {fix.created_at ? new Date(fix.created_at).toLocaleDateString('is-IS') : ''}
-                                                </span>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    {laborTasks.map((task: any) => (
+                                        <div key={task.id} className="p-3 bg-zinc-50 border border-zinc-200 rounded-md">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="font-semibold capitalize text-sm">{task.task_type === 'rebar' ? 'Járnabinding' : task.task_type}</span>
+                                                <span className="text-xs text-muted-foreground">{new Date(task.created_at).toLocaleString('is-IS')}</span>
                                             </div>
-                                            {fix.issue_description && (
-                                                <p className="text-sm text-zinc-700 mt-2">{fix.issue_description}</p>
+                                            {task.element_task_workers?.length > 0 ? (
+                                                <div className="flex flex-wrap gap-2 text-sm">
+                                                    Starfsmenn:{' '}
+                                                    {task.element_task_workers.map((w: any, idx: number) => (
+                                                        <Badge key={idx} variant="secondary">
+                                                            {w.profiles?.full_name || 'Ónefndur'}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm text-zinc-500">Engir starfsmenn skráðir</p>
                                             )}
                                         </div>
                                     ))}
-                                    <Button asChild variant="outline" size="sm" className="w-full mt-2">
-                                        <Link href="/factory/fix-in-factory">Sjá allar lagfæringar</Link>
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        )}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
-                        {/* Document Warning */}
-                        {projectDocCount === 0 && (
-                            <Card className="border-amber-200 bg-amber-50/30">
-                                <CardContent className="pt-6">
-                                    <div className="flex items-center gap-3">
-                                        <FileWarning className="w-5 h-5 text-amber-600 flex-shrink-0" />
-                                        <div>
-                                            <p className="text-sm font-medium text-amber-800">Engin skjöl</p>
-                                            <p className="text-xs text-amber-600 mt-0.5">
-                                                Engin skjöl hafa verið hlaðið upp fyrir þetta verkefni
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
+                    {/* Photo Gallery */}
+                    <Card className="border-zinc-200">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <ImageIcon className="w-5 h-5 flex-shrink-0" />
+                                Myndasafn (Photo Gallery)
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <PhotoGallery photos={photoList} />
+                        </CardContent>
+                    </Card>
                 </div>
+
+                {/* Right Column: Project Info */}
+                <div className="space-y-6">
+                    <Card className="border-zinc-200">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                <Building className="w-5 h-5" />
+                                Verkefni (Project)
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div>
+                                <p className="text-sm font-medium text-zinc-500">Nafn</p>
+                                <p className="mt-1 text-zinc-900 font-semibold">{elementDetail.projects?.name}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-zinc-500">Fyrirtæki</p>
+                                <p className="mt-1 text-zinc-900">{elementDetail.projects?.companies?.name}</p>
+                            </div>
+                            {elementDetail.projects?.address && (
+                                <div>
+                                    <p className="text-sm font-medium text-zinc-500">Heimilisfang</p>
+                                    <p className="mt-1 text-sm text-zinc-700">{elementDetail.projects.address}</p>
+                                </div>
+                            )}
+                            <div className="pt-4 border-t border-zinc-200">
+                                <Button asChild variant="outline" className="w-full" size="sm">
+                                    <Link href={`/factory/projects/${elementDetail.projects?.id}`}>
+                                        Sjá verkefni
+                                    </Link>
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Batch Info */}
+                    {batch && (
+                        <BatchDetailCard
+                            batch={batch}
+                            showElements
+                            currentElementId={elementId}
+                        />
+                    )}
+
+                    {/* Drawings */}
+                    <Card className={drawings.length > 0 ? 'border-blue-200 bg-blue-50/20' : 'border-zinc-200'}>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                <FileText className="w-5 h-5 text-blue-600" />
+                                Teikningar ({drawings.length})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {drawings.length > 0 ? (
+                                <ElementDrawings drawings={drawings} elementId={elementId} />
+                            ) : (
+                                <div className="text-center py-4">
+                                    <p className="text-sm text-zinc-500">Engar teikningar tengdar</p>
+                                    {projectId && (
+                                        <Button asChild variant="link" size="sm" className="mt-1 text-blue-600">
+                                            <Link href={`/factory/projects/${projectId}`}>
+                                                Hlaða upp í verkefni
+                                            </Link>
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Status Timestamps */}
+                    <Card className="border-zinc-200">
+                        <CardHeader>
+                            <CardTitle className="text-lg">Dagsetningar (Timestamps)</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            {elementDetail.rebar_completed_at && (
+                                <div>
+                                    <p className="text-zinc-500">Járnabundið</p>
+                                    <p className="text-zinc-900 font-medium">
+                                        {new Date(elementDetail.rebar_completed_at).toLocaleString('is-IS')}
+                                    </p>
+                                </div>
+                            )}
+                            {elementDetail.cast_at && (
+                                <div>
+                                    <p className="text-zinc-500">Steypt</p>
+                                    <p className="text-zinc-900 font-medium">
+                                        {new Date(elementDetail.cast_at).toLocaleString('is-IS')}
+                                    </p>
+                                </div>
+                            )}
+                            {elementDetail.curing_completed_at && (
+                                <div>
+                                    <p className="text-zinc-500">Þurrkun lokið</p>
+                                    <p className="text-zinc-900 font-medium">
+                                        {new Date(elementDetail.curing_completed_at).toLocaleString('is-IS')}
+                                    </p>
+                                </div>
+                            )}
+                            {elementDetail.ready_at && (
+                                <div>
+                                    <p className="text-zinc-500">Tilbúið</p>
+                                    <p className="text-zinc-900 font-medium">
+                                        {new Date(elementDetail.ready_at).toLocaleString('is-IS')}
+                                    </p>
+                                </div>
+                            )}
+                            {!elementDetail.rebar_completed_at && !elementDetail.cast_at && !elementDetail.curing_completed_at && !elementDetail.ready_at && (
+                                <p className="text-zinc-500 text-center py-4">
+                                    Engar tímastimplar enn
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Fix-in-Factory Requests */}
+                    {openFixRequests.length > 0 && (
+                        <Card className="border-red-200 bg-red-50/30">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="flex items-center gap-2 text-lg text-red-800">
+                                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                                    Lagfæringar ({openFixRequests.length})
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                {openFixRequests.map((fix) => (
+                                    <div key={fix.id} className="p-3 bg-white rounded-lg border border-red-200">
+                                        <div className="flex items-center justify-between">
+                                            <Badge variant="secondary" className={
+                                                fix.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                                    fix.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                                        'bg-zinc-100 text-zinc-700'
+                                            }>
+                                                {fix.priority === 'high' ? 'Hár forgangur' :
+                                                    fix.priority === 'medium' ? 'Meðal' : 'Lágur'}
+                                            </Badge>
+                                            <span className="text-xs text-zinc-500">
+                                                {fix.created_at ? new Date(fix.created_at).toLocaleDateString('is-IS') : ''}
+                                            </span>
+                                        </div>
+                                        {fix.issue_description && (
+                                            <p className="text-sm text-zinc-700 mt-2">{fix.issue_description}</p>
+                                        )}
+                                    </div>
+                                ))}
+                                <Button asChild variant="outline" size="sm" className="w-full mt-2">
+                                    <Link href="/factory/fix-in-factory">Sjá allar lagfæringar</Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Document Warning */}
+                    {projectDocCount === 0 && (
+                        <Card className="border-amber-200 bg-amber-50/30">
+                            <CardContent className="pt-6">
+                                <div className="flex items-center gap-3">
+                                    <FileWarning className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-medium text-amber-800">Engin skjöl</p>
+                                        <p className="text-xs text-amber-600 mt-0.5">
+                                            Engin skjöl hafa verið hlaðið upp fyrir þetta verkefni
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+            </div>
         </div>
     )
 }

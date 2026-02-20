@@ -75,6 +75,7 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Verkefni', englishName: 'Projects', href: '/factory/projects', icon: FolderKanban },
         { name: 'Framleiðslustjórn', englishName: 'Manage Production', href: '/factory/manage', icon: ClipboardList },
         { name: 'Framleiðsla', englishName: 'Production', href: '/factory/production', icon: Factory },
+        { name: 'Vinnuskráning', englishName: 'Labor Logs', href: '/factory/labor', icon: Users },
         { name: 'Steypulotur', englishName: 'Batches', href: '/factory/batches', icon: Layers },
         { name: 'Áætlun', englishName: 'Schedule', href: '/factory/schedule', icon: CalendarDays },
         { name: 'Afhendingar', englishName: 'Deliveries', href: '/factory/deliveries', icon: Truck },

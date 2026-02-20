@@ -11,7 +11,7 @@ import {
     FolderOpen,
 } from 'lucide-react'
 import { DrawingsClient } from './DrawingsClient'
-
+import { ProjectSelectDropdown } from './ProjectSelectDropdown'
 const categoryConfig: Record<string, { label: string; color: string }> = {
     drawing: { label: 'Teikning', color: 'bg-blue-100 text-blue-800' },
     rebar: { label: 'Armering', color: 'bg-orange-100 text-orange-800' },
@@ -157,28 +157,11 @@ export default async function FactoryDrawingsPage({ searchParams }: DrawingsPage
                             </Button>
                         ))}
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            variant={!projectId ? 'default' : 'outline'}
-                            size="sm"
-                            asChild
-                        >
-                            <Link href={`/factory/drawings${category ? `?category=${category}` : ''}${search ? `${category ? '&' : '?'}search=${search}` : ''}`}>
-                                Öll verkefni
-                            </Link>
-                        </Button>
-                        {projects.map((p) => (
-                            <Button
-                                key={p.id}
-                                variant={projectId === p.id ? 'default' : 'outline'}
-                                size="sm"
-                                asChild
-                            >
-                                <Link href={`/factory/drawings?project=${p.id}${category ? `&category=${category}` : ''}${search ? `&search=${search}` : ''}`}>
-                                    {p.name}
-                                </Link>
-                            </Button>
-                        ))}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <ProjectSelectDropdown
+                            projects={projects}
+                            currentProjectId={projectId}
+                        />
                     </div>
                 </div>
             </Card>

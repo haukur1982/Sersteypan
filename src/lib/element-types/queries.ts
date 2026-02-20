@@ -9,10 +9,10 @@ export interface ElementType {
   key: string
   label_is: string
   label_en: string
-  sort_order: number
-  is_active: boolean
-  created_at: string
-  updated_at: string
+  sort_order: number | null
+  is_active: boolean | null
+  created_at: string | null
+  updated_at: string | null
 }
 
 /**

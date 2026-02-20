@@ -12,129 +12,59 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       ai_daily_summaries: {
         Row: {
+          anomalies: Json | null
+          created_at: string
+          generated_at: string
           id: string
           summary_date: string
           summary_text: string
-          anomalies: Json
-          generated_at: string
-          created_at: string
         }
         Insert: {
+          anomalies?: Json | null
+          created_at?: string
+          generated_at?: string
           id?: string
           summary_date: string
           summary_text: string
-          anomalies?: Json
-          generated_at?: string
-          created_at?: string
         }
         Update: {
+          anomalies?: Json | null
+          created_at?: string
+          generated_at?: string
           id?: string
           summary_date?: string
           summary_text?: string
-          anomalies?: Json
-          generated_at?: string
-          created_at?: string
         }
         Relationships: []
-      }
-      drawing_analyses: {
-        Row: {
-          id: string
-          project_id: string
-          document_id: string | null
-          status: string
-          document_name: string
-          page_count: number | null
-          pages_analyzed: number | null
-          extracted_elements: Json
-          ai_summary: string | null
-          ai_model: string | null
-          ai_confidence_notes: string | null
-          reviewed_by: string | null
-          reviewed_at: string | null
-          review_notes: string | null
-          elements_created: number | null
-          error_message: string | null
-          created_by: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          project_id: string
-          document_id?: string | null
-          status?: string
-          document_name: string
-          page_count?: number | null
-          pages_analyzed?: number | null
-          extracted_elements?: Json
-          ai_summary?: string | null
-          ai_model?: string | null
-          ai_confidence_notes?: string | null
-          reviewed_by?: string | null
-          reviewed_at?: string | null
-          review_notes?: string | null
-          elements_created?: number | null
-          error_message?: string | null
-          created_by: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          project_id?: string
-          document_id?: string | null
-          status?: string
-          document_name?: string
-          page_count?: number | null
-          pages_analyzed?: number | null
-          extracted_elements?: Json
-          ai_summary?: string | null
-          ai_model?: string | null
-          ai_confidence_notes?: string | null
-          reviewed_by?: string | null
-          reviewed_at?: string | null
-          review_notes?: string | null
-          elements_created?: number | null
-          error_message?: string | null
-          created_by?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "drawing_analyses_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "drawing_analyses_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "project_documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "drawing_analyses_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "drawing_analyses_reviewed_by_fkey"
-            columns: ["reviewed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       audit_log: {
         Row: {
@@ -452,6 +382,101 @@ export type Database = {
           },
         ]
       }
+      drawing_analyses: {
+        Row: {
+          ai_confidence_notes: string | null
+          ai_model: string | null
+          ai_summary: string | null
+          created_at: string
+          created_by: string
+          document_id: string | null
+          document_name: string
+          elements_created: number | null
+          error_message: string | null
+          extracted_elements: Json
+          id: string
+          page_count: number | null
+          pages_analyzed: number | null
+          project_id: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_confidence_notes?: string | null
+          ai_model?: string | null
+          ai_summary?: string | null
+          created_at?: string
+          created_by: string
+          document_id?: string | null
+          document_name: string
+          elements_created?: number | null
+          error_message?: string | null
+          extracted_elements?: Json
+          id?: string
+          page_count?: number | null
+          pages_analyzed?: number | null
+          project_id: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_confidence_notes?: string | null
+          ai_model?: string | null
+          ai_summary?: string | null
+          created_at?: string
+          created_by?: string
+          document_id?: string | null
+          document_name?: string
+          elements_created?: number | null
+          error_message?: string | null
+          extracted_elements?: Json
+          id?: string
+          page_count?: number | null
+          pages_analyzed?: number | null
+          project_id?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drawing_analyses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drawing_analyses_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "project_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drawing_analyses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drawing_analyses_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       element_events: {
         Row: {
           created_at: string | null
@@ -590,36 +615,116 @@ export type Database = {
           },
         ]
       }
-      element_types: {
+      element_task_workers: {
         Row: {
-          id: string
-          key: string
-          label_is: string
-          label_en: string
-          sort_order: number
-          is_active: boolean
-          created_at: string
-          updated_at: string
+          created_at: string | null
+          hours_spent: number | null
+          task_id: string
+          worker_id: string
         }
         Insert: {
-          id?: string
-          key: string
-          label_is: string
-          label_en: string
-          sort_order?: number
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
+          created_at?: string | null
+          hours_spent?: number | null
+          task_id: string
+          worker_id: string
         }
         Update: {
+          created_at?: string | null
+          hours_spent?: number | null
+          task_id?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "element_task_workers_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "element_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "element_task_workers_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      element_tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          element_id: string
+          id: string
+          notes: string | null
+          started_at: string | null
+          task_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          element_id: string
           id?: string
+          notes?: string | null
+          started_at?: string | null
+          task_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          element_id?: string
+          id?: string
+          notes?: string | null
+          started_at?: string | null
+          task_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "element_tasks_element_id_fkey"
+            columns: ["element_id"]
+            isOneToOne: false
+            referencedRelation: "elements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      element_types: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          key: string
+          label_en: string
+          label_is: string
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key: string
+          label_en: string
+          label_is: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
           key?: string
-          label_is?: string
           label_en?: string
-          sort_order?: number
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
+          label_is?: string
+          sort_order?: number | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -719,6 +824,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "elements_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "production_batches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "elements_building_id_fkey"
             columns: ["building_id"]
             isOneToOne: false
@@ -739,73 +851,7 @@ export type Database = {
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "elements_batch_id_fkey"
-            columns: ["batch_id"]
-            isOneToOne: false
-            referencedRelation: "production_batches"
-            referencedColumns: ["id"]
-          },
         ]
-      }
-      notifications: {
-        Row: {
-          id: string
-          user_id: string
-          type: string
-          title: string
-          body: string | null
-          link: string | null
-          is_read: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          type: string
-          title: string
-          body?: string | null
-          link?: string | null
-          is_read?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          type?: string
-          title?: string
-          body?: string | null
-          link?: string | null
-          is_read?: boolean
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notifications_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notification_reads: {
-        Row: {
-          notification_id: string
-          read_at: string
-          user_id: string
-        }
-        Insert: {
-          notification_id: string
-          read_at?: string
-          user_id: string
-        }
-        Update: {
-          notification_id?: string
-          read_at?: string
-          user_id?: string
-        }
-        Relationships: []
       }
       fix_in_factory: {
         Row: {
@@ -819,7 +865,7 @@ export type Database = {
           id: string
           issue_description: string
           lessons_learned: string | null
-          photos: Json
+          photos: Json | null
           priority: string | null
           project_id: string | null
           reported_by: string | null
@@ -840,7 +886,7 @@ export type Database = {
           id?: string
           issue_description: string
           lessons_learned?: string | null
-          photos?: Json
+          photos?: Json | null
           priority?: string | null
           project_id?: string | null
           reported_by?: string | null
@@ -861,7 +907,7 @@ export type Database = {
           id?: string
           issue_description?: string
           lessons_learned?: string | null
-          photos?: Json
+          photos?: Json | null
           priority?: string | null
           project_id?: string | null
           reported_by?: string | null
@@ -1018,6 +1064,57 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_reads: {
+        Row: {
+          notification_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          notification_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          notification_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          link: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       priority_requests: {
         Row: {
           created_at: string | null
@@ -1078,6 +1175,88 @@ export type Database = {
             columns: ["reviewed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_batches: {
+        Row: {
+          air_temperature_c: number | null
+          batch_date: string
+          batch_number: string
+          checklist: Json
+          completed_at: string | null
+          completed_by: string | null
+          concrete_grade: string | null
+          concrete_slip_name: string | null
+          concrete_slip_url: string | null
+          concrete_supplier: string | null
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          project_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          air_temperature_c?: number | null
+          batch_date?: string
+          batch_number: string
+          checklist?: Json
+          completed_at?: string | null
+          completed_by?: string | null
+          concrete_grade?: string | null
+          concrete_slip_name?: string | null
+          concrete_slip_url?: string | null
+          concrete_supplier?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          project_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          air_temperature_c?: number | null
+          batch_date?: string
+          batch_number?: string
+          checklist?: Json
+          completed_at?: string | null
+          completed_by?: string | null
+          concrete_grade?: string | null
+          concrete_slip_name?: string | null
+          concrete_slip_url?: string | null
+          concrete_supplier?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          project_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_batches_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_batches_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -1173,88 +1352,6 @@ export type Database = {
             columns: ["stock_item_id"]
             isOneToOne: false
             referencedRelation: "stock_items"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      production_batches: {
-        Row: {
-          id: string
-          project_id: string
-          batch_number: string
-          batch_date: string
-          status: string
-          concrete_slip_url: string | null
-          concrete_slip_name: string | null
-          concrete_supplier: string | null
-          concrete_grade: string | null
-          checklist: Json
-          notes: string | null
-          air_temperature_c: number | null
-          created_by: string
-          completed_by: string | null
-          completed_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          project_id: string
-          batch_number: string
-          batch_date?: string
-          status?: string
-          concrete_slip_url?: string | null
-          concrete_slip_name?: string | null
-          concrete_supplier?: string | null
-          concrete_grade?: string | null
-          checklist?: Json
-          notes?: string | null
-          air_temperature_c?: number | null
-          created_by: string
-          completed_by?: string | null
-          completed_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          project_id?: string
-          batch_number?: string
-          batch_date?: string
-          status?: string
-          concrete_slip_url?: string | null
-          concrete_slip_name?: string | null
-          concrete_supplier?: string | null
-          concrete_grade?: string | null
-          checklist?: Json
-          notes?: string | null
-          air_temperature_c?: number | null
-          created_by?: string
-          completed_by?: string | null
-          completed_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "production_batches_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "production_batches_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "production_batches_completed_by_fkey"
-            columns: ["completed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1686,88 +1783,46 @@ export type Database = {
           },
         ]
       }
-      visual_verifications: {
-        Row: {
-          id: string
-          element_id: string
-          driver_id: string
-          status: string
-          rejection_reason: string | null
-          notes: string | null
-          verified_at: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          element_id: string
-          driver_id: string
-          status: string
-          rejection_reason?: string | null
-          notes?: string | null
-          verified_at?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          element_id?: string
-          driver_id?: string
-          status?: string
-          rejection_reason?: string | null
-          notes?: string | null
-          verified_at?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "visual_verifications_element_id_fkey"
-            columns: ["element_id"]
-            isOneToOne: false
-            referencedRelation: "elements"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "visual_verifications_driver_id_fkey"
-            columns: ["driver_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      complete_batch: {
+        Args: { p_batch_id: string; p_completed_by: string }
+        Returns: Json
+      }
+      create_batch_with_elements:
+        | {
+            Args: {
+              p_concrete_grade?: string
+              p_concrete_supplier?: string
+              p_created_by: string
+              p_element_ids: string[]
+              p_notes?: string
+              p_project_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_air_temperature_c?: number
+              p_concrete_grade?: string
+              p_concrete_supplier?: string
+              p_created_by: string
+              p_element_ids: string[]
+              p_notes?: string
+              p_project_id: string
+            }
+            Returns: Json
+          }
+      generate_batch_number: { Args: never; Returns: string }
       get_user_company: { Args: never; Returns: string }
       get_user_role: { Args: never; Returns: string }
       is_delivery_for_buyer: { Args: { project_id: string }; Returns: boolean }
       is_element_for_driver: {
         Args: { driver_id: string; element_id: string }
         Returns: boolean
-      }
-      generate_batch_number: {
-        Args: Record<string, never>
-        Returns: string
-      }
-      create_batch_with_elements: {
-        Args: {
-          p_project_id: string
-          p_element_ids: string[]
-          p_created_by: string
-          p_concrete_supplier?: string
-          p_concrete_grade?: string
-          p_notes?: string
-          p_air_temperature_c?: number
-        }
-        Returns: Json
-      }
-      complete_batch: {
-        Args: {
-          p_batch_id: string
-          p_completed_by: string
-        }
-        Returns: Json
       }
       is_project_for_driver: {
         Args: { driver_id: string; project_id: string }
@@ -1789,118 +1844,121 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-  : never = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-  ? R
-  : never
+    ? R
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])
-  ? (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : never
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
+      Insert: infer I
+    }
+    ? I
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Update: infer U
-  }
-  ? U
-  : never
+      Update: infer U
+    }
+    ? U
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Update: infer U
-  }
-  ? U
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-  | keyof DefaultSchema["Enums"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-  : never
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-  | keyof DefaultSchema["CompositeTypes"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

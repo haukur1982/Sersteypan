@@ -71,8 +71,8 @@ export function ElementTypesManager({ initialTypes }: ElementTypesManagerProps) 
             key: type.key,
             label_is: type.label_is,
             label_en: type.label_en,
-            sort_order: type.sort_order,
-            is_active: type.is_active,
+            sort_order: type.sort_order ?? 50,
+            is_active: type.is_active ?? true,
         })
         setIsDialogOpen(true)
     }
@@ -227,58 +227,58 @@ export function ElementTypesManager({ initialTypes }: ElementTypesManagerProps) 
                     </TableHeader>
                     <TableBody>
                         {types
-                            .sort((a, b) => a.sort_order - b.sort_order)
+                            .sort((a, b) => (a.sort_order ?? 50) - (b.sort_order ?? 50))
                             .map((type) => (
-                            <TableRow key={type.id} className={!type.is_active ? 'opacity-50' : ''}>
-                                <TableCell className="font-mono text-sm">
-                                    {type.key}
-                                </TableCell>
-                                <TableCell>{type.label_is}</TableCell>
-                                <TableCell>{type.label_en}</TableCell>
-                                <TableCell>{type.sort_order}</TableCell>
-                                <TableCell>
-                                    <Badge
-                                        variant={type.is_active ? 'default' : 'secondary'}
-                                        className={type.is_active ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-600'}
-                                    >
-                                        {type.is_active ? 'Virk' : 'Óvirk'}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <div className="flex justify-end gap-2">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => openEditDialog(type)}
-                                            disabled={isLoading}
+                                <TableRow key={type.id} className={!type.is_active ? 'opacity-50' : ''}>
+                                    <TableCell className="font-mono text-sm">
+                                        {type.key}
+                                    </TableCell>
+                                    <TableCell>{type.label_is}</TableCell>
+                                    <TableCell>{type.label_en}</TableCell>
+                                    <TableCell>{type.sort_order}</TableCell>
+                                    <TableCell>
+                                        <Badge
+                                            variant={type.is_active ? 'default' : 'secondary'}
+                                            className={type.is_active ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-600'}
                                         >
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        {type.is_active ? (
+                                            {type.is_active ? 'Virk' : 'Óvirk'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex justify-end gap-2">
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => handleDeactivate(type)}
+                                                onClick={() => openEditDialog(type)}
                                                 disabled={isLoading}
-                                                className="text-red-600 hover:text-red-700"
                                             >
-                                                <Trash2 className="h-4 w-4" />
+                                                <Pencil className="h-4 w-4" />
                                             </Button>
-                                        ) : (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleReactivate(type)}
-                                                disabled={isLoading}
-                                                className="text-green-600 hover:text-green-700"
-                                            >
-                                                Virkja
-                                            </Button>
-                                        )}
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                                            {type.is_active ? (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDeactivate(type)}
+                                                    disabled={isLoading}
+                                                    className="text-red-600 hover:text-red-700"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleReactivate(type)}
+                                                    disabled={isLoading}
+                                                    className="text-green-600 hover:text-green-700"
+                                                >
+                                                    Virkja
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
                     </TableBody>
                 </Table>
             </Card>

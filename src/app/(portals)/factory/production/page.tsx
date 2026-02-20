@@ -15,6 +15,7 @@ import {
     Truck,
     ArrowLeft,
 } from 'lucide-react'
+import { ProductionSearch } from './ProductionSearch'
 
 const statusConfig = {
     planned: { icon: Clock, label: 'Skipulagt', color: 'bg-gray-100 text-gray-800' },
@@ -56,6 +57,7 @@ export default async function ProductionQueuePage({ searchParams }: ProductionQu
             <div className="space-y-3">
                 <div className="flex items-center gap-3">
                     <Button variant="ghost" size="icon" asChild>
+                        {/* @ts-ignore */}
                         <Link href="/factory">
                             <ArrowLeft className="w-4 h-4" />
                         </Link>
@@ -78,6 +80,7 @@ export default async function ProductionQueuePage({ searchParams }: ProductionQu
                         </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+                        <ProductionSearch initialSearch={search || ''} />
                         <Button variant="outline" size="sm" asChild className="hidden sm:flex">
                             <Link href="/factory/batches">
                                 <Layers className="w-4 h-4 mr-2" />

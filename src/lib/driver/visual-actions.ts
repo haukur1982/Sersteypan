@@ -65,7 +65,7 @@ export async function saveVisualVerification(
   }
 
   // Insert verification record
-  const { data: verification, error: insertError } = await supabase
+  const { data: verification, error: insertError } = await (supabase as any)
     .from('visual_verifications')
     .insert({
       element_id: input.elementId,
@@ -113,7 +113,7 @@ export async function saveVisualVerification(
 export async function getElementVerifications(elementId: string) {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('visual_verifications')
     .select(`
       id,
@@ -152,7 +152,7 @@ export async function getDriverVerifications(limit = 20) {
     return { data: [], error: 'Not authenticated' }
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('visual_verifications')
     .select(`
       id,

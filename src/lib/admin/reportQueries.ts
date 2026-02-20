@@ -312,7 +312,7 @@ export async function getQualityMetrics(dateRange: DateRange) {
       .select('id, category, delivery_impact, created_at')
       .gte('created_at', dateRange.from)
       .lte('created_at', dateRange.to),
-    supabase
+    (supabase as any)
       .from('visual_verifications')
       .select('id, status, verified_at')
       .gte('verified_at', dateRange.from)
@@ -345,7 +345,7 @@ export async function getQualityMetrics(dateRange: DateRange) {
   }))
 
   // Verification rejection
-  const rejected = verifications.filter(v => v.status === 'rejected').length
+  const rejected = verifications.filter((v: any) => v.status === 'rejected').length
 
   // Weekly defect trend
   const fixDates = fixes

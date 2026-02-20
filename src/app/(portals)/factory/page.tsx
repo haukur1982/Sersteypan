@@ -22,6 +22,7 @@ import {
     AlertTriangle,
     Flame,
     FolderKanban,
+    Users,
 } from 'lucide-react'
 
 const typeConfig: Record<string, { color: string; label: string }> = {
@@ -536,11 +537,17 @@ export default async function FactoryDashboard() {
             {/* Quick Actions */}
             <Card className="p-4 md:p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
                 <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Flýtiaðgerðir</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     <Button asChild variant="outline" className="bg-card hover:bg-accent">
                         <Link href="/factory/production">
                             <Wrench className="w-4 h-4 mr-2" />
                             Vinnuröð
+                        </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="bg-card hover:bg-accent border-primary/20 hover:border-primary/40">
+                        <Link href="/factory/labor" className="text-primary">
+                            <Users className="w-4 h-4 mr-2" />
+                            Vinnuskrá (Járn)
                         </Link>
                     </Button>
                     <Button asChild variant="outline" className="bg-card hover:bg-accent">
