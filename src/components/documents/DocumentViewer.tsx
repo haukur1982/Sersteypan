@@ -2,8 +2,16 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch'
-import { PDFViewer } from '@embedpdf/react-pdf-viewer'
-import { ArrowLeft, Download, RotateCcw, Loader2, AlertCircle } from 'lucide-react'
+import { Document, Page, pdfjs } from 'react-pdf'
+import 'react-pdf/dist/Page/AnnotationLayer.css'
+import 'react-pdf/dist/Page/TextLayer.css'
+import { ArrowLeft, Download, RotateCcw, Loader2, AlertCircle, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react'
+
+// Configure PDF.js worker — must be in the same file as <Document>
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.min.mjs',
+    import.meta.url
+).toString()
 
 interface ViewerDocument {
     id: string
@@ -45,6 +53,36 @@ function ZoomResetButton({ visible }: { visible: boolean }) {
     )
 }
 
+/** PDF zoom controls — inside TransformWrapper context */
+function PdfZoomControls() {
+    const { zoomIn, zoomOut, resetTransform } = useControls()
+    return (
+        <div className="flex items-center gap-1">
+            <button
+                onClick={(e) => { e.stopPropagation(); zoomOut() }}
+                className="p-2 text-white hover:bg-white/20 rounded-lg active:bg-white/30"
+                aria-label="Minnka"
+            >
+                <ZoomOut className="h-5 w-5" />
+            </button>
+            <button
+                onClick={(e) => { e.stopPropagation(); resetTransform() }}
+                className="p-2 text-white hover:bg-white/20 rounded-lg active:bg-white/30"
+                aria-label="Endurstilla"
+            >
+                <RotateCcw className="h-4 w-4" />
+            </button>
+            <button
+                onClick={(e) => { e.stopPropagation(); zoomIn() }}
+                className="p-2 text-white hover:bg-white/20 rounded-lg active:bg-white/30"
+                aria-label="Stækka"
+            >
+                <ZoomIn className="h-5 w-5" />
+            </button>
+        </div>
+    )
+}
+
 // ── Main DocumentViewer ──────────────────────────────────────
 
 export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
@@ -55,7 +93,13 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
     const [error, setError] = useState<string | null>(null)
     const [retryKey, setRetryKey] = useState(0)
 
-    // UI visibility — auto-hide after 3s (images only; PDFs have their own toolbar)
+    // PDF state
+    const [numPages, setNumPages] = useState<number>(0)
+    const [currentPage, setCurrentPage] = useState(1)
+    const [pdfWidth, setPdfWidth] = useState(0)
+    const containerRef = useRef<HTMLDivElement>(null)
+
+    // UI visibility — auto-hide after 3s (images only)
     const [uiVisible, setUiVisible] = useState(true)
     const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -91,6 +135,18 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
         return () => { body.style.overflow = prev }
     }, [])
 
+    // Measure container width for PDF fit-to-width
+    useEffect(() => {
+        if (!isPdf || !containerRef.current) return
+        const observer = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                setPdfWidth(entry.contentRect.width)
+            }
+        })
+        observer.observe(containerRef.current)
+        return () => observer.disconnect()
+    }, [isPdf])
+
     const onImageLoad = useCallback(() => {
         setLoading(false)
     }, [])
@@ -105,7 +161,23 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
         setError(null)
         setLoading(true)
         setRetryKey(k => k + 1)
+        setCurrentPage(1)
+        setNumPages(0)
     }, [])
+
+    // PDF callbacks
+    const onDocumentLoadSuccess = useCallback(({ numPages: n }: { numPages: number }) => {
+        setNumPages(n)
+        setLoading(false)
+    }, [])
+
+    const onDocumentLoadError = useCallback(() => {
+        setError('Villa kom upp við að hlaða PDF skjal')
+        setLoading(false)
+    }, [])
+
+    const goToPrevPage = useCallback(() => setCurrentPage(p => Math.max(1, p - 1)), [])
+    const goToNextPage = useCallback(() => setCurrentPage(p => Math.min(numPages, p + 1)), [numPages])
 
     return (
         <div
@@ -140,8 +212,8 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
 
             {/* Main content area */}
             <div className="flex-1 flex items-center justify-center overflow-hidden" style={isPdf ? { paddingTop: 48 } : undefined}>
-                {/* Loading spinner (not shown for PDF — EmbedPDF handles its own loading) */}
-                {loading && !isPdf && (
+                {/* Loading spinner */}
+                {loading && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
                         <Loader2 className="h-10 w-10 animate-spin text-white/70" />
                         <p className="text-white/50 text-sm mt-3">Hleð inn...</p>
@@ -162,19 +234,74 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
                     </div>
                 )}
 
-                {/* PDF viewer — EmbedPDF (PDFium WebAssembly engine)
-                    Uses Chrome's own PDF engine compiled to WebAssembly.
-                    Built-in pinch-to-zoom, virtualized scrolling, works on iOS Safari. */}
+                {/* PDF viewer — react-pdf with pinch-to-zoom
+                    Renders PDF pages to canvas via Mozilla's PDF.js engine.
+                    Wrapped in react-zoom-pan-pinch for mobile pinch-to-zoom.
+                    Works on all browsers including iOS Safari. */}
                 {!error && isPdf && (
-                    <div key={retryKey} className="w-full h-full">
-                        <PDFViewer
-                            config={{
-                                src: proxyUrl,
-                                wasmUrl: '/wasm/pdfium.wasm',
-                                theme: { preference: 'dark' },
-                            }}
-                        />
-                    </div>
+                    <TransformWrapper
+                        key={`pdf-${retryKey}`}
+                        initialScale={1}
+                        minScale={0.5}
+                        maxScale={4}
+                        doubleClick={{ mode: 'zoomIn', step: 1 }}
+                        pinch={{ step: 5 }}
+                        wheel={{ step: 0.1 }}
+                        centerOnInit
+                        panning={{ velocityDisabled: true }}
+                    >
+                        <div ref={containerRef} className="w-full h-full flex flex-col">
+                            <TransformComponent
+                                wrapperStyle={{ width: '100%', flex: 1, overflow: 'hidden' }}
+                                contentStyle={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minHeight: '100%' }}
+                            >
+                                <Document
+                                    file={proxyUrl}
+                                    onLoadSuccess={onDocumentLoadSuccess}
+                                    onLoadError={onDocumentLoadError}
+                                    loading={null}
+                                >
+                                    <Page
+                                        pageNumber={currentPage}
+                                        width={pdfWidth > 0 ? pdfWidth : undefined}
+                                        loading={null}
+                                        renderAnnotationLayer={false}
+                                        renderTextLayer={false}
+                                    />
+                                </Document>
+                            </TransformComponent>
+
+                            {/* PDF controls bar */}
+                            {numPages > 0 && (
+                                <div
+                                    className="flex items-center justify-center gap-2 py-2 px-4 bg-black/70 backdrop-blur-sm"
+                                    style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+                                >
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); goToPrevPage() }}
+                                        disabled={currentPage <= 1}
+                                        className="p-2 text-white disabled:text-white/30 hover:bg-white/20 rounded-lg active:bg-white/30"
+                                        aria-label="Fyrri síða"
+                                    >
+                                        <ChevronLeft className="h-5 w-5" />
+                                    </button>
+                                    <span className="text-white text-sm font-medium min-w-[80px] text-center">
+                                        {currentPage} / {numPages}
+                                    </span>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); goToNextPage() }}
+                                        disabled={currentPage >= numPages}
+                                        className="p-2 text-white disabled:text-white/30 hover:bg-white/20 rounded-lg active:bg-white/30"
+                                        aria-label="Næsta síða"
+                                    >
+                                        <ChevronRight className="h-5 w-5" />
+                                    </button>
+                                    <div className="w-px h-6 bg-white/20 mx-1" />
+                                    <PdfZoomControls />
+                                </div>
+                            )}
+                        </div>
+                    </TransformWrapper>
                 )}
 
                 {/* Image viewer — pinch/zoom via react-zoom-pan-pinch */}
