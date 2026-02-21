@@ -2,8 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-// @ts-expect-error - Ignoring missing types for react-hot-toast if not strictly typed
-import { toast } from 'react-hot-toast'
+import { toast } from 'sonner'
 import {
     saveContractLines,
     approveRevision,
