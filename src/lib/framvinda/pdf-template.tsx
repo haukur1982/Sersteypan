@@ -37,6 +37,18 @@ const s = StyleSheet.create({
     top: 0,
     textAlign: 'right',
   },
+  // Description
+  description: {
+    marginBottom: 8,
+    padding: 6,
+    backgroundColor: '#f9fafb',
+    borderLeft: '2 solid #d4d4d8',
+  },
+  descriptionText: {
+    fontSize: 7.5,
+    color: '#374151',
+    lineHeight: 1.4,
+  },
   // Table
   tableHeader: {
     flexDirection: 'row',
@@ -204,24 +216,58 @@ export function FramvindaPdfDocument({
     periodLines.map((pl) => [pl.contract_line_id, pl])
   )
 
+  // Use period's own grunnvisitala (falls back to contract for old data)
+  const periodGrunnvisitala = period.grunnvisitala ?? contract.grunnvisitala
+  // Use snapshot VAT rate for finalized periods, else live contract rate
+  const vatRate = period.snapshot_vat_rate ?? contract.vat_rate ?? 0
+
   // Pre-compute line data
+  // For finalized periods, prefer snapshot data (immutable) over live contract data
   const lineData = contractLines.map((cl) => {
     const pl = plMap.get(cl.id)
+    // Use snapshot values when available (finalized periods)
+    const effectiveUnitPrice = pl?.snapshot_unit_price ?? cl.unit_price
+    const effectiveLabel = pl?.snapshot_label ?? cl.label
+    const effectivePricingUnit = pl?.snapshot_pricing_unit ?? cl.pricing_unit
+    const effectiveTotalQuantity = pl?.snapshot_total_quantity ?? cl.total_quantity
+    const effectiveTotalPrice = effectiveTotalQuantity * effectiveUnitPrice
+
     const qtyThisPeriod = pl?.quantity_this_period ?? 0
     const cumBefore = cumulativeBefore[cl.id] ?? 0
     const cumTotal = cumBefore + qtyThisPeriod
-    const pct = cl.total_quantity > 0 ? cumTotal / cl.total_quantity : 0
-    const cumAmount = cumTotal * cl.unit_price
-    const amtThisPeriod = qtyThisPeriod * cl.unit_price
+    const pct = effectiveTotalQuantity > 0 ? cumTotal / effectiveTotalQuantity : 0
+    const cumAmount = cumTotal * effectiveUnitPrice
+    const amtThisPeriod = qtyThisPeriod * effectiveUnitPrice
 
-    return { cl, pl, qtyThisPeriod, cumBefore, cumTotal, pct, cumAmount, amtThisPeriod }
+    return {
+      cl,
+      pl,
+      qtyThisPeriod,
+      cumBefore,
+      cumTotal,
+      pct,
+      cumAmount,
+      amtThisPeriod,
+      effectiveUnitPrice,
+      effectiveLabel,
+      effectivePricingUnit,
+      effectiveTotalQuantity,
+      effectiveTotalPrice,
+    }
   })
 
   // Compute totals from line data
   const periodSubtotal = lineData.reduce((sum, d) => sum + d.amtThisPeriod, 0)
-  const visitalaMultiplier = period.visitala / contract.grunnvisitala
+  const visitalaMultiplier = period.visitala / periodGrunnvisitala
   const visitalaAmount = (visitalaMultiplier - 1) * periodSubtotal
   const totalWithVisitala = periodSubtotal + visitalaAmount
+
+  const retainagePercentage = period.snapshot_retainage_percentage ?? contract.retainage_percentage ?? 0
+  const retainageAmount = totalWithVisitala * (retainagePercentage / 100)
+  const totalAfterRetainage = totalWithVisitala - retainageAmount
+
+  const vatAmount = totalAfterRetainage * (vatRate / 100)
+  const grandTotalWithVat = totalAfterRetainage + vatAmount
 
   return (
     <Document>
@@ -239,6 +285,13 @@ export function FramvindaPdfDocument({
           </View>
           <Text style={s.headerSub}>SÉRSTEYPAN EHF</Text>
         </View>
+
+        {/* Description */}
+        {period.description ? (
+          <View style={s.description}>
+            <Text style={s.descriptionText}>{period.description}</Text>
+          </View>
+        ) : null}
 
         {/* Table Header */}
         <View style={s.tableHeader}>
@@ -279,24 +332,24 @@ export function FramvindaPdfDocument({
                 >
                   <Text style={s.colLabel}>
                     {d.cl.is_extra ? '  Auka ' : ''}
-                    {d.cl.label}
+                    {d.effectiveLabel}
                   </Text>
                   <Text style={s.colQty}>
                     {fmtNum(
-                      d.cl.total_quantity,
-                      d.cl.pricing_unit === 'm2' ? 2 : 0
+                      d.effectiveTotalQuantity,
+                      d.effectivePricingUnit === 'm2' ? 2 : 0
                     )}
                   </Text>
                   <Text style={s.colPrice}>
-                    {fmtNum(d.cl.unit_price, 0)} kr
+                    {fmtNum(d.effectiveUnitPrice, 0)} kr
                   </Text>
-                  <Text style={s.colTotal}>{fmtISK(d.cl.total_price)}</Text>
+                  <Text style={s.colTotal}>{fmtISK(d.effectiveTotalPrice)}</Text>
                   <Text style={s.colCumQty}>
                     {d.cumTotal > 0
                       ? fmtNum(
-                          d.cumTotal,
-                          d.cl.pricing_unit === 'm2' ? 2 : 0
-                        )
+                        d.cumTotal,
+                        d.effectivePricingUnit === 'm2' ? 2 : 0
+                      )
                       : '0'}
                   </Text>
                   <Text
@@ -313,9 +366,9 @@ export function FramvindaPdfDocument({
                   <Text style={[s.colPeriodQty, s.bold]}>
                     {d.qtyThisPeriod > 0
                       ? fmtNum(
-                          d.qtyThisPeriod,
-                          d.cl.pricing_unit === 'm2' ? 2 : 0
-                        )
+                        d.qtyThisPeriod,
+                        d.effectivePricingUnit === 'm2' ? 2 : 0
+                      )
                       : ''}
                   </Text>
                   <Text style={[s.colPeriodAmt, s.bold]}>
@@ -351,20 +404,36 @@ export function FramvindaPdfDocument({
         {/* Footer with totals */}
         <View style={s.footer}>
           <View style={s.footerRow}>
-            <Text style={s.footerLabel}>Samtals m/vsk</Text>
+            <Text style={s.footerLabel}>Samtals</Text>
             <Text style={s.footerValue}>{fmtISK(periodSubtotal)}</Text>
           </View>
           <View style={s.footerRow}>
             <Text style={s.footerLabel}>
-              Vísitala (Grunnvísitala {fmtNum(contract.grunnvisitala, 1)} →{' '}
+              Vísitala (Grunnvísitala {fmtNum(periodGrunnvisitala, 1)} →{' '}
               {fmtNum(period.visitala, 1)})
             </Text>
             <Text style={s.footerValue}>{fmtISK(visitalaAmount)}</Text>
           </View>
+          <View style={s.footerRow}>
+            <Text style={s.footerLabel}>Samtals m/vísitölu</Text>
+            <Text style={s.footerValue}>{fmtISK(totalWithVisitala)}</Text>
+          </View>
+          {retainagePercentage > 0 && (
+            <View style={s.footerRow}>
+              <Text style={s.footerLabel}>Tryggingarfé ({fmtNum(retainagePercentage, 0)}%)</Text>
+              <Text style={[s.footerValue, { color: '#dc2626' }]}>-{fmtISK(retainageAmount)}</Text>
+            </View>
+          )}
+          {vatRate > 0 && (
+            <View style={s.footerRow}>
+              <Text style={s.footerLabel}>VSK ({fmtNum(vatRate, 0)}%)</Text>
+              <Text style={s.footerValue}>{fmtISK(vatAmount)}</Text>
+            </View>
+          )}
           <View style={s.grandTotal}>
-            <Text style={s.grandTotalLabel}>Samtals m/vsk</Text>
+            <Text style={s.grandTotalLabel}>Heildarupphæð m/vsk</Text>
             <Text style={s.grandTotalValue}>
-              {fmtISK(totalWithVisitala)}
+              {fmtISK(vatRate > 0 ? grandTotalWithVat : totalAfterRetainage)}
             </Text>
           </View>
         </View>

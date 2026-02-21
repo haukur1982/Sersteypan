@@ -20,7 +20,7 @@ export default async function ContractSetupPage({ params }: PageProps) {
   if (!project) redirect('/admin/framvinda')
 
   const contract = await getContract(projectId)
-  const existingLines = contract ? await getContractLines(contract.id) : []
+  const existingLines = contract ? await getContractLines(contract.id, null) : []
 
   // Fetch data for auto-suggest
   const [buildings, elements, deliveries] = await Promise.all([
@@ -47,6 +47,7 @@ export default async function ContractSetupPage({ params }: PageProps) {
         projectId={projectId}
         contract={contract}
         existingLines={existingLines}
+        isFrozen={contract?.is_frozen ?? false}
         buildings={buildings}
         elements={elements}
         deliveries={deliveries}

@@ -111,6 +111,9 @@ export function FramvindaEditorClient({
   )
 
   const [visitala, setVisitala] = useState(period.visitala)
+  const [grunnvisitala, setGrunnvisitala] = useState(period.grunnvisitala)
+  const [description, setDescription] = useState(period.description ?? '')
+  const [periodNotes, setPeriodNotes] = useState(period.notes ?? '')
   const [saving, setSaving] = useState(false)
   const [generatingPdf, setGeneratingPdf] = useState(false)
   const [error, setError] = useState('')
@@ -144,9 +147,13 @@ export function FramvindaEditorClient({
   )
 
   // Auto-suggest: fill in quantities from element data
+  // Skips lines that have been manually adjusted by the admin
   const handleAutoSuggest = useCallback(() => {
     const updates: Record<string, PeriodLineState> = { ...lineStates }
     for (const cl of contractLines) {
+      // Skip lines the admin has manually adjusted
+      if (updates[cl.id]?.isManuallyAdjusted) continue
+
       const suggested = suggestQuantityForLine(
         cl,
         elements,
@@ -203,14 +210,19 @@ export function FramvindaEditorClient({
       }
     }
 
+    const activeVatRate = period.snapshot_vat_rate ?? contract.vat_rate ?? 24
+    const activeRetainage = period.snapshot_retainage_percentage ?? contract.retainage_percentage ?? 0
+
     const summary = calculateVisitala(
       periodSubtotal,
-      contract.grunnvisitala,
-      visitala
+      grunnvisitala,
+      visitala,
+      activeVatRate,
+      activeRetainage
     )
 
     return { lines: result, summary }
-  }, [contractLines, lineStates, cumulativeBefore, contract.grunnvisitala, visitala])
+  }, [contractLines, lineStates, cumulativeBefore, grunnvisitala, visitala, contract, period])
 
   async function handleSave() {
     setError('')
@@ -231,14 +243,21 @@ export function FramvindaEditorClient({
         }
       })
       .filter(Boolean) as Array<{
-      id: string
-      quantity_this_period: number
-      amount_this_period: number
-      is_manually_adjusted: boolean
-      notes: string | null
-    }>
+        id: string
+        quantity_this_period: number
+        amount_this_period: number
+        is_manually_adjusted: boolean
+        notes: string | null
+      }>
 
-    const result = await savePeriodLines(period.id, visitala, linesToSave)
+    const result = await savePeriodLines(
+      period.id,
+      visitala,
+      grunnvisitala,
+      linesToSave,
+      description || null,
+      periodNotes || null
+    )
 
     if (result.error) {
       setError(result.error)
@@ -260,11 +279,33 @@ export function FramvindaEditorClient({
     // Save first, then finalize
     await handleSave()
     const result = await finalizePeriod(period.id)
-    if (result.error) {
+
+    // Check for over-billing warnings
+    if (result.overBillingWarnings && result.overBillingWarnings.length > 0) {
+      const warningMsg = [
+        'Eftirfarandi línur fara yfir 110% af samningsmagni:',
+        '',
+        ...result.overBillingWarnings,
+        '',
+        'Viltu halda áfram og loka framvindunni?',
+      ].join('\n')
+
+      if (!confirm(warningMsg)) {
+        return
+      }
+
+      // User confirmed — force finalize with over-billing
+      const forceResult = await finalizePeriod(period.id, true)
+      if (forceResult.error) {
+        setError(forceResult.error)
+        return
+      }
+    } else if (result.error) {
       setError(result.error)
-    } else {
-      router.refresh()
+      return
     }
+
+    router.refresh()
   }
 
   async function handleReopen() {
@@ -385,6 +426,50 @@ export function FramvindaEditorClient({
         </div>
       )}
 
+      {/* Description + Internal Notes */}
+      <Card className="border-zinc-200 shadow-sm">
+        <CardContent className="pt-6 space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-zinc-700">
+              Lýsing á framvindu
+            </label>
+            <p className="text-xs text-zinc-400">Birtist á PDF skýrslu</p>
+            {isDraft ? (
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Lýsing á framvindu í þessu tímabili..."
+                rows={3}
+                className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+              />
+            ) : (
+              <p className="text-sm text-zinc-700 whitespace-pre-wrap">
+                {description || <span className="text-zinc-400 italic">Engin lýsing</span>}
+              </p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-zinc-700">
+              Innri athugasemd
+            </label>
+            <p className="text-xs text-zinc-400">Aðeins sýnilegt stjórnanda — birtist ekki á PDF eða kaupanda</p>
+            {isDraft ? (
+              <textarea
+                value={periodNotes}
+                onChange={(e) => setPeriodNotes(e.target.value)}
+                placeholder="Innri athugasemd..."
+                rows={2}
+                className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+              />
+            ) : (
+              periodNotes ? (
+                <p className="text-sm text-zinc-500 whitespace-pre-wrap">{periodNotes}</p>
+              ) : null
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Main billing table */}
       <Card className="border-zinc-200 shadow-sm overflow-x-auto">
         <div className="min-w-[1100px]">
@@ -466,8 +551,8 @@ export function FramvindaEditorClient({
                             computed.percentComplete >= 1
                               ? 'text-green-600 font-medium'
                               : computed.percentComplete > 0
-                              ? 'text-blue-600'
-                              : 'text-zinc-400'
+                                ? 'text-blue-600'
+                                : 'text-zinc-400'
                           }
                         >
                           {formatPercent(computed.percentComplete)}
@@ -547,21 +632,41 @@ export function FramvindaEditorClient({
         </div>
       </Card>
 
-      {/* Totals + Vísitala */}
+      {/* Totals + Vísitala + VAT */}
       <Card className="border-zinc-200 shadow-sm">
         <CardContent className="pt-6 space-y-4">
+          {/* Subtotal */}
           <div className="flex justify-between items-center text-lg">
-            <span className="font-medium text-zinc-700">Samtals m/vsk</span>
+            <span className="font-medium text-zinc-700">Samtals</span>
             <span className="font-bold text-zinc-900 tabular-nums">
               {formatISK(computedData.summary.subtotal)}
             </span>
           </div>
 
+          {/* Vísitala adjustment */}
           <div className="flex justify-between items-center border-t border-zinc-100 pt-4">
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-zinc-500">
-                Grunnvísitala: {contract.grunnvisitala}
-              </span>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-zinc-500">Grunnvísitala:</span>
+                {isDraft ? (
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={grunnvisitala}
+                    onChange={(e) =>
+                      setGrunnvisitala(parseFloat(e.target.value) || 0)
+                    }
+                    className="w-24 h-8 text-sm"
+                  />
+                ) : (
+                  <span className="font-medium">{grunnvisitala}</span>
+                )}
+              </div>
+              {grunnvisitala !== contract.grunnvisitala && (
+                <span className="text-xs text-amber-600">
+                  (Samningur: {contract.grunnvisitala})
+                </span>
+              )}
               <div className="flex items-center gap-2">
                 <span className="text-sm text-zinc-500">Vísitala:</span>
                 {isDraft ? (
@@ -584,10 +689,41 @@ export function FramvindaEditorClient({
             </span>
           </div>
 
-          <div className="flex justify-between items-center border-t border-zinc-200 pt-4 text-xl">
-            <span className="font-bold text-zinc-900">Samtals m/vsk</span>
+          {/* Total with vísitala */}
+          <div className="flex justify-between items-center border-t border-zinc-100 pt-4">
+            <span className="font-medium text-zinc-700">Samtals m/vísitölu</span>
             <span className="font-bold text-zinc-900 tabular-nums">
               {formatISK(computedData.summary.totalWithVisitala)}
+            </span>
+          </div>
+
+          {/* Retainage */}
+          {computedData.summary.retainagePercentage > 0 && (
+            <div className="flex justify-between items-center border-t border-zinc-100 pt-4">
+              <span className="text-sm text-zinc-500">
+                Tryggingarfé ({computedData.summary.retainagePercentage}%)
+              </span>
+              <span className="text-red-600 tabular-nums">
+                -{formatISK(computedData.summary.retainageAmount)}
+              </span>
+            </div>
+          )}
+
+          {/* VAT */}
+          <div className="flex justify-between items-center border-t border-zinc-100 pt-4">
+            <span className="text-sm text-zinc-500">
+              VSK ({computedData.summary.vatRate}%)
+            </span>
+            <span className="text-zinc-700 tabular-nums">
+              {formatISK(computedData.summary.vatAmount)}
+            </span>
+          </div>
+
+          {/* Grand total with VAT */}
+          <div className="flex justify-between items-center border-t border-zinc-200 pt-4 text-xl">
+            <span className="font-bold text-zinc-900">Heildarupphæð m/vsk</span>
+            <span className="font-bold text-zinc-900 tabular-nums">
+              {formatISK(computedData.summary.grandTotalWithVat)}
             </span>
           </div>
         </CardContent>

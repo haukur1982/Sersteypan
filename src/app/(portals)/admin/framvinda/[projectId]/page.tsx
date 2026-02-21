@@ -3,6 +3,8 @@ import {
   getContractLines,
   getPeriods,
   getProjectForFramvinda,
+  getCumulativeForAllPeriods,
+  getRevisions,
 } from '@/lib/framvinda/queries'
 import { formatISK } from '@/lib/framvinda/calculations'
 import { CATEGORY_LABELS, type FramvindaCategory } from '@/lib/framvinda/types'
@@ -21,6 +23,7 @@ import { Settings, FileText, Lock, Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { FramvindaNewPeriodForm } from '@/components/framvinda/NewPeriodForm'
+import { ProgressSummary } from '@/components/framvinda/ProgressSummary'
 
 interface PageProps {
   params: Promise<{ projectId: string }>
@@ -38,15 +41,27 @@ export default async function FramvindaProjectPage({ params }: PageProps) {
     redirect(`/admin/framvinda/${projectId}/setup`)
   }
 
-  const [lines, periods] = await Promise.all([
+  const [lines, periods, cumulativeMap, revisions] = await Promise.all([
     getContractLines(contract.id),
     getPeriods(contract.id),
+    getCumulativeForAllPeriods(contract.id),
+    getRevisions(contract.id),
   ])
 
-  // Calculate contract totals by category
+  // Convert Map to Record for client component
+  const cumulativeRecord: Record<string, number> = {}
+  for (const [key, value] of cumulativeMap) {
+    cumulativeRecord[key] = value
+  }
+
+  // Filter lines to only include Base + Approved revisions
+  const approvedRevisionIds = new Set(revisions.filter(r => r.status === 'approved').map(r => r.id))
+  const activeLines = lines.filter(l => l.revision_id === null || (l.revision_id && approvedRevisionIds.has(l.revision_id)))
+
+  // Calculate contract totals by category for active lines
   const categoryTotals = new Map<string, number>()
   let contractGrandTotal = 0
-  for (const line of lines) {
+  for (const line of activeLines) {
     const current = categoryTotals.get(line.category) ?? 0
     categoryTotals.set(line.category, current + line.total_price)
     contractGrandTotal += line.total_price
@@ -68,12 +83,21 @@ export default async function FramvindaProjectPage({ params }: PageProps) {
             {project.address ? ` · ${project.address}` : ''}
           </p>
         </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link href={`/admin/framvinda/${projectId}/setup`}>
-            <Settings className="mr-1 h-3.5 w-3.5" />
-            Breyta samningi
-          </Link>
-        </Button>
+        {contract.is_frozen ? (
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/admin/framvinda/${projectId}/setup`}>
+              <Settings className="mr-1 h-3.5 w-3.5" />
+              Skoða samning
+            </Link>
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/admin/framvinda/${projectId}/setup`}>
+              <Settings className="mr-1 h-3.5 w-3.5" />
+              Breyta samningi
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Contract Summary */}
@@ -108,6 +132,67 @@ export default async function FramvindaProjectPage({ params }: PageProps) {
         </CardContent>
       </Card>
 
+      {/* Revisions (Viðbætur) */}
+      <div className="flex justify-between items-center mt-8 mb-4">
+        <h2 className="text-lg font-semibold text-zinc-900">Viðbætur</h2>
+        {contract.is_frozen && (
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/admin/framvinda/${projectId}/revisions/new`}>
+              <Settings className="mr-1 h-3.5 w-3.5" />
+              Stofna Viðbót
+            </Link>
+          </Button>
+        )}
+      </div>
+
+      {revisions.length > 0 ? (
+        <Card className="border-zinc-200 shadow-sm overflow-hidden mb-8">
+          <Table>
+            <TableHeader className="bg-zinc-50">
+              <TableRow>
+                <TableHead className="py-3 font-medium text-xs text-zinc-500 uppercase tracking-wider">Heiti</TableHead>
+                <TableHead className="py-3 font-medium text-xs text-zinc-500 uppercase tracking-wider">Staða</TableHead>
+                <TableHead className="py-3 font-medium text-xs text-zinc-500 uppercase tracking-wider text-right">Aðgerðir</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {revisions.map((rev) => (
+                <TableRow key={rev.id} className="hover:bg-zinc-50">
+                  <TableCell className="py-3 font-medium">{rev.name}</TableCell>
+                  <TableCell className="py-3">
+                    {rev.status === 'approved' ? (
+                      <Badge variant="secondary" className="bg-green-100 text-green-700">Samþykkt</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="bg-amber-100 text-amber-700">Í vinnslu</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="py-3 text-right">
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/admin/framvinda/${projectId}/revisions/${rev.id}`}>
+                        <Settings className="mr-1 h-3 w-3" />
+                        Skoða / Breyta
+                      </Link>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      ) : (
+        <Card className="border-zinc-200 shadow-sm mb-8">
+          <CardContent className="py-8 text-center text-zinc-500 text-sm">
+            {!contract.is_frozen
+              ? 'Samningur þarf að vera frystur (fyrsta uppgjör samþykkt) áður en viðbætur eru stofnaðar.'
+              : 'Engar viðbætur (Change Orders) skráðar.'}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Progress Summary */}
+      <h2 className="text-lg font-semibold text-zinc-900 mt-8 mb-4">Framvinda</h2>
+      <ProgressSummary contractLines={activeLines} cumulative={cumulativeRecord} />
+
       {/* Periods */}
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold text-zinc-900">Tímabil</h2>
@@ -121,6 +206,9 @@ export default async function FramvindaProjectPage({ params }: PageProps) {
         defaultVisitala={
           periods[periods.length - 1]?.visitala ?? contract.grunnvisitala
         }
+        defaultGrunnvisitala={
+          periods[periods.length - 1]?.grunnvisitala ?? contract.grunnvisitala
+        }
       />
 
       {periods.length > 0 ? (
@@ -133,6 +221,9 @@ export default async function FramvindaProjectPage({ params }: PageProps) {
                 </TableHead>
                 <TableHead className="font-medium text-xs text-zinc-500 uppercase tracking-wider py-4">
                   Tímabil
+                </TableHead>
+                <TableHead className="font-medium text-xs text-zinc-500 uppercase tracking-wider py-4">
+                  Grunnvísitala
                 </TableHead>
                 <TableHead className="font-medium text-xs text-zinc-500 uppercase tracking-wider py-4">
                   Vísitala
@@ -161,6 +252,9 @@ export default async function FramvindaProjectPage({ params }: PageProps) {
                     {new Date(period.period_start).toLocaleDateString('is-IS')}{' '}
                     —{' '}
                     {new Date(period.period_end).toLocaleDateString('is-IS')}
+                  </TableCell>
+                  <TableCell className="py-4 text-zinc-600">
+                    {period.grunnvisitala}
                   </TableCell>
                   <TableCell className="py-4 text-zinc-600">
                     {period.visitala}

@@ -93,6 +93,7 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Yfirlit', englishName: 'Dashboard', href: '/buyer', icon: LayoutDashboard },
         { name: 'Verkefni', englishName: 'Projects', href: '/buyer/projects', icon: FolderKanban },
         { name: 'Afhendingar', englishName: 'Deliveries', href: '/buyer/deliveries', icon: Truck },
+        { name: 'Framvinda', englishName: 'Progress Billing', href: '/buyer/framvinda', icon: TrendingUp },
         { name: 'Skilaboð', englishName: 'Messages', href: '/buyer/messages', icon: MessageSquare },
         { name: 'Prófíll', englishName: 'Profile', href: '/buyer/profile', icon: UserCircle },
         { name: 'Hjálp', englishName: 'Help', href: '/buyer/help', icon: HelpCircle },

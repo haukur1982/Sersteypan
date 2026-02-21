@@ -310,8 +310,8 @@ export function suggestContractLines(
   }
 
   // --- Flutningur ---
-  if (deliveryCount > 0 || true) {
-    // Always add flutningur line (owner sets count)
+  if (deliveryCount > 0) {
+    // Add flutningur line when there are deliveries
     lines.push({
       category: 'flutningur',
       label: 'Flutningur á byggingarstað',
@@ -350,11 +350,19 @@ function groupByDrawingReference(
 export function calculateVisitala(
   periodSubtotal: number,
   grunnvisitala: number,
-  currentVisitala: number
+  currentVisitala: number,
+  vatRate = 0,
+  retainagePercentage = 0
 ): PeriodSummary {
   const visitalaMultiplier = currentVisitala / grunnvisitala
   const visitalaAmount = (visitalaMultiplier - 1) * periodSubtotal
   const totalWithVisitala = periodSubtotal + visitalaAmount
+
+  const retainageAmount = totalWithVisitala * (retainagePercentage / 100)
+  const totalAfterRetainage = totalWithVisitala - retainageAmount
+
+  const vatAmount = totalAfterRetainage * (vatRate / 100)
+  const grandTotalWithVat = totalAfterRetainage + vatAmount
 
   return {
     subtotal: periodSubtotal,
@@ -363,6 +371,12 @@ export function calculateVisitala(
     visitalaMultiplier,
     visitalaAmount: Math.round(visitalaAmount),
     totalWithVisitala: Math.round(totalWithVisitala),
+    retainagePercentage,
+    retainageAmount: Math.round(retainageAmount),
+    totalAfterRetainage: Math.round(totalAfterRetainage),
+    vatRate,
+    vatAmount: Math.round(vatAmount),
+    grandTotalWithVat: Math.round(grandTotalWithVat),
   }
 }
 

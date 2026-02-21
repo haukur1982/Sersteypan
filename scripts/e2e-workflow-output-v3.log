@@ -1,0 +1,144 @@
+
+> sersteypan@0.1.0 test:workflow
+> tsx scripts/e2e-workflow-test.mts
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║          SERSTEYPAN — E2E WORKFLOW TEST                      ║
+║          Full lifecycle: Upload → Analyze → Commit → Batch   ║
+╚═══════════════════════════════════════════════════════════════╝
+
+[21:43:05] [SETUP] ═══════════════════════════════════════
+[21:43:05] [SETUP] Phase 1: Setting up project and buildings
+[21:43:05] [SETUP] ═══════════════════════════════════════
+[21:43:05] [SETUP] Admin user: Admin User (ca8a7812-97b0-4c79-afd6-4ccc823d3bdc)
+[21:43:05] [SETUP] Cleaning up 1 existing test project(s)...
+[21:43:07] [SETUP] Cleanup complete
+[21:43:07] [SETUP] Using existing company: c8293800-0f73-41d3-8e73-eecb1b20ccf9
+[21:43:07] [SETUP] Created project: "Áshamar 52 - Hafnarfjörður (E2E Test)" (2aa66a21-8fb5-4b74-9d34-8a9dea0b0960)
+[21:43:07] [SETUP] Created building: Hús A (4 floors)
+[21:43:07] [SETUP] Created building: Hús B (4 floors)
+[21:43:08] [SETUP] Created building: Hús C (4 floors)
+[21:43:08] [UPLOAD] ═══════════════════════════════════════
+[21:43:08] [UPLOAD] Phase 2: Uploading drawings to Supabase Storage
+[21:43:08] [UPLOAD] ═══════════════════════════════════════
+[21:43:08] [UPLOAD] ✓ BF-1_ Filegranplötur yfir 1. hæð - Hús A.pdf (78KB) → acc08267-8951-4e3a-9d7a-2700de5bbf71
+[21:43:09] [UPLOAD] ✓ BF-2_ Filegranplötur yfir 1. hæð - Hús A.pdf (48KB) → 7b0da1f7-942e-4dcd-a8e9-ec81b8a9cfac
+[21:43:09] [UPLOAD] ✓ BF-3_ Filegranplötur yfir 1. hæð - Hús B.pdf (63KB) → f0604f12-cf46-410d-996a-22b30b60982f
+[21:43:10] [UPLOAD] ✓ BF-4_ Filegranplötur yfir 1. hæð - Hús C.pdf (63KB) → 08a1c061-95d7-4a27-adde-46623a399a49
+[21:43:11] [UPLOAD] ✓ BS_01_ Forsteyptar svalir - 54.pdf (168KB) → e9706001-30de-466f-ba2f-b5e963d5ae7b
+[21:43:11] [UPLOAD] ✓ Svalagangar 54.pdf (159KB) → f2192cce-d4df-44ba-bc66-b5a772301b11
+[21:43:13] [UPLOAD] ✓ A.1.9_ Svalagangar v og a  Rev.0.pdf (1788KB) → df419aeb-013f-43a6-bc23-4f9394e24c47
+[21:43:13] [UPLOAD] ✓ BS-2_ Forsteyptir stigar Rev.0 markup (2).pdf (103KB) → 10dbc47d-28a2-4bf0-9756-061fb00d1820
+[21:43:13] [ANALYSIS] ═══════════════════════════════════════
+[21:43:13] [ANALYSIS] Phase 3: Running AI drawing analysis
+[21:43:13] [ANALYSIS] ═══════════════════════════════════════
+[21:43:13] [ANALYSIS] 📦 Cache hit for BF-2_ Filegranplötur yfir 1. hæð - Hús A.pdf
+[21:43:14] [ANALYSIS] 📦 Cache hit for BF-1_ Filegranplötur yfir 1. hæð - Hús A.pdf
+[21:43:14] [ANALYSIS] 📦 Cache hit for BF-4_ Filegranplötur yfir 1. hæð - Hús C.pdf
+[21:43:14] [ANALYSIS] 📦 Cache hit for BF-3_ Filegranplötur yfir 1. hæð - Hús B.pdf
+[21:43:15] [ANALYSIS] 📦 Cache hit for Svalagangar 54.pdf
+[21:43:15] [ANALYSIS] 📦 Cache hit for BS_01_ Forsteyptar svalir - 54.pdf
+[21:43:15] [ANALYSIS] 📦 Cache hit for BS-2_ Forsteyptir stigar Rev.0 markup (2).pdf
+[21:43:15] [ANALYSIS] 📦 Cache hit for A.1.9_ Svalagangar v og a  Rev.0.pdf
+[21:43:15] [ANALYSIS] ═══ Analysis complete: 8 drawings, 129 elements extracted ═══
+[21:43:15] [COMMIT] ═══════════════════════════════════════
+[21:43:15] [COMMIT] Phase 4: Committing elements to database
+[21:43:15] [COMMIT] ═══════════════════════════════════════
+[21:43:16] [COMMIT] ✓ BF-1_ Filegranplötur yfir 1. hæð - Hús A.pdf: 42 extracted → 42 elements committed
+[21:43:16] [COMMIT] ✓ BF-2_ Filegranplötur yfir 1. hæð - Hús A.pdf: 8 extracted → 8 elements committed
+[21:43:17] [COMMIT] ✓ BF-3_ Filegranplötur yfir 1. hæð - Hús B.pdf: 25 extracted → 25 elements committed
+[21:43:17] [COMMIT] ✓ BF-4_ Filegranplötur yfir 1. hæð - Hús C.pdf: 29 extracted → 29 elements committed
+[21:43:17] [COMMIT] ✓ BS_01_ Forsteyptar svalir - 54.pdf: 2 extracted → 33 elements committed
+[21:43:18] [COMMIT] ✓ Svalagangar 54.pdf: 20 extracted → 20 elements committed
+[21:43:18] [COMMIT] ⏭️  Skipping A.1.9_ Svalagangar v og a  Rev.0.pdf (0 elements)
+[21:43:18] [COMMIT] ✓ BS-2_ Forsteyptir stigar Rev.0 markup (2).pdf: 3 extracted → 3 elements committed
+[21:43:18] [COMMIT] ═══ Total elements committed: 160 ═══
+[21:43:18] [BATCHES] ═══════════════════════════════════════
+[21:43:18] [BATCHES] Phase 5: Creating and completing production batches
+[21:43:18] [BATCHES] ═══════════════════════════════════════
+[21:43:18] [BATCHES] Found 160 unbatched elements
+[21:43:18] [BATCHES] Grouped into 9 batches
+[21:43:18] [BATCHES] ✓ Created batch LOTA-2026-014 with 20 elements
+[21:43:19] [BATCHES] ✓ Created batch LOTA-2026-015 with 20 elements
+[21:43:19] [BATCHES] ✓ Created batch LOTA-2026-016 with 10 elements
+[21:43:19] [BATCHES] ✓ Created batch LOTA-2026-017 with 20 elements
+[21:43:19] [BATCHES] ✓ Created batch LOTA-2026-018 with 5 elements
+[21:43:19] [BATCHES] ✓ Created batch LOTA-2026-019 with 20 elements
+[21:43:19] [BATCHES] ✓ Created batch LOTA-2026-020 with 9 elements
+[21:43:20] [BATCHES] ✓ Created batch LOTA-2026-021 with 6 elements
+[21:43:20] [BATCHES] ✓ Created batch LOTA-2026-022 with 9 elements
+[21:43:20] [BATCHES] ✓ Created batch LOTA-2026-023 with 9 elements
+[21:43:20] [BATCHES] ✓ Created batch LOTA-2026-024 with 9 elements
+[21:43:20] [BATCHES] ✓ Created batch LOTA-2026-025 with 20 elements
+[21:43:20] [BATCHES] ✓ Created batch LOTA-2026-026 with 3 elements
+[21:43:20] [BATCHES] Created 13 batches
+[21:43:21] [BATCHES] ✓ Completed batch LOTA-2026-014
+[21:43:21] [BATCHES] ✓ Completed batch LOTA-2026-015
+[21:43:22] [BATCHES] ✓ Completed batch LOTA-2026-016
+[21:43:23] [BATCHES] ✓ Completed batch LOTA-2026-017
+[21:43:23] [BATCHES] ✓ Completed batch LOTA-2026-018
+[21:43:24] [BATCHES] ✓ Completed batch LOTA-2026-019
+[21:43:24] [BATCHES] ✓ Completed batch LOTA-2026-020
+[21:43:25] [BATCHES] ✓ Completed batch LOTA-2026-021
+[21:43:25] [BATCHES] ✓ Completed batch LOTA-2026-022
+[21:43:26] [BATCHES] ✓ Completed batch LOTA-2026-023
+[21:43:26] [BATCHES] ✓ Completed batch LOTA-2026-024
+[21:43:27] [BATCHES] ✓ Completed batch LOTA-2026-025
+[21:43:27] [BATCHES] ✓ Completed batch LOTA-2026-026
+[21:43:27] [BATCHES] ═══ Batches: 13 created, 13 completed ═══
+[21:43:27] [BATCHES] Elements at 'cast' status: 160/160
+[21:43:27] [REPORT] ═══════════════════════════════════════
+[21:43:27] [REPORT] Phase 6: Generating summary report
+[21:43:27] [REPORT] ═══════════════════════════════════════
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║              E2E WORKFLOW TEST — FINAL REPORT                ║
+╠═══════════════════════════════════════════════════════════════╣
+║  Duration: 22.8s
+║  Project: Áshamar 52 - Hafnarfjörður (E2E Test)
+╠═══════════════════════════════════════════════════════════════╣
+║  DRAWINGS
+║    Analyzed: 8 / 8
+║
+║  ELEMENTS
+║    Extracted by AI: 129
+║    Committed to DB: 160
+║    By type:
+║      filigran: 104
+║      balcony: 33
+║      svalagangur: 20
+║      staircase: 3
+║    By status:
+║      cast: 160
+║
+║  BATCHES
+║    Created: 13
+║    Completed: 13
+║
+║  LOW CONFIDENCE ITEMS (108)
+║    F(A)-1-42: weight=low
+║    F(A)-1-43: weight=low
+║    F(A)-1-44: weight=low
+║    F(A)-1-45: weight=low
+║    F(A)-1-46: weight=low
+║    F(A)-1-47: weight=low
+║    F(A)-1-47(2): weight=low
+║    F(A)-1-48: weight=low
+║    F(A)-1-1: weight=low
+║    F(A)-1-2: weight=low
+║    F(A)-1-3: weight=low
+║    F(A)-1-3(2): weight=low
+║    F(A)-1-4: weight=low
+║    F(A)-1-5: weight=low
+║    F(A)-1-6: weight=low
+║    F(A)-1-7: weight=low
+║    F(A)-1-8: weight=low
+║    F(A)-1-9: weight=low
+║    F(A)-1-10: weight=low
+║    F(A)-1-11: weight=low
+║    ... and 88 more
+║
+╚═══════════════════════════════════════════════════════════════╝
+[21:43:28] [REPORT] Report saved to /Users/haukur/Antigravity/Sersteypan/scripts/e2e-report-1771364608070.json

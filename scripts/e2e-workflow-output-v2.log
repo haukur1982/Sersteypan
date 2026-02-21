@@ -1,0 +1,159 @@
+
+> sersteypan@0.1.0 test:workflow
+> tsx scripts/e2e-workflow-test.mts
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║          SERSTEYPAN — E2E WORKFLOW TEST                      ║
+║          Full lifecycle: Upload → Analyze → Commit → Batch   ║
+╚═══════════════════════════════════════════════════════════════╝
+
+[19:50:17] [SETUP] ═══════════════════════════════════════
+[19:50:17] [SETUP] Phase 1: Setting up project and buildings
+[19:50:17] [SETUP] ═══════════════════════════════════════
+[19:50:18] [SETUP] Admin user: Admin User (ca8a7812-97b0-4c79-afd6-4ccc823d3bdc)
+[19:50:18] [SETUP] Cleaning up 1 existing test project(s)...
+[19:50:19] [SETUP] Cleanup complete
+[19:50:19] [SETUP] Using existing company: c8293800-0f73-41d3-8e73-eecb1b20ccf9
+[19:50:19] [SETUP] Created project: "Áshamar 52 - Hafnarfjörður (E2E Test)" (09461f9a-4846-49aa-9e83-8e1cd84597e3)
+[19:50:19] [SETUP] Created building: Hús A (4 floors)
+[19:50:19] [SETUP] Created building: Hús B (4 floors)
+[19:50:20] [SETUP] Created building: Hús C (4 floors)
+[19:50:20] [UPLOAD] ═══════════════════════════════════════
+[19:50:20] [UPLOAD] Phase 2: Uploading drawings to Supabase Storage
+[19:50:20] [UPLOAD] ═══════════════════════════════════════
+[19:50:21] [UPLOAD] ✓ BF-1_ Filegranplötur yfir 1. hæð - Hús A.pdf (78KB) → 540c378e-2b9d-4fc6-8128-422cb675bb3f
+[19:50:21] [UPLOAD] ✓ BF-2_ Filegranplötur yfir 1. hæð - Hús A.pdf (48KB) → e91f9d6e-71ae-40e9-a010-2964312a05bf
+[19:50:22] [UPLOAD] ✓ BF-3_ Filegranplötur yfir 1. hæð - Hús B.pdf (63KB) → c0baed42-d22d-4c74-aac2-9787a5763d8c
+[19:50:22] [UPLOAD] ✓ BF-4_ Filegranplötur yfir 1. hæð - Hús C.pdf (63KB) → fa8e4680-f7d0-4b8e-8f5b-496be2c1cba9
+[19:50:23] [UPLOAD] ✓ BS_01_ Forsteyptar svalir - 54.pdf (168KB) → fdfd58bb-f695-4b0e-a014-3d7e9ba6e3a0
+[19:50:23] [UPLOAD] ✓ Svalagangar 54.pdf (159KB) → 6d54dfaf-2a38-4a57-9629-b9f4fa610ceb
+[19:50:25] [UPLOAD] ✓ A.1.9_ Svalagangar v og a  Rev.0.pdf (1788KB) → 1c5c1d02-62b3-494b-94af-35cde86d4e84
+[19:50:25] [UPLOAD] ✓ BS-2_ Forsteyptir stigar Rev.0 markup (2).pdf (103KB) → 3a455085-16eb-4f69-8b5e-1abf04c1c162
+[19:50:25] [ANALYSIS] ═══════════════════════════════════════
+[19:50:25] [ANALYSIS] Phase 3: Running AI drawing analysis
+[19:50:25] [ANALYSIS] ═══════════════════════════════════════
+[19:50:25] [ANALYSIS] 📦 Cache hit for BF-2_ Filegranplötur yfir 1. hæð - Hús A.pdf
+[19:50:26] [ANALYSIS] 📦 Cache hit for BF-1_ Filegranplötur yfir 1. hæð - Hús A.pdf
+[19:50:26] [ANALYSIS] 📦 Cache hit for BF-4_ Filegranplötur yfir 1. hæð - Hús C.pdf
+[19:50:26] [ANALYSIS] 📦 Cache hit for BF-3_ Filegranplötur yfir 1. hæð - Hús B.pdf
+[19:50:26] [ANALYSIS] 📦 Cache hit for Svalagangar 54.pdf
+[19:50:26] [ANALYSIS] 📦 Cache hit for BS_01_ Forsteyptar svalir - 54.pdf
+[19:50:27] [ANALYSIS] 📦 Cache hit for BS-2_ Forsteyptir stigar Rev.0 markup (2).pdf
+[19:50:27] [ANALYSIS] 📦 Cache hit for A.1.9_ Svalagangar v og a  Rev.0.pdf
+[19:50:27] [ANALYSIS] ═══ Analysis complete: 8 drawings, 129 elements extracted ═══
+[19:50:27] [COMMIT] ═══════════════════════════════════════
+[19:50:27] [COMMIT] Phase 4: Committing elements to database
+[19:50:27] [COMMIT] ═══════════════════════════════════════
+[19:50:27] [COMMIT] ✓ BF-1_ Filegranplötur yfir 1. hæð - Hús A.pdf: 42 extracted → 42 elements committed
+[19:50:28] [COMMIT] ✓ BF-2_ Filegranplötur yfir 1. hæð - Hús A.pdf: 8 extracted → 8 elements committed
+[19:50:28] [COMMIT] ✓ BF-3_ Filegranplötur yfir 1. hæð - Hús B.pdf: 25 extracted → 25 elements committed
+[19:50:28] [COMMIT] ✓ BF-4_ Filegranplötur yfir 1. hæð - Hús C.pdf: 29 extracted → 29 elements committed
+[19:50:29] [COMMIT] ✓ BS_01_ Forsteyptar svalir - 54.pdf: 2 extracted → 33 elements committed
+[19:50:29] [COMMIT] ✓ Svalagangar 54.pdf: 20 extracted → 20 elements committed
+[19:50:29] [COMMIT] ⏭️  Skipping A.1.9_ Svalagangar v og a  Rev.0.pdf (0 elements)
+[19:50:29] [COMMIT] ✓ BS-2_ Forsteyptir stigar Rev.0 markup (2).pdf: 3 extracted → 3 elements committed
+[19:50:29] [COMMIT] ═══ Total elements committed: 160 ═══
+[19:50:29] [BATCHES] ═══════════════════════════════════════
+[19:50:29] [BATCHES] Phase 5: Creating and completing production batches
+[19:50:29] [BATCHES] ═══════════════════════════════════════
+[19:50:30] [BATCHES] Found 160 unbatched elements
+[19:50:30] [BATCHES] Grouped into 9 batches
+[19:50:30] [BATCHES] ✓ Created batch LOTA-2026-001 with 20 elements
+[19:50:30] [BATCHES] ✓ Created batch LOTA-2026-002 with 20 elements
+[19:50:30] [BATCHES] ✓ Created batch LOTA-2026-003 with 10 elements
+[19:50:30] [BATCHES] ✓ Created batch LOTA-2026-004 with 20 elements
+[19:50:31] [BATCHES] ✓ Created batch LOTA-2026-005 with 5 elements
+[19:50:31] [BATCHES] ✓ Created batch LOTA-2026-006 with 20 elements
+[19:50:31] [BATCHES] ✓ Created batch LOTA-2026-007 with 9 elements
+[19:50:31] [BATCHES] ✓ Created batch LOTA-2026-008 with 6 elements
+[19:50:31] [BATCHES] ✓ Created batch LOTA-2026-009 with 9 elements
+[19:50:31] [BATCHES] ✓ Created batch LOTA-2026-010 with 9 elements
+[19:50:32] [BATCHES] ✓ Created batch LOTA-2026-011 with 9 elements
+[19:50:32] [BATCHES] ✓ Created batch LOTA-2026-012 with 20 elements
+[19:50:32] [BATCHES] ✓ Created batch LOTA-2026-013 with 3 elements
+[19:50:32] [BATCHES] Created 13 batches
+[19:50:32] [BATCHES] ❌ RPC complete_batch error for LOTA-2026-001: Unauthorized status change
+[19:50:33] [BATCHES] ❌ RPC complete_batch error for LOTA-2026-002: Unauthorized status change
+[19:50:33] [BATCHES] ❌ RPC complete_batch error for LOTA-2026-003: Unauthorized status change
+[19:50:34] [BATCHES] ❌ RPC complete_batch error for LOTA-2026-004: Unauthorized status change
+[19:50:35] [BATCHES] ❌ RPC complete_batch error for LOTA-2026-005: Unauthorized status change
+[19:50:35] [BATCHES] ❌ RPC complete_batch error for LOTA-2026-006: Unauthorized status change
+[19:50:36] [BATCHES] ❌ RPC complete_batch error for LOTA-2026-007: Unauthorized status change
+[19:50:36] [BATCHES] ❌ RPC complete_batch error for LOTA-2026-008: Unauthorized status change
+[19:50:37] [BATCHES] ❌ RPC complete_batch error for LOTA-2026-009: Unauthorized status change
+[19:50:37] [BATCHES] ❌ RPC complete_batch error for LOTA-2026-010: Unauthorized status change
+[19:50:38] [BATCHES] ❌ RPC complete_batch error for LOTA-2026-011: Unauthorized status change
+[19:50:38] [BATCHES] ❌ RPC complete_batch error for LOTA-2026-012: Unauthorized status change
+[19:50:39] [BATCHES] ❌ RPC complete_batch error for LOTA-2026-013: Unauthorized status change
+[19:50:39] [BATCHES] ═══ Batches: 13 created, 0 completed ═══
+[19:50:39] [BATCHES] Elements at 'cast' status: 0/160
+[19:50:39] [REPORT] ═══════════════════════════════════════
+[19:50:39] [REPORT] Phase 6: Generating summary report
+[19:50:39] [REPORT] ═══════════════════════════════════════
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║              E2E WORKFLOW TEST — FINAL REPORT                ║
+╠═══════════════════════════════════════════════════════════════╣
+║  Duration: 21.6s
+║  Project: Áshamar 52 - Hafnarfjörður (E2E Test)
+╠═══════════════════════════════════════════════════════════════╣
+║  DRAWINGS
+║    Analyzed: 8 / 8
+║
+║  ELEMENTS
+║    Extracted by AI: 129
+║    Committed to DB: 160
+║    By type:
+║      filigran: 104
+║      balcony: 33
+║      svalagangur: 20
+║      staircase: 3
+║    By status:
+║      planned: 160
+║
+║  BATCHES
+║    Created: 13
+║    Completed: 0
+║
+║  LOW CONFIDENCE ITEMS (108)
+║    F(A)-1-42: weight=low
+║    F(A)-1-43: weight=low
+║    F(A)-1-44: weight=low
+║    F(A)-1-45: weight=low
+║    F(A)-1-46: weight=low
+║    F(A)-1-47: weight=low
+║    F(A)-1-47(2): weight=low
+║    F(A)-1-48: weight=low
+║    F(A)-1-1: weight=low
+║    F(A)-1-2: weight=low
+║    F(A)-1-3: weight=low
+║    F(A)-1-3(2): weight=low
+║    F(A)-1-4: weight=low
+║    F(A)-1-5: weight=low
+║    F(A)-1-6: weight=low
+║    F(A)-1-7: weight=low
+║    F(A)-1-8: weight=low
+║    F(A)-1-9: weight=low
+║    F(A)-1-10: weight=low
+║    F(A)-1-11: weight=low
+║    ... and 88 more
+║
+║  ERRORS (13)
+║    ❌ [BATCHES] RPC complete_batch error for LOTA-2026-001: Unauthorized status change
+║    ❌ [BATCHES] RPC complete_batch error for LOTA-2026-002: Unauthorized status change
+║    ❌ [BATCHES] RPC complete_batch error for LOTA-2026-003: Unauthorized status change
+║    ❌ [BATCHES] RPC complete_batch error for LOTA-2026-004: Unauthorized status change
+║    ❌ [BATCHES] RPC complete_batch error for LOTA-2026-005: Unauthorized status change
+║    ❌ [BATCHES] RPC complete_batch error for LOTA-2026-006: Unauthorized status change
+║    ❌ [BATCHES] RPC complete_batch error for LOTA-2026-007: Unauthorized status change
+║    ❌ [BATCHES] RPC complete_batch error for LOTA-2026-008: Unauthorized status change
+║    ❌ [BATCHES] RPC complete_batch error for LOTA-2026-009: Unauthorized status change
+║    ❌ [BATCHES] RPC complete_batch error for LOTA-2026-010: Unauthorized status change
+║    ❌ [BATCHES] RPC complete_batch error for LOTA-2026-011: Unauthorized status change
+║    ❌ [BATCHES] RPC complete_batch error for LOTA-2026-012: Unauthorized status change
+║    ❌ [BATCHES] RPC complete_batch error for LOTA-2026-013: Unauthorized status change
+║
+╚═══════════════════════════════════════════════════════════════╝
+[19:50:39] [REPORT] Report saved to /Users/haukur/Antigravity/Sersteypan/scripts/e2e-report-1771357839596.json

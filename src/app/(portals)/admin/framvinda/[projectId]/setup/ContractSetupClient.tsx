@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   createContractWithLines,
   saveContractLines,
+  updateContract,
 } from '@/lib/framvinda/actions'
 import {
   suggestContractLines,
@@ -116,6 +117,7 @@ interface Props {
   projectId: string
   contract: FramvindaContract | null
   existingLines: FramvindaContractLine[]
+  isFrozen: boolean
   buildings: Array<{ id: string; name: string; floors: number | null }>
   elements: Array<{
     id: string
@@ -142,6 +144,7 @@ export function ContractSetupClient({
   projectId,
   contract,
   existingLines,
+  isFrozen,
   buildings,
   elements,
   deliveries,
@@ -156,7 +159,10 @@ export function ContractSetupClient({
     contract?.grunnvisitala?.toString() ?? ''
   )
   const [vatRate, setVatRate] = useState(
-    contract?.vat_rate?.toString() ?? '11'
+    contract?.vat_rate?.toString() ?? '24'
+  )
+  const [retainagePercentage, setRetainagePercentage] = useState(
+    contract?.retainage_percentage?.toString() ?? '0'
   )
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -225,7 +231,12 @@ export function ContractSetupClient({
 
     setSaving(true)
 
+    // Build existing line ID set to distinguish updates from inserts
+    const existingLineIds = new Set(existingLines.map((l) => l.id))
+
     const lineData = lines.map((l, idx) => ({
+      // Pass id only for lines that existed in the DB (not newly created ones)
+      id: existingLineIds.has(l.tempId) ? l.tempId : undefined,
       category: l.category,
       sort_order: idx,
       label: l.label,
@@ -244,8 +255,22 @@ export function ContractSetupClient({
     }))
 
     if (contract) {
+      // Update contract settings
+      const formData = new FormData()
+      formData.append('contractId', contract.id)
+      formData.append('grunnvisitala', grunnvisitala)
+      formData.append('vatRate', vatRate)
+      formData.append('retainagePercentage', retainagePercentage)
+
+      const updateResult = await updateContract({ error: '' }, formData)
+      if (updateResult.error) {
+        setSaveError(updateResult.error)
+        setSaving(false)
+        return
+      }
+
       // Update existing contract lines
-      const result = await saveContractLines(contract.id, lineData)
+      const result = await saveContractLines(contract.id, null, lineData)
       if (result.error) {
         setSaveError(result.error)
         setSaving(false)
@@ -256,7 +281,8 @@ export function ContractSetupClient({
       const result = await createContractWithLines(
         projectId,
         parseFloat(grunnvisitala),
-        parseFloat(vatRate) || 11,
+        parseFloat(vatRate) || 24,
+        parseFloat(retainagePercentage) || 0,
         lineData
       )
       if (result.error) {
@@ -281,11 +307,18 @@ export function ContractSetupClient({
 
   return (
     <div className="space-y-6">
+      {/* Freeze warning banner */}
+      {isFrozen && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <strong>Samningur er frystur</strong> — ekki hægt að breyta eftir að fyrsta framvinda var lokuð. Hægt er að skoða samninginn en ekki vista breytingar.
+        </div>
+      )}
+
       {/* Contract Settings + Lines */}
       <Card className="border-zinc-200 shadow-sm">
         <CardContent className="pt-6">
           {/* Grunnvisitala row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 pb-4 border-b border-zinc-200">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 pb-4 border-b border-zinc-200">
             <div className="space-y-2">
               <Label htmlFor="grunnvisitala">Grunnvísitala *</Label>
               <Input
@@ -295,7 +328,7 @@ export function ContractSetupClient({
                 value={grunnvisitala}
                 onChange={(e) => setGrunnvisitala(e.target.value)}
                 placeholder="t.d. 117.6"
-                disabled={saving}
+                disabled={saving || isFrozen}
               />
             </div>
             <div className="space-y-2">
@@ -306,7 +339,19 @@ export function ContractSetupClient({
                 step="0.5"
                 value={vatRate}
                 onChange={(e) => setVatRate(e.target.value)}
-                disabled={saving}
+                disabled={saving || isFrozen}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="retainagePercentage">Tryggingarfé (%)</Label>
+              <Input
+                id="retainagePercentage"
+                type="number"
+                step="0.5"
+                value={retainagePercentage}
+                onChange={(e) => setRetainagePercentage(e.target.value)}
+                disabled={saving || isFrozen}
+                placeholder="t.d. 5"
               />
             </div>
           </div>
@@ -517,7 +562,7 @@ export function ContractSetupClient({
             )}
             <Button
               onClick={handleSave}
-              disabled={saving || lines.length === 0}
+              disabled={saving || lines.length === 0 || isFrozen}
               className="bg-blue-600 hover:bg-blue-700"
             >
               {saving ? (

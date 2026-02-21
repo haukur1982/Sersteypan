@@ -90,7 +90,7 @@ export interface CategoryTotals {
   amountThisPeriod: number
 }
 
-/** Full period summary with vísitala calculation */
+/** Full period summary with vísitala and VAT calculation */
 export interface PeriodSummary {
   subtotal: number
   grunnvisitala: number
@@ -98,6 +98,12 @@ export interface PeriodSummary {
   visitalaMultiplier: number
   visitalaAmount: number
   totalWithVisitala: number
+  retainagePercentage: number
+  retainageAmount: number
+  totalAfterRetainage: number
+  vatRate: number
+  vatAmount: number
+  grandTotalWithVat: number
 }
 
 /** Project with contract status for the project selection page */

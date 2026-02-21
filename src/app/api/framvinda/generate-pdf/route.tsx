@@ -54,11 +54,11 @@ export async function POST(req: Request) {
 
     const { data: profile } = await userClient
       .from('profiles')
-      .select('role, is_active')
+      .select('role, is_active, company_id')
       .eq('id', user.id)
       .single()
 
-    if (!profile || !profile.is_active || profile.role !== 'admin') {
+    if (!profile || !profile.is_active || !['admin', 'buyer'].includes(profile.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
@@ -79,6 +79,11 @@ export async function POST(req: Request) {
       )
     }
 
+    // Buyers can only access finalized periods
+    if (profile.role === 'buyer' && period.status !== 'finalized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
     // Get contract
     const { data: contract } = await supabase
       .from('framvinda_contracts')
@@ -96,9 +101,14 @@ export async function POST(req: Request) {
     // Get project + company
     const { data: project } = await supabase
       .from('projects')
-      .select('name, address, companies(name, kennitala)')
+      .select('name, address, company_id, companies(name, kennitala)')
       .eq('id', contract.project_id)
       .single()
+
+    // Buyers can only access their own company's projects
+    if (profile.role === 'buyer' && project?.company_id !== profile.company_id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
 
     // Get contract lines
     const { data: contractLines } = await supabase

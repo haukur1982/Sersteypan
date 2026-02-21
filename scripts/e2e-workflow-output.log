@@ -1,0 +1,167 @@
+
+╔═══════════════════════════════════════════════════════════════╗
+║          SERSTEYPAN — E2E WORKFLOW TEST                      ║
+║          Full lifecycle: Upload → Analyze → Commit → Batch   ║
+╚═══════════════════════════════════════════════════════════════╝
+
+[18:28:33] [SETUP] ═══════════════════════════════════════
+[18:28:33] [SETUP] Phase 1: Setting up project and buildings
+[18:28:33] [SETUP] ═══════════════════════════════════════
+[18:28:33] [SETUP] Admin user: Admin User (ca8a7812-97b0-4c79-afd6-4ccc823d3bdc)
+[18:28:33] [SETUP] Cleaning up 1 existing test project(s)...
+[18:28:34] [SETUP] Cleanup complete
+[18:28:35] [SETUP] Using existing company: c8293800-0f73-41d3-8e73-eecb1b20ccf9
+[18:28:35] [SETUP] Created project: "Áshamar 52 - Hafnarfjörður (E2E Test)" (7743d8a7-ce72-476c-85d3-fdf5264e2510)
+[18:28:35] [SETUP] Created building: Hús A (4 floors)
+[18:28:35] [SETUP] Created building: Hús B (4 floors)
+[18:28:35] [SETUP] Created building: Hús C (4 floors)
+[18:28:35] [UPLOAD] ═══════════════════════════════════════
+[18:28:35] [UPLOAD] Phase 2: Uploading drawings to Supabase Storage
+[18:28:35] [UPLOAD] ═══════════════════════════════════════
+[18:28:36] [UPLOAD] ✓ BF-1_ Filegranplötur yfir 1. hæð - Hús A.pdf (78KB) → a2ef5911-10cb-43b4-abf4-f47ff46fa016
+[18:28:37] [UPLOAD] ✓ BF-2_ Filegranplötur yfir 1. hæð - Hús A.pdf (48KB) → 3ffc112f-5eb0-4d7c-8ade-4f3abe134e47
+[18:28:37] [UPLOAD] ✓ BF-3_ Filegranplötur yfir 1. hæð - Hús B.pdf (63KB) → 99b6846b-aa22-4726-80f4-e091bdc8802b
+[18:28:38] [UPLOAD] ✓ BF-4_ Filegranplötur yfir 1. hæð - Hús C.pdf (63KB) → 18c3f22f-4e46-40b8-9e43-8fcce2539dde
+[18:28:38] [UPLOAD] ✓ BS_01_ Forsteyptar svalir - 54.pdf (168KB) → 4d743c41-f598-47e4-97da-755c3653b0ee
+[18:28:39] [UPLOAD] ✓ Svalagangar 54.pdf (159KB) → 0e386e7b-cc38-415e-8e83-f71aad608918
+[18:28:40] [UPLOAD] ✓ A.1.9_ Svalagangar v og a  Rev.0.pdf (1788KB) → 918bf341-2453-4fc9-89b9-cc5715015f25
+[18:28:41] [UPLOAD] ✓ BS-2_ Forsteyptir stigar Rev.0 markup (2).pdf (103KB) → 3cc1f312-4773-4824-949d-768a24d5e16f
+[18:28:41] [ANALYSIS] ═══════════════════════════════════════
+[18:28:41] [ANALYSIS] Phase 3: Running AI drawing analysis
+[18:28:41] [ANALYSIS] ═══════════════════════════════════════
+[18:28:41] [ANALYSIS] 🤖 Analyzing BF-2_ Filegranplötur yfir 1. hæð - Hús A.pdf...
+[18:28:41] [ANALYSIS] 🤖 Analyzing BF-1_ Filegranplötur yfir 1. hæð - Hús A.pdf...
+[18:29:15] [ANALYSIS] ✓ BF-2_ Filegranplötur yfir 1. hæð - Hús A.pdf: 8 elements, type=filigran, ref=BF-2 (34.6s)
+[18:29:15] [ANALYSIS]   ⚠️ Weights not specified for any filigran elements - these will need to be calculated based on dimensions and concrete density
+[18:30:19] [ANALYSIS] ✓ BF-1_ Filegranplötur yfir 1. hæð - Hús A.pdf: 42 elements, type=filigran, ref=BF-1 (97.8s)
+[18:30:19] [ANALYSIS] 🤖 Analyzing BF-4_ Filegranplötur yfir 1. hæð - Hús C.pdf...
+[18:30:19] [ANALYSIS] 🤖 Analyzing BF-3_ Filegranplötur yfir 1. hæð - Hús B.pdf...
+[18:31:22] [ANALYSIS] ✓ BF-3_ Filegranplötur yfir 1. hæð - Hús B.pdf: 25 elements, type=filigran, ref=BF-3 (63.2s)
+[18:31:30] [ANALYSIS] ✓ BF-4_ Filegranplötur yfir 1. hæð - Hús C.pdf: 29 elements, type=filigran, ref=BF-4 (71.0s)
+[18:31:30] [ANALYSIS]   ⚠️ No weights specified for any filigran elements - these will need to be calculated based on dimensions
+[18:31:30] [ANALYSIS] 🤖 Analyzing Svalagangar 54.pdf...
+[18:31:31] [ANALYSIS] 🤖 Analyzing BS_01_ Forsteyptar svalir - 54.pdf...
+[18:32:05] [ANALYSIS] ✓ BS_01_ Forsteyptar svalir - 54.pdf: 2 elements, type=balcony, ref=BS_01 (34.4s)
+[18:32:05] [ANALYSIS]   ⚠️ Drawing shows additional detail views (SV1, SV2, SV3, SV4, SV5) but these appear to be connection details rather than separate elements. Height/thickness values shown in details (t=200, t=180) but not clearly assigned to specific elements.
+[18:32:55] [ANALYSIS] ✓ Svalagangar 54.pdf: 20 elements, type=corridor, ref=BS_02 (84.2s)
+[18:32:55] [ANALYSIS]   ⚠️ Drawing shows svalagangar (corridor) elements SG-1 through SG-20. Also references SV6, SV7 and SV8 elements which appear to be detail references but are not fully detailed on this sheet.
+[18:32:55] [ANALYSIS] 🤖 Analyzing BS-2_ Forsteyptir stigar Rev.0 markup (2).pdf...
+[18:32:55] [ANALYSIS] 🤖 Analyzing A.1.9_ Svalagangar v og a  Rev.0.pdf...
+[18:33:04] [ANALYSIS] ✓ A.1.9_ Svalagangar v og a  Rev.0.pdf: 0 elements, type=architectural, ref=A.1.9 (9.0s)
+[18:33:04] [ANALYSIS]   ⚠️ Architectural drawing — shows building facade/elevation, not individual element production details
+[18:33:27] [ANALYSIS] ✓ BS-2_ Forsteyptir stigar Rev.0 markup (2).pdf: 3 elements, type=staircase, ref=BS-2 (32.0s)
+[18:33:27] [ANALYSIS]   ⚠️ Stigatýpa A dimensions and quantity not clearly visible on page 1
+[18:33:27] [ANALYSIS]   ⚠️ No weight specifications provided for any stair elements
+[18:33:27] [ANALYSIS]   ⚠️ Height/thickness dimensions not specified for stair elements
+[18:33:27] [ANALYSIS] ═══ Analysis complete: 8 drawings, 129 elements extracted ═══
+[18:33:27] [COMMIT] ═══════════════════════════════════════
+[18:33:27] [COMMIT] Phase 4: Committing elements to database
+[18:33:27] [COMMIT] ═══════════════════════════════════════
+[18:33:28] [COMMIT] ✓ BF-1_ Filegranplötur yfir 1. hæð - Hús A.pdf: 42 extracted → 42 elements committed
+[18:33:28] [COMMIT] ✓ BF-2_ Filegranplötur yfir 1. hæð - Hús A.pdf: 8 extracted → 8 elements committed
+[18:33:29] [COMMIT] ✓ BF-3_ Filegranplötur yfir 1. hæð - Hús B.pdf: 25 extracted → 25 elements committed
+[18:33:29] [COMMIT] ✓ BF-4_ Filegranplötur yfir 1. hæð - Hús C.pdf: 29 extracted → 29 elements committed
+[18:33:29] [COMMIT] ✓ BS_01_ Forsteyptar svalir - 54.pdf: 2 extracted → 33 elements committed
+[18:33:29] [COMMIT] ❌ Insert error for Svalagangar 54.pdf: new row for relation "elements" violates check constraint "elements_element_type_check"
+[18:33:30] [COMMIT] ✓ Svalagangar 54.pdf: 20 extracted → 0 elements committed
+[18:33:30] [COMMIT] ⏭️  Skipping A.1.9_ Svalagangar v og a  Rev.0.pdf (0 elements)
+[18:33:30] [COMMIT] ✓ BS-2_ Forsteyptir stigar Rev.0 markup (2).pdf: 3 extracted → 3 elements committed
+[18:33:30] [COMMIT] ═══ Total elements committed: 140 ═══
+[18:33:30] [BATCHES] ═══════════════════════════════════════
+[18:33:30] [BATCHES] Phase 5: Creating and completing production batches
+[18:33:30] [BATCHES] ═══════════════════════════════════════
+[18:33:30] [BATCHES] Found 140 unbatched elements
+[18:33:30] [BATCHES] Grouped into 8 batches
+[18:33:30] [BATCHES] ❌ RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+[18:33:31] [BATCHES] ❌ RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+[18:33:31] [BATCHES] ❌ RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+[18:33:31] [BATCHES] ❌ RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+[18:33:31] [BATCHES] ❌ RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+[18:33:31] [BATCHES] ❌ RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+[18:33:31] [BATCHES] ❌ RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+[18:33:32] [BATCHES] ❌ RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+[18:33:32] [BATCHES] ❌ RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+[18:33:32] [BATCHES] ❌ RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+[18:33:32] [BATCHES] ❌ RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+[18:33:32] [BATCHES] ❌ RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+[18:33:32] [BATCHES] Created 0 batches
+[18:33:32] [BATCHES] ═══ Batches: 0 created, 0 completed ═══
+[18:33:32] [BATCHES] Elements at 'cast' status: 0/140
+[18:33:32] [REPORT] ═══════════════════════════════════════
+[18:33:32] [REPORT] Phase 6: Generating summary report
+[18:33:32] [REPORT] ═══════════════════════════════════════
+
+
+╔═══════════════════════════════════════════════════════════════╗
+║              E2E WORKFLOW TEST — FINAL REPORT                ║
+╠═══════════════════════════════════════════════════════════════╣
+║  Duration: 299.7s
+║  Project: Áshamar 52 - Hafnarfjörður (E2E Test)
+╠═══════════════════════════════════════════════════════════════╣
+║  DRAWINGS
+║    Analyzed: 8 / 8
+║
+║  ELEMENTS
+║    Extracted by AI: 129
+║    Committed to DB: 140
+║    By type:
+║      filigran: 104
+║      balcony: 33
+║      staircase: 3
+║    By status:
+║      planned: 140
+║
+║  BATCHES
+║    Created: 0
+║    Completed: 0
+║
+║  LOW CONFIDENCE ITEMS (108)
+║    F(A)-1-42: weight=low
+║    F(A)-1-43: weight=low
+║    F(A)-1-44: weight=low
+║    F(A)-1-45: weight=low
+║    F(A)-1-46: weight=low
+║    F(A)-1-47: weight=low
+║    F(A)-1-47(2): weight=low
+║    F(A)-1-48: weight=low
+║    F(A)-1-1: weight=low
+║    F(A)-1-2: weight=low
+║    F(A)-1-3: weight=low
+║    F(A)-1-3(2): weight=low
+║    F(A)-1-4: weight=low
+║    F(A)-1-5: weight=low
+║    F(A)-1-6: weight=low
+║    F(A)-1-7: weight=low
+║    F(A)-1-8: weight=low
+║    F(A)-1-9: weight=low
+║    F(A)-1-10: weight=low
+║    F(A)-1-11: weight=low
+║    ... and 88 more
+║
+║  WARNINGS (8)
+║    ⚠️ [BF-2_ Filegranplötur yfir 1. hæð - Hús A.pdf] Weights not specified for any filigran elements - these will need to be calculated based on dimensions and concrete density
+║    ⚠️ [BF-4_ Filegranplötur yfir 1. hæð - Hús C.pdf] No weights specified for any filigran elements - these will need to be calculated based on dimensions
+║    ⚠️ [BS_01_ Forsteyptar svalir - 54.pdf] Drawing shows additional detail views (SV1, SV2, SV3, SV4, SV5) but these appear to be connection details rather than separate elements. Height/thickness values shown in details (t=200, t=180) but not clearly assigned to specific elements.
+║    ⚠️ [Svalagangar 54.pdf] Drawing shows svalagangar (corridor) elements SG-1 through SG-20. Also references SV6, SV7 and SV8 elements which appear to be detail references but are not fully detailed on this sheet.
+║    ⚠️ [A.1.9_ Svalagangar v og a  Rev.0.pdf] Architectural drawing — shows building facade/elevation, not individual element production details
+║    ⚠️ [BS-2_ Forsteyptir stigar Rev.0 markup (2).pdf] Stigatýpa A dimensions and quantity not clearly visible on page 1
+║    ⚠️ [BS-2_ Forsteyptir stigar Rev.0 markup (2).pdf] No weight specifications provided for any stair elements
+║    ⚠️ [BS-2_ Forsteyptir stigar Rev.0 markup (2).pdf] Height/thickness dimensions not specified for stair elements
+║
+║  ERRORS (13)
+║    ❌ [COMMIT] Insert error for Svalagangar 54.pdf: new row for relation "elements" violates check constraint "elements_element_type_check"
+║    ❌ [BATCHES] RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+║    ❌ [BATCHES] RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+║    ❌ [BATCHES] RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+║    ❌ [BATCHES] RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+║    ❌ [BATCHES] RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+║    ❌ [BATCHES] RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+║    ❌ [BATCHES] RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+║    ❌ [BATCHES] RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+║    ❌ [BATCHES] RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+║    ❌ [BATCHES] RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+║    ❌ [BATCHES] RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+║    ❌ [BATCHES] RPC create_batch error: FOR UPDATE is not allowed with aggregate functions
+║
+╚═══════════════════════════════════════════════════════════════╝
+[18:33:33] [REPORT] Report saved to /Users/haukur/Antigravity/Sersteypan/scripts/e2e-report-1771353213134.json

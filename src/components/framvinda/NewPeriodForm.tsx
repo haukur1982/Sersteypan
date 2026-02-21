@@ -14,6 +14,7 @@ interface Props {
   projectId: string
   nextPeriodNumber: number
   defaultVisitala: number
+  defaultGrunnvisitala: number
 }
 
 export function FramvindaNewPeriodForm({
@@ -21,6 +22,7 @@ export function FramvindaNewPeriodForm({
   projectId,
   nextPeriodNumber,
   defaultVisitala,
+  defaultGrunnvisitala,
 }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -36,8 +38,9 @@ export function FramvindaNewPeriodForm({
     const periodStart = form.get('periodStart') as string
     const periodEnd = form.get('periodEnd') as string
     const visitala = parseFloat(form.get('visitala') as string)
+    const grunnvisitala = parseFloat(form.get('grunnvisitala') as string)
 
-    const result = await createPeriod(contractId, periodStart, periodEnd, visitala)
+    const result = await createPeriod(contractId, periodStart, periodEnd, visitala, grunnvisitala)
 
     if (result.error) {
       setError(result.error)
@@ -66,7 +69,7 @@ export function FramvindaNewPeriodForm({
           Ný framvinda — Tímabil {nextPeriodNumber}
         </h3>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="periodStart">Upphafsdagur</Label>
               <Input
@@ -87,6 +90,21 @@ export function FramvindaNewPeriodForm({
                 disabled={loading}
               />
             </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="grunnvisitala">Grunnvísitala</Label>
+              <Input
+                id="grunnvisitala"
+                name="grunnvisitala"
+                type="number"
+                step="0.1"
+                defaultValue={defaultGrunnvisitala}
+                required
+                disabled={loading}
+              />
+              <p className="text-xs text-zinc-400">Grunnvísitala fyrir þetta tímabil</p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="visitala">Vísitala</Label>
               <Input
@@ -98,6 +116,7 @@ export function FramvindaNewPeriodForm({
                 required
                 disabled={loading}
               />
+              <p className="text-xs text-zinc-400">Núverandi vísitala byggingarframkvæmda</p>
             </div>
           </div>
 
