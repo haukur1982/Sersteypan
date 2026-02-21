@@ -1783,6 +1783,268 @@ export type Database = {
           },
         ]
       }
+      framvinda_contracts: {
+        Row: {
+          id: string
+          project_id: string
+          grunnvisitala: number
+          vat_rate: number
+          notes: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          grunnvisitala: number
+          vat_rate?: number
+          notes?: string | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          grunnvisitala?: number
+          vat_rate?: number
+          notes?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "framvinda_contracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "framvinda_contracts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      framvinda_contract_lines: {
+        Row: {
+          id: string
+          contract_id: string
+          category: string
+          sort_order: number
+          label: string
+          is_extra: boolean
+          extra_description: string | null
+          pricing_unit: string
+          contract_count: number | null
+          unit_area_m2: number | null
+          total_quantity: number
+          unit_price: number
+          total_price: number
+          building_id: string | null
+          floor: number | null
+          element_type_key: string | null
+          drawing_reference_pattern: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          contract_id: string
+          category: string
+          sort_order?: number
+          label: string
+          is_extra?: boolean
+          extra_description?: string | null
+          pricing_unit: string
+          contract_count?: number | null
+          unit_area_m2?: number | null
+          total_quantity: number
+          unit_price: number
+          total_price: number
+          building_id?: string | null
+          floor?: number | null
+          element_type_key?: string | null
+          drawing_reference_pattern?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          contract_id?: string
+          category?: string
+          sort_order?: number
+          label?: string
+          is_extra?: boolean
+          extra_description?: string | null
+          pricing_unit?: string
+          contract_count?: number | null
+          unit_area_m2?: number | null
+          total_quantity?: number
+          unit_price?: number
+          total_price?: number
+          building_id?: string | null
+          floor?: number | null
+          element_type_key?: string | null
+          drawing_reference_pattern?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "framvinda_contract_lines_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "framvinda_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "framvinda_contract_lines_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      framvinda_periods: {
+        Row: {
+          id: string
+          contract_id: string
+          period_number: number
+          period_start: string
+          period_end: string
+          visitala: number
+          status: string
+          notes: string | null
+          subtotal: number | null
+          visitala_amount: number | null
+          total_with_visitala: number | null
+          created_by: string
+          finalized_at: string | null
+          finalized_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          contract_id: string
+          period_number: number
+          period_start: string
+          period_end: string
+          visitala: number
+          status?: string
+          notes?: string | null
+          subtotal?: number | null
+          visitala_amount?: number | null
+          total_with_visitala?: number | null
+          created_by: string
+          finalized_at?: string | null
+          finalized_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          contract_id?: string
+          period_number?: number
+          period_start?: string
+          period_end?: string
+          visitala?: number
+          status?: string
+          notes?: string | null
+          subtotal?: number | null
+          visitala_amount?: number | null
+          total_with_visitala?: number | null
+          created_by?: string
+          finalized_at?: string | null
+          finalized_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "framvinda_periods_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "framvinda_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "framvinda_periods_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "framvinda_periods_finalized_by_fkey"
+            columns: ["finalized_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      framvinda_period_lines: {
+        Row: {
+          id: string
+          period_id: string
+          contract_line_id: string
+          quantity_this_period: number
+          amount_this_period: number
+          is_manually_adjusted: boolean
+          notes: string | null
+          date_details: unknown
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          period_id: string
+          contract_line_id: string
+          quantity_this_period?: number
+          amount_this_period?: number
+          is_manually_adjusted?: boolean
+          notes?: string | null
+          date_details?: unknown
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          period_id?: string
+          contract_line_id?: string
+          quantity_this_period?: number
+          amount_this_period?: number
+          is_manually_adjusted?: boolean
+          notes?: string | null
+          date_details?: unknown
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "framvinda_period_lines_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "framvinda_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "framvinda_period_lines_contract_line_id_fkey"
+            columns: ["contract_line_id"]
+            isOneToOne: false
+            referencedRelation: "framvinda_contract_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
