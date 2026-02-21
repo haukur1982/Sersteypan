@@ -170,6 +170,7 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
                         <PDFViewer
                             config={{
                                 src: proxyUrl,
+                                wasmUrl: '/wasm/pdfium.wasm',
                                 theme: { preference: 'dark' },
                             }}
                         />
