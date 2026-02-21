@@ -5,6 +5,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 const scriptSrc = [
   "'self'",
   "'unsafe-inline'",
+  "'wasm-unsafe-eval'",
   ...(process.env.NODE_ENV === 'production' ? [] : ["'unsafe-eval'"]),
 ].join(' ')
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch'
+import { PDFViewer } from '@embedpdf/react-pdf-viewer'
 import { ArrowLeft, Download, RotateCcw, Loader2, AlertCircle } from 'lucide-react'
 
 interface ViewerDocument {
@@ -54,7 +55,7 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
     const [error, setError] = useState<string | null>(null)
     const [retryKey, setRetryKey] = useState(0)
 
-    // UI visibility — auto-hide after 3s (images only; PDFs use native viewer)
+    // UI visibility — auto-hide after 3s (images only; PDFs have their own toolbar)
     const [uiVisible, setUiVisible] = useState(true)
     const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -106,17 +107,12 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
         setRetryKey(k => k + 1)
     }, [])
 
-    // Reset PDF zoom by remounting the iframe (native viewer always starts at fit-to-screen)
-    const resetPdfZoom = useCallback(() => {
-        setRetryKey(k => k + 1)
-    }, [])
-
     return (
         <div
             className="fixed inset-0 z-50 bg-black flex flex-col select-none"
             onClick={() => { if (!isPdf) showUi() }}
         >
-            {/* Header — always visible for PDF (native viewer handles its own UI below) */}
+            {/* Header */}
             <div
                 className={`absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-2 bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${isPdf || uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                 style={{ height: 48, paddingTop: 'env(safe-area-inset-top)' }}
@@ -144,7 +140,7 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
 
             {/* Main content area */}
             <div className="flex-1 flex items-center justify-center overflow-hidden" style={isPdf ? { paddingTop: 48 } : undefined}>
-                {/* Loading spinner (not shown for PDF — iframe handles its own loading) */}
+                {/* Loading spinner (not shown for PDF — EmbedPDF handles its own loading) */}
                 {loading && !isPdf && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
                         <Loader2 className="h-10 w-10 animate-spin text-white/70" />
@@ -166,28 +162,18 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
                     </div>
                 )}
 
-                {/* PDF viewer — native browser viewer via iframe
-                    iOS Safari and Android Chrome both render PDFs with their built-in viewers,
-                    giving perfect vector rendering at any zoom level. */}
+                {/* PDF viewer — EmbedPDF (PDFium WebAssembly engine)
+                    Uses Chrome's own PDF engine compiled to WebAssembly.
+                    Built-in pinch-to-zoom, virtualized scrolling, works on iOS Safari. */}
                 {!error && isPdf && (
-                    <>
-                        <iframe
-                            key={retryKey}
-                            src={proxyUrl}
-                            className="w-full h-full border-0 bg-white"
-                            title={document.name}
+                    <div key={retryKey} className="w-full h-full">
+                        <PDFViewer
+                            config={{
+                                src: proxyUrl,
+                                theme: { preference: 'dark' },
+                            }}
                         />
-                        {/* Reset zoom button — reloads iframe to fit-to-screen */}
-                        <button
-                            onClick={(e) => { e.stopPropagation(); resetPdfZoom() }}
-                            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 bg-black/70 backdrop-blur-sm text-white rounded-full text-sm active:bg-white/20"
-                            style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
-                            aria-label="Endurstilla"
-                        >
-                            <RotateCcw className="h-4 w-4" />
-                            Endurstilla
-                        </button>
-                    </>
+                    </div>
                 )}
 
                 {/* Image viewer — pinch/zoom via react-zoom-pan-pinch */}
