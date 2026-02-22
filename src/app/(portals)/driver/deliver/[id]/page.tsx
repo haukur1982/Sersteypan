@@ -25,9 +25,7 @@ export default async function DeliverPage({ params }: DeliverPageProps) {
         id,
         name,
         company:companies(name),
-        address,
-        latitude,
-        longitude
+        address
       ),
       delivery_items(
         delivered_at,
@@ -71,14 +69,10 @@ export default async function DeliverPage({ params }: DeliverPageProps) {
         name: string
         company: { name: string } | null
         address: string | null
-        latitude: number | null
-        longitude: number | null
     } | null
 
-    const projectCoordinates =
-        project?.latitude != null && project?.longitude != null
-            ? { latitude: Number(project.latitude), longitude: Number(project.longitude) }
-            : null
+    // TODO: Add latitude, longitude to query after running migration 017_add_project_coordinates.sql
+    const projectCoordinates = null
 
     return (
         <div className="max-w-lg mx-auto space-y-6">
