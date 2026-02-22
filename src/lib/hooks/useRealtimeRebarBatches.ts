@@ -1,10 +1,8 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { Database } from '@/types/database'
-
-type RebarBatch = Database['public']['Tables']['rebar_batches']['Row']
+import { subscribeWithRetry } from '@/lib/supabase/subscribeWithRetry'
 
 interface UseRealtimeRebarBatchesOptions {
     projectId?: string
@@ -12,8 +10,7 @@ interface UseRealtimeRebarBatchesOptions {
 }
 
 // Ensure we require at least id for mapping
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function useRealtimeRebarBatches<T extends { id: string;[key: string]: any }>(
+export function useRealtimeRebarBatches<T extends { id: string }>(
     initialBatches: T[],
     options: UseRealtimeRebarBatchesOptions = {}
 ) {
@@ -45,13 +42,13 @@ export function useRealtimeRebarBatches<T extends { id: string;[key: string]: an
                     table: 'rebar_batches',
                     ...(projectId ? { filter: `project_id=eq.${projectId}` } : {})
                 },
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (payload: any) => {
-                    console.log('RebarBatch updated:', payload.new.id)
+                (payload) => {
+                    const updatedBatch = payload.new as Partial<T> & { id: string }
+                    console.log('RebarBatch updated:', updatedBatch.id)
                     setBatches((current) =>
                         current.map((batch) => {
-                            if (batch.id === payload.new.id) {
-                                return { ...batch, ...payload.new }
+                            if (batch.id === updatedBatch.id) {
+                                return { ...batch, ...updatedBatch }
                             }
                             return batch
                         })
@@ -66,11 +63,11 @@ export function useRealtimeRebarBatches<T extends { id: string;[key: string]: an
                     table: 'rebar_batches',
                     ...(projectId ? { filter: `project_id=eq.${projectId}` } : {})
                 },
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (payload: any) => {
-                    console.log('RebarBatch created:', payload.new.id)
+                (payload) => {
+                    const createdBatch = payload.new as T
+                    console.log('RebarBatch created:', createdBatch.id)
                     // We might not have all joined data here, but for basic updates it helps
-                    setBatches((current) => [...current, payload.new as unknown as T])
+                    setBatches((current) => [...current, createdBatch])
                 }
             )
             .on(
@@ -81,24 +78,21 @@ export function useRealtimeRebarBatches<T extends { id: string;[key: string]: an
                     table: 'rebar_batches',
                     ...(projectId ? { filter: `project_id=eq.${projectId}` } : {})
                 },
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (payload: any) => {
-                    console.log('RebarBatch deleted:', payload.old.id)
+                (payload) => {
+                    const deletedBatch = payload.old as { id: string }
+                    console.log('RebarBatch deleted:', deletedBatch.id)
                     setBatches((current) =>
-                        current.filter((batch) => batch.id !== payload.old.id)
+                        current.filter((batch) => batch.id !== deletedBatch.id)
                     )
                 }
             )
-            .subscribe((status: string) => {
-                if (status === 'SUBSCRIBED') {
-                    setIsConnected(true)
-                } else if (status === 'CLOSED') {
-                    setIsConnected(false)
-                }
-            })
+
+        const cleanup = subscribeWithRetry(channel, (status) => {
+            setIsConnected(status === 'SUBSCRIBED')
+        })
 
         return () => {
-            channel.unsubscribe()
+            cleanup()
             setIsConnected(false)
         }
     }, [projectId, enabled])

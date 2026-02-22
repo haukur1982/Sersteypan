@@ -1,12 +1,10 @@
 import { test, expect } from '@playwright/test'
-
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'owner.admin@sersteypan.test'
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'OwnerAccess!2026'
+import { TEST_USERS } from './test-users'
 
 async function loginAsAdmin(page: import('@playwright/test').Page) {
   await page.goto('/login')
-  await page.fill('#email', ADMIN_EMAIL)
-  await page.fill('#password', ADMIN_PASSWORD)
+  await page.fill('#email', TEST_USERS.admin.email)
+  await page.fill('#password', TEST_USERS.admin.password)
   await page.getByRole('button', { name: /innskrá|login/i }).click()
   await page.waitForURL('**/admin**', { timeout: 15000 })
 }

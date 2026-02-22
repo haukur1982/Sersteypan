@@ -1,20 +1,16 @@
 import { test, expect } from '@playwright/test'
+import { TEST_USERS } from '../test-users'
 
 /**
  * Driver Delivery Management E2E Tests (P1)
  * Tests delivery listing, creation, and status updates
  */
 
-const DRIVER_USER = {
-  email: 'owner.driver@sersteypan.test',
-  password: 'OwnerAccess!2026',
-}
-
 // Helper to login as driver
 async function loginAsDriver(page: import('@playwright/test').Page) {
   await page.goto('/login')
-  await page.fill('#email', DRIVER_USER.email)
-  await page.fill('#password', DRIVER_USER.password)
+  await page.fill('#email', TEST_USERS.driver.email)
+  await page.fill('#password', TEST_USERS.driver.password)
   await page.getByRole('button', { name: /innskrá|login/i }).click()
   await page.waitForURL('**/driver**', { timeout: 15000 })
   await page.waitForLoadState('domcontentloaded')

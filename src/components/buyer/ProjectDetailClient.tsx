@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { subscribeWithRetry } from '@/lib/supabase/subscribeWithRetry'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ElementsTab } from '@/components/buyer/project/ElementsTab'
 import { DeliveriesTab } from '@/components/buyer/project/DeliveriesTab'
@@ -29,77 +30,26 @@ export function ProjectDetailClient({ project, deliveries, floorPlans = [], tab 
   useEffect(() => {
     const supabase = createClient()
 
-    // Subscribe to element changes for this project
     const elementsChannel = supabase
       .channel(`project-${project.id}-elements`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'elements',
-          filter: `project_id=eq.${project.id}`
-        },
-        (payload) => {
-          console.log('Element changed in project, refreshing:', payload)
-          router.refresh()
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log(`Subscribed to project ${project.id} elements`)
-        }
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'elements', filter: `project_id=eq.${project.id}` }, () => router.refresh())
 
-    // Subscribe to delivery changes for this project
     const deliveriesChannel = supabase
       .channel(`project-${project.id}-deliveries`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'deliveries',
-          filter: `project_id=eq.${project.id}`
-        },
-        (payload) => {
-          console.log('Delivery changed in project, refreshing:', payload)
-          router.refresh()
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log(`Subscribed to project ${project.id} deliveries`)
-        }
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries', filter: `project_id=eq.${project.id}` }, () => router.refresh())
 
-    // Subscribe to message changes for this project
     const messagesChannel = supabase
       .channel(`project-${project.id}-messages`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'project_messages',
-          filter: `project_id=eq.${project.id}`
-        },
-        (payload) => {
-          console.log('Message changed in project, refreshing:', payload)
-          router.refresh()
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log(`Subscribed to project ${project.id} messages`)
-        }
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_messages', filter: `project_id=eq.${project.id}` }, () => router.refresh())
 
-    // Cleanup on unmount
+    const cleanupElements = subscribeWithRetry(elementsChannel)
+    const cleanupDeliveries = subscribeWithRetry(deliveriesChannel)
+    const cleanupMessages = subscribeWithRetry(messagesChannel)
+
     return () => {
-      elementsChannel.unsubscribe()
-      deliveriesChannel.unsubscribe()
-      messagesChannel.unsubscribe()
+      cleanupElements()
+      cleanupDeliveries()
+      cleanupMessages()
     }
   }, [project.id, router])
 

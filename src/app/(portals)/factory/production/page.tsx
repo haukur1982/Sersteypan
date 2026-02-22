@@ -57,7 +57,6 @@ export default async function ProductionQueuePage({ searchParams }: ProductionQu
             <div className="space-y-3">
                 <div className="flex items-center gap-3">
                     <Button variant="ghost" size="icon" asChild>
-                        {/* @ts-ignore */}
                         <Link href="/factory">
                             <ArrowLeft className="w-4 h-4" />
                         </Link>

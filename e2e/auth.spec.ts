@@ -1,16 +1,10 @@
 import { test, expect } from '@playwright/test'
+import { TEST_USERS } from './test-users'
 
 /**
  * Authentication E2E Tests (P0)
  * Tests login, logout, and role-based redirects
  */
-
-const TEST_USERS = {
-  admin: { email: 'owner.admin@sersteypan.test', password: 'OwnerAccess!2026', portal: '/admin' },
-  factory: { email: 'owner.factory@sersteypan.test', password: 'OwnerAccess!2026', portal: '/factory' },
-  buyer: { email: 'owner.buyer@sersteypan.test', password: 'OwnerAccess!2026', portal: '/buyer' },
-  driver: { email: 'owner.driver@sersteypan.test', password: 'OwnerAccess!2026', portal: '/driver' },
-}
 
 test.describe('Authentication Flow', () => {
   test.beforeEach(async ({ page }) => {

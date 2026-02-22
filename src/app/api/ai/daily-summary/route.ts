@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { apiRateLimiter, getClientIP } from '@/lib/utils/rateLimit'
 
 /**
  * GET /api/ai/daily-summary
@@ -11,7 +12,7 @@ import Anthropic from '@anthropic-ai/sdk'
  * Auth: admin + factory_manager only.
  * If ANTHROPIC_API_KEY is not set, returns 404 (feature disabled).
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   // 1. Check if feature is enabled
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -31,12 +32,27 @@ export async function GET() {
   // 3. Role check
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, is_active')
     .eq('id', user.id)
     .single()
 
-  if (!profile || !['admin', 'factory_manager'].includes(profile.role)) {
+  if (
+    !profile ||
+    profile.is_active === false ||
+    !['admin', 'factory_manager'].includes(profile.role)
+  ) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+
+  // 3b. Rate limit
+  const ip = getClientIP(request.headers)
+  const rateLimit = await apiRateLimiter.check(`daily-summary:${user.id}:${ip}`)
+  if (!rateLimit.success) {
+    const retryAfter = Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))
+    return NextResponse.json(
+      { error: 'Of margar beiðnir. Reyndu aftur eftir nokkrar mínútur.' },
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+    )
   }
 
   // 4. Check cache for today's summary

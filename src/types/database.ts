@@ -2215,6 +2215,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      },
+      visual_verifications: {
+        Row: {
+          created_at: string
+          driver_id: string | null
+          element_id: string
+          id: string
+          notes: string | null
+          rejection_reason: string | null
+          status: string
+          verified_at: string
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          element_id: string
+          id?: string
+          notes?: string | null
+          rejection_reason?: string | null
+          status: string
+          verified_at?: string
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string | null
+          element_id?: string
+          id?: string
+          notes?: string | null
+          rejection_reason?: string | null
+          status?: string
+          verified_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visual_verifications_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visual_verifications_element_id_fkey"
+            columns: ["element_id"]
+            isOneToOne: false
+            referencedRelation: "elements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

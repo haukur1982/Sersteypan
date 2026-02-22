@@ -1,16 +1,10 @@
 import { test, expect } from '@playwright/test'
+import { TEST_USERS } from './test-users'
 
 /**
  * Role-Based Access Control E2E Tests (P0)
  * Tests that users can only access their designated portals
  */
-
-const TEST_USERS = {
-  admin: { email: 'owner.admin@sersteypan.test', password: 'OwnerAccess!2026' },
-  factory: { email: 'owner.factory@sersteypan.test', password: 'OwnerAccess!2026' },
-  buyer: { email: 'owner.buyer@sersteypan.test', password: 'OwnerAccess!2026' },
-  driver: { email: 'owner.driver@sersteypan.test', password: 'OwnerAccess!2026' },
-}
 
 // Helper to login as a specific user
 async function loginAs(page: import('@playwright/test').Page, role: keyof typeof TEST_USERS) {

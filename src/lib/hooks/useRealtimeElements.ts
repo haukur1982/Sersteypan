@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { subscribeWithRetry } from '@/lib/supabase/subscribeWithRetry'
 import type { Database } from '@/types/database'
 
 type Element = Database['public']['Tables']['elements']['Row']
@@ -77,19 +78,14 @@ export function useRealtimeElements(
           )
         }
       )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          setIsConnected(true)
-          console.log(`Subscribed to ${channelName}`)
-        } else if (status === 'CLOSED') {
-          setIsConnected(false)
-          console.log(`Unsubscribed from ${channelName}`)
-        }
-      })
 
-    // Cleanup on unmount
+
+    const cleanup = subscribeWithRetry(channel, (status) => {
+      setIsConnected(status === 'SUBSCRIBED')
+    })
+
     return () => {
-      channel.unsubscribe()
+      cleanup()
       setIsConnected(false)
     }
   }, [projectId, enabled])

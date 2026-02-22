@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { subscribeWithRetry } from '@/lib/supabase/subscribeWithRetry'
 import { sendFactoryMessage, markMessagesAsRead } from '@/lib/factory/actions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -108,11 +109,10 @@ export function ProjectMessagesClient({ projectId, messages: serverMessages, cur
                     router.refresh()
                 }
             )
-            .subscribe()
 
-        return () => {
-            channel.unsubscribe()
-        }
+        const cleanup = subscribeWithRetry(channel)
+
+        return cleanup
     }, [projectId, router])
 
     // Mark unread messages as read

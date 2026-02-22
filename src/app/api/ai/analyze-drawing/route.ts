@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import { createRateLimiter } from '@/lib/utils/rateLimit'
+import { expensiveRateLimiter, getClientIP } from '@/lib/utils/rateLimit'
 import { SYSTEM_PROMPT, buildUserPrompt } from '@/lib/ai/drawing-prompt'
 import { parseDrawingAnalysisResponse } from '@/lib/ai/parse-response'
 import { getDrawingAnalysisProvider } from '@/lib/ai/providers'
@@ -21,11 +21,6 @@ import { getDrawingAnalysisProvider } from '@/lib/ai/providers'
  *   AI_DRAWING_PROVIDER = 'anthropic' | 'google'  (default: 'anthropic')
  *   AI_DRAWING_MODEL = model name override (optional)
  */
-
-const rateLimiter = createRateLimiter({
-  maxRequests: 5,
-  windowMs: 5 * 60 * 1000, // 5 minutes
-})
 
 function getStorageClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -71,22 +66,22 @@ export async function POST(request: NextRequest) {
   // 3. Role check — admin only
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, is_active')
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.role !== 'admin') {
+  if (!profile || profile.is_active === false || profile.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized — Admin only' }, { status: 403 })
   }
 
   // 4. Rate limit
-  const forwarded = request.headers.get('x-forwarded-for')
-  const ip = forwarded?.split(',')[0]?.trim() || 'unknown'
-  const { success: rateLimitOk } = rateLimiter.check(`analyze-drawing:${user.id}:${ip}`)
-  if (!rateLimitOk) {
+  const ip = getClientIP(request.headers)
+  const rateLimit = await expensiveRateLimiter.check(`analyze-drawing:${user.id}:${ip}`)
+  if (!rateLimit.success) {
+    const retryAfter = Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))
     return NextResponse.json(
       { error: 'Of margar beiðnir. Reyndu aftur eftir nokkrar mínútur.' },
-      { status: 429 }
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
     )
   }
 

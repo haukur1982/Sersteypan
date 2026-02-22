@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { subscribeWithRetry } from '@/lib/supabase/subscribeWithRetry'
 
 type AnalysisData = {
   id: string
@@ -122,16 +123,13 @@ export function useRealtimeAnalyses(
         },
         handleDelete
       )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          setIsConnected(true)
-        } else if (status === 'CLOSED') {
-          setIsConnected(false)
-        }
-      })
+
+    const cleanup = subscribeWithRetry(channel, (status) => {
+      setIsConnected(status === 'SUBSCRIBED')
+    })
 
     return () => {
-      channel.unsubscribe()
+      cleanup()
       setIsConnected(false)
     }
   }, [projectId, enabled, handleUpdate, handleInsert, handleDelete])

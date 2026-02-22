@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { subscribeWithRetry } from '@/lib/supabase/subscribeWithRetry'
 import Link from 'next/link'
 import { ArrowRight, Package, Clock, CheckCircle, Truck } from 'lucide-react'
 
@@ -41,52 +42,20 @@ export function BuyerDashboardClient({
   useEffect(() => {
     const supabase = createClient()
 
-    // Subscribe to element changes (affects project stats)
     const elementsChannel = supabase
       .channel('buyer-elements-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'elements'
-        },
-        (payload) => {
-          console.log('Element changed, refreshing dashboard:', payload)
-          router.refresh()
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Subscribed to element changes')
-        }
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'elements' }, () => router.refresh())
 
-    // Subscribe to delivery changes
     const deliveriesChannel = supabase
       .channel('buyer-deliveries-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'deliveries'
-        },
-        (payload) => {
-          console.log('Delivery changed, refreshing dashboard:', payload)
-          router.refresh()
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Subscribed to delivery changes')
-        }
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, () => router.refresh())
 
-    // Cleanup on unmount
+    const cleanupElements = subscribeWithRetry(elementsChannel)
+    const cleanupDeliveries = subscribeWithRetry(deliveriesChannel)
+
     return () => {
-      elementsChannel.unsubscribe()
-      deliveriesChannel.unsubscribe()
+      cleanupElements()
+      cleanupDeliveries()
     }
   }, [router])
 

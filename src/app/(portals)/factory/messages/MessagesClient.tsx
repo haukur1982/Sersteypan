@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { subscribeWithRetry } from '@/lib/supabase/subscribeWithRetry'
 import { MessagesList } from '@/components/shared/MessagesList'
 import { sendFactoryMessage, markMessagesAsRead } from '@/lib/factory/actions'
 
@@ -53,20 +54,12 @@ export function MessagesClient({ messages, currentUserId }: MessagesClientProps)
           schema: 'public',
           table: 'project_messages'
         },
-        (payload) => {
-          console.log('Message change detected:', payload)
-          router.refresh()
-        }
+        () => router.refresh()
       )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Subscribed to factory messages')
-        }
-      })
 
-    return () => {
-      channel.unsubscribe()
-    }
+    const cleanup = subscribeWithRetry(channel)
+
+    return cleanup
   }, [router])
 
   const handleSendMessage = async (projectId: string, message: string, elementId?: string | null) => {

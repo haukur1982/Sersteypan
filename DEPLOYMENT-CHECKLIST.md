@@ -39,9 +39,9 @@ Ensure these are set in Vercel Project Settings:
 
 ## 3. Build Verification
 
-- [x] `npm run build` passes locally
-- [x] TypeScript strict mode check passed
-- [x] Linting passed
+- [ ] `npm run lint` passes locally
+- [ ] `npm run test:run` passes locally
+- [ ] `npm run build` passes locally
 
 ## 4. Post-Deployment Verification
 

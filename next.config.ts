@@ -2,9 +2,10 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 // Security headers to protect against common web vulnerabilities
+const allowUnsafeInlineScripts = process.env.CSP_ALLOW_UNSAFE_INLINE_SCRIPTS !== 'false'
 const scriptSrc = [
   "'self'",
-  "'unsafe-inline'",
+  ...(allowUnsafeInlineScripts ? ["'unsafe-inline'"] : []),
   ...(process.env.NODE_ENV === 'production' ? [] : ["'unsafe-eval'"]),
 ].join(' ')
 
@@ -41,7 +42,10 @@ const securityHeaders = [
   },
   {
     // Content Security Policy
-    // Note: 'unsafe-inline' is needed for Next.js styles, 'unsafe-eval' for development
+    // Note:
+    // - style-src keeps 'unsafe-inline' for Next.js runtime style injection.
+    // - script-src can be hardened by setting CSP_ALLOW_UNSAFE_INLINE_SCRIPTS=false
+    //   once all inline scripts are nonce/hash compatible in your deployment.
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
@@ -55,6 +59,8 @@ const securityHeaders = [
       "worker-src 'self' blob:",
       "form-action 'self'",
       "base-uri 'self'",
+      "object-src 'none'",
+      ...(process.env.NODE_ENV === 'production' ? ["upgrade-insecure-requests"] : []),
     ].join('; '),
   },
 ];

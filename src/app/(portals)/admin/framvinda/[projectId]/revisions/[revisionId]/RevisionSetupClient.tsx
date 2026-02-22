@@ -20,7 +20,7 @@ import {
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Plus, Trash2, Loader2, Save, Check, AlertTriangle } from 'lucide-react'
+import { Plus, Trash2, Save, Check, AlertTriangle } from 'lucide-react'
 
 interface EditableLine {
     tempId: string

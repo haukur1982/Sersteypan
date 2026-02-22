@@ -1,20 +1,16 @@
 import { test, expect } from '@playwright/test'
+import { TEST_USERS } from '../test-users'
 
 /**
  * Buyer Portal E2E Tests (P2)
  * Tests project viewing, delivery tracking, and messaging
  */
 
-const BUYER_USER = {
-  email: 'owner.buyer@sersteypan.test',
-  password: 'OwnerAccess!2026',
-}
-
 // Helper to login as buyer
 async function loginAsBuyer(page: import('@playwright/test').Page) {
   await page.goto('/login')
-  await page.fill('#email', BUYER_USER.email)
-  await page.fill('#password', BUYER_USER.password)
+  await page.fill('#email', TEST_USERS.buyer.email)
+  await page.fill('#password', TEST_USERS.buyer.password)
   await page.getByRole('button', { name: /innskrá|login/i }).click()
   await page.waitForURL('**/buyer**', { timeout: 15000 })
   await page.waitForLoadState('domcontentloaded')

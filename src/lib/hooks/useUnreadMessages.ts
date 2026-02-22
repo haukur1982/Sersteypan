@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { subscribeWithRetry } from '@/lib/supabase/subscribeWithRetry'
 
 /**
  * Hook to track unread message count with real-time updates
@@ -49,11 +50,10 @@ export function useUnreadMessages(userId?: string) {
           fetchCount() // Refetch on any message change
         }
       )
-      .subscribe()
 
-    return () => {
-      channel.unsubscribe()
-    }
+    const cleanup = subscribeWithRetry(channel)
+
+    return cleanup
   }, [userId])
 
   return {

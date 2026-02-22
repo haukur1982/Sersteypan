@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { uuidSchema } from '@/lib/schemas/common'
 import {
   getElementTypes,
   getAllElementTypes,
@@ -24,17 +25,17 @@ export async function GET(request: NextRequest) {
       const supabase = await createClient()
       const { data: { user } } = await supabase.auth.getUser()
 
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, is_active')
+            .eq('id', user.id)
+            .single()
 
-        if (profile?.role === 'admin') {
-          const types = await getAllElementTypes()
-          return NextResponse.json(types)
-        }
+          if (profile?.is_active !== false && profile?.role === 'admin') {
+            const types = await getAllElementTypes()
+            return NextResponse.json(types)
+          }
       }
     }
 
@@ -64,11 +65,11 @@ export async function POST(request: NextRequest) {
     // Check admin role
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, is_active')
       .eq('id', user.id)
       .single()
 
-    if (profile?.role !== 'admin') {
+    if (!profile || profile.is_active === false || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
@@ -124,18 +125,18 @@ export async function PATCH(request: NextRequest) {
     // Check admin role
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, is_active')
       .eq('id', user.id)
       .single()
 
-    if (profile?.role !== 'admin') {
+    if (!profile || profile.is_active === false || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
     const body = await request.json()
 
-    if (!body.id) {
-      return NextResponse.json({ error: 'Missing required field: id' }, { status: 400 })
+    if (!body.id || !uuidSchema.safeParse(body.id).success) {
+      return NextResponse.json({ error: 'Missing or invalid field: id (must be UUID)' }, { status: 400 })
     }
 
     // Validate key format if provided
@@ -175,19 +176,19 @@ export async function DELETE(request: NextRequest) {
     // Check admin role
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, is_active')
       .eq('id', user.id)
       .single()
 
-    if (profile?.role !== 'admin') {
+    if (!profile || profile.is_active === false || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
     const searchParams = request.nextUrl.searchParams
     const id = searchParams.get('id')
 
-    if (!id) {
-      return NextResponse.json({ error: 'Missing required param: id' }, { status: 400 })
+    if (!id || !uuidSchema.safeParse(id).success) {
+      return NextResponse.json({ error: 'Missing or invalid param: id (must be UUID)' }, { status: 400 })
     }
 
     await deactivateElementType(id)

@@ -52,6 +52,12 @@ export interface QualityStats {
   weeklyTrend: WeeklyCount[]
 }
 
+interface VisualVerificationMetricRow {
+  id: string
+  status: string
+  verified_at: string
+}
+
 export interface ProjectProgressRow {
   id: string
   name: string
@@ -312,7 +318,7 @@ export async function getQualityMetrics(dateRange: DateRange) {
       .select('id, category, delivery_impact, created_at')
       .gte('created_at', dateRange.from)
       .lte('created_at', dateRange.to),
-    (supabase as any)
+    supabase
       .from('visual_verifications')
       .select('id, status, verified_at')
       .gte('verified_at', dateRange.from)
@@ -325,7 +331,7 @@ export async function getQualityMetrics(dateRange: DateRange) {
   ])
 
   const fixes = fixResult.data || []
-  const verifications = verifyResult.data || []
+  const verifications = (verifyResult.data || []) as VisualVerificationMetricRow[]
   const totalElements = elementsResult.count || 0
 
   // Category breakdown
@@ -345,7 +351,7 @@ export async function getQualityMetrics(dateRange: DateRange) {
   }))
 
   // Verification rejection
-  const rejected = verifications.filter((v: any) => v.status === 'rejected').length
+  const rejected = verifications.filter((v) => v.status === 'rejected').length
 
   // Weekly defect trend
   const fixDates = fixes

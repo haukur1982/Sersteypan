@@ -67,9 +67,9 @@ Interactive maps allow users to understand project status spatially, not just in
 **Status: GREEN (Stable)**
 
 *   **Code Quality:** The codebase recently underwent a "Hardening Audit" (Jan 30).
-    *   **Type Safety:** 100% TypeScript compliance (no `any` types).
-    *   **Error Assessment:** All critical paths (Loading -> Delivery) have graceful error handling.
-    *   **Null Safety:** Protected against crashes due to missing data.
+    *   **Type Safety:** TypeScript strict mode is enabled and enforced in CI.
+    *   **Error Assessment:** Critical paths (Loading -> Delivery) include explicit error handling and user feedback.
+    *   **Null Safety:** Critical UI/API flows include null checks to reduce runtime crashes.
 *   **Database:** Fully migrated and synced. Row Level Security (RLS) policies are active, ensuring users can only see their own data.
 
 ### Known Limitations / Risks

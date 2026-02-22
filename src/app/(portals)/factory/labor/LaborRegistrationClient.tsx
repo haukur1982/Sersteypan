@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Search, Loader2, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/hooks/useAuth'
@@ -25,7 +25,12 @@ interface Worker {
     role: string | null
 }
 
-export function LaborRegistrationClient({ elements, workers }: { elements: any[], workers: Worker[] }) {
+interface WorkerTaskLinkInsert {
+    task_id: string
+    worker_id: string
+}
+
+export function LaborRegistrationClient({ elements, workers }: { elements: Element[]; workers: Worker[] }) {
     const router = useRouter()
     const { user } = useAuth()
     const [search, setSearch] = useState('')
@@ -86,7 +91,7 @@ export function LaborRegistrationClient({ elements, workers }: { elements: any[]
             if (!insertedTasks) throw new Error('Engin verkefni skráð')
 
             // 2. Insert workers for each newly created task
-            const workerLinksToInsert: any[] = []
+            const workerLinksToInsert: WorkerTaskLinkInsert[] = []
             insertedTasks.forEach(task => {
                 Array.from(selectedWorkers).forEach(workerId => {
                     workerLinksToInsert.push({
@@ -112,9 +117,10 @@ export function LaborRegistrationClient({ elements, workers }: { elements: any[]
                 router.refresh()
             }, 1000)
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Submit error:', err)
-            toast.error(err.message || 'Villa við vistun.')
+            const message = err instanceof Error ? err.message : 'Villa við vistun.'
+            toast.error(message)
         } finally {
             setSubmitting(false)
         }

@@ -1,20 +1,16 @@
 import { test, expect } from '@playwright/test'
+import { TEST_USERS } from '../test-users'
 
 /**
  * Admin User Management E2E Tests (P1)
  * Tests user creation, editing, and listing
  */
 
-const ADMIN_USER = {
-  email: 'owner.admin@sersteypan.test',
-  password: 'OwnerAccess!2026',
-}
-
 // Helper to login as admin
 async function loginAsAdmin(page: import('@playwright/test').Page) {
   await page.goto('/login')
-  await page.fill('#email', ADMIN_USER.email)
-  await page.fill('#password', ADMIN_USER.password)
+  await page.fill('#email', TEST_USERS.admin.email)
+  await page.fill('#password', TEST_USERS.admin.password)
   await page.getByRole('button', { name: /innskrá|login/i }).click()
   await page.waitForURL('**/admin**', { timeout: 15000 })
   await page.waitForLoadState('domcontentloaded')

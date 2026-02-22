@@ -225,16 +225,14 @@ Messages can optionally reference a specific element via `element_id`. Element t
 
 ## Known Limitations
 
-1. No pagination on admin elements/deliveries lists (limited to last 100)
-2. No email notifications for status changes
-3. No reporting dashboard or charts
-4. No production scheduling calendar
-5. No bulk status updates
-6. Read-only buyer profile
-7. 3D Lab is experimental (not connected to production data)
-8. Stock management lacks purchase orders
-9. Realtime subscriptions lack reconnection retry logic
-10. Hardcoded Icelandic strings (no i18n framework)
+1. No email notifications for status changes
+2. No reporting dashboard or charts
+3. No production scheduling calendar
+4. No bulk status updates
+5. Read-only buyer profile
+6. 3D Lab is experimental (not connected to production data)
+7. Stock management lacks purchase orders
+8. Hardcoded Icelandic strings (no i18n framework)
 
 ## Deployment
 

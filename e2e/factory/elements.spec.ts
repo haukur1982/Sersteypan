@@ -1,20 +1,16 @@
 import { test, expect } from '@playwright/test'
+import { TEST_USERS } from '../test-users'
 
 /**
  * Factory Element Management E2E Tests (P1)
  * Tests element listing and status transitions
  */
 
-const FACTORY_USER = {
-  email: 'owner.factory@sersteypan.test',
-  password: 'OwnerAccess!2026',
-}
-
 // Helper to login as factory manager
 async function loginAsFactory(page: import('@playwright/test').Page) {
   await page.goto('/login')
-  await page.fill('#email', FACTORY_USER.email)
-  await page.fill('#password', FACTORY_USER.password)
+  await page.fill('#email', TEST_USERS.factory.email)
+  await page.fill('#password', TEST_USERS.factory.password)
   await page.getByRole('button', { name: /innskrá|login/i }).click()
   await page.waitForURL('**/factory**', { timeout: 15000 })
 }
