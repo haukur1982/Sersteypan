@@ -68,6 +68,7 @@ interface ProductionElement {
     status: string | null
     priority: number | null
     floor: number | string | null
+    rebar_batch_id?: string | null
     projects?: {
         id?: string
         name: string
@@ -244,12 +245,13 @@ export function ProductionQueueTable({ elements }: ProductionQueueTableProps) {
                                         <Button
                                             size="sm"
                                             className={`w-full h-11 text-sm font-medium ${nextAction.color} rounded-lg`}
-                                            disabled={isUpdating || isPending}
+                                            disabled={isUpdating || isPending || (nextAction.next === 'rebar' && !!element.rebar_batch_id)}
                                             onClick={(e) => {
                                                 e.preventDefault()
                                                 e.stopPropagation()
                                                 handleQuickStatusUpdate(element.id, nextAction.next)
                                             }}
+                                            title={(nextAction.next === 'rebar' && !!element.rebar_batch_id) ? "Get ekki giskað á gátlistann í þessari lotu, vinsamlegast kláraðu hann inni í lotunni." : undefined}
                                         >
                                             {isUpdating ? (
                                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

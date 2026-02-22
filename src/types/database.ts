@@ -753,6 +753,8 @@ export type Database = {
           project_id: string
           qr_code_url: string | null
           ready_at: string | null
+          rebar_batch_id: string | null
+          rebar_batch_number: string | null
           rebar_completed_at: string | null
           rebar_spec: string | null
           status: string | null
@@ -784,6 +786,8 @@ export type Database = {
           project_id: string
           qr_code_url?: string | null
           ready_at?: string | null
+          rebar_batch_id?: string | null
+          rebar_batch_number?: string | null
           rebar_completed_at?: string | null
           rebar_spec?: string | null
           status?: string | null
@@ -815,6 +819,8 @@ export type Database = {
           project_id?: string
           qr_code_url?: string | null
           ready_at?: string | null
+          rebar_batch_id?: string | null
+          rebar_batch_number?: string | null
           rebar_completed_at?: string | null
           rebar_spec?: string | null
           status?: string | null
@@ -1911,6 +1917,73 @@ export type Database = {
           },
         ]
       }
+      rebar_batches: {
+        Row: {
+          id: string
+          project_id: string
+          batch_number: string
+          batch_date: string
+          status: string
+          checklist: Json
+          notes: string | null
+          created_by: string
+          approved_by: string | null
+          approved_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          batch_number: string
+          batch_date?: string
+          status?: string
+          checklist?: Json
+          notes?: string | null
+          created_by: string
+          approved_by?: string | null
+          approved_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          batch_number?: string
+          batch_date?: string
+          status?: string
+          checklist?: Json
+          notes?: string | null
+          created_by?: string
+          approved_by?: string | null
+          approved_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rebar_batches_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rebar_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rebar_batches_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_items: {
         Row: {
           category: string | null
@@ -2176,7 +2249,24 @@ export type Database = {
             }
             Returns: Json
           }
+      create_rebar_batch_with_elements: {
+        Args: {
+          p_project_id: string
+          p_element_ids: string[]
+          p_created_by: string
+          p_notes?: string
+        }
+        Returns: Json
+      }
+      approve_rebar_batch: {
+        Args: {
+          p_batch_id: string
+          p_approved_by: string
+        }
+        Returns: Json
+      }
       generate_batch_number: { Args: never; Returns: string }
+      generate_rebar_batch_number: { Args: never; Returns: string }
       get_user_company: { Args: never; Returns: string }
       get_user_role: { Args: never; Returns: string }
       is_delivery_for_buyer: { Args: { project_id: string }; Returns: boolean }

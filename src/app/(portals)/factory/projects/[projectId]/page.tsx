@@ -36,6 +36,7 @@ import {
     MessageSquare,
 } from 'lucide-react'
 import { BatchCreateDialog } from '@/components/factory/BatchCreateDialog'
+import { RebarBatchCreateDialog } from '@/app/(portals)/factory/rebar/RebarBatchCreateDialog'
 import { QuickPhotoAction } from '@/components/factory/QuickPhotoAction'
 import type { Database } from '@/types/database'
 
@@ -175,7 +176,10 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                     <h2 className="text-xl font-semibold text-foreground">
                         Einingar ({elementList.length})
                     </h2>
-                    <BatchCreateDialog projectId={projectId} />
+                    <div className="flex items-center gap-2">
+                        <RebarBatchCreateDialog projects={[{ id: project.id, name: project.name || '' }]} />
+                        <BatchCreateDialog projectId={projectId} />
+                    </div>
                 </div>
 
                 {elementsResult.error && (

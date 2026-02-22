@@ -86,6 +86,34 @@ export default async function ManageProductionPage({
     activeBatches = (batchData || []) as typeof activeBatches
   }
 
+  // Fetch active rebar batches for this project
+  let activeRebarBatches: Array<{
+    id: string
+    batch_number: string
+    batch_date: string
+    status: string
+    checklist: unknown
+    air_temperature_c: number | null
+    concrete_grade: string | null
+    concrete_supplier: string | null
+  }> = []
+
+  if (defaultProjectId) {
+    const { data: rebarBatchData } = await supabase
+      .from('rebar_batches')
+      .select('id, batch_number, batch_date, status, checklist')
+      .eq('project_id', defaultProjectId)
+      .in('status', ['preparing', 'qc_ready'])
+      .order('batch_date', { ascending: false })
+
+    activeRebarBatches = (rebarBatchData || []).map(b => ({
+      ...b,
+      air_temperature_c: null,
+      concrete_grade: null,
+      concrete_supplier: null
+    })) as typeof activeRebarBatches
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -103,6 +131,7 @@ export default async function ManageProductionPage({
         defaultProjectId={defaultProjectId}
         elements={elements}
         activeBatches={activeBatches}
+        activeRebarBatches={activeRebarBatches}
       />
     </div>
   )

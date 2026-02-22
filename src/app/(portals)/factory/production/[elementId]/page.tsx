@@ -52,6 +52,8 @@ type ElementDetail = Pick<
     | 'drawing_reference'
     | 'batch_number'
     | 'batch_id'
+    | 'rebar_batch_number'
+    | 'rebar_batch_id'
     | 'rebar_spec'
     | 'production_notes'
     | 'created_at'
@@ -122,6 +124,8 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
             drawing_reference,
             batch_number,
             batch_id,
+            rebar_batch_number,
+            rebar_batch_id,
             rebar_spec,
             production_notes,
             created_at,
@@ -318,7 +322,27 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-zinc-500">Batch númer</p>
-                                    <p className="mt-1 text-zinc-900 font-mono text-sm">{elementDetail.batch_number || '-'}</p>
+                                    <p className="mt-1 text-zinc-900 font-mono text-sm">
+                                        {elementDetail.batch_number ? (
+                                            <Link href={`/factory/batches/${elementDetail.batch_id}`} className="text-blue-600 hover:underline">
+                                                {elementDetail.batch_number}
+                                            </Link>
+                                        ) : (
+                                            '-'
+                                        )}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-zinc-500">Járnalota</p>
+                                    <p className="mt-1 text-zinc-900 font-mono text-sm">
+                                        {elementDetail.rebar_batch_number ? (
+                                            <Link href={`/factory/rebar/${elementDetail.rebar_batch_id}`} className="text-blue-600 hover:underline">
+                                                {elementDetail.rebar_batch_number}
+                                            </Link>
+                                        ) : (
+                                            '-'
+                                        )}
+                                    </p>
                                 </div>
                             </div>
 
@@ -436,6 +460,7 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
+                                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                     {laborTasks.map((task: any) => (
                                         <div key={task.id} className="p-3 bg-zinc-50 border border-zinc-200 rounded-md">
                                             <div className="flex items-center justify-between mb-2">
@@ -445,6 +470,7 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                                             {task.element_task_workers?.length > 0 ? (
                                                 <div className="flex flex-wrap gap-2 text-sm">
                                                     Starfsmenn:{' '}
+                                                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                                     {task.element_task_workers.map((w: any, idx: number) => (
                                                         <Badge key={idx} variant="secondary">
                                                             {w.profiles?.full_name || 'Ónefndur'}

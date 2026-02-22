@@ -32,6 +32,8 @@ import {
 } from 'lucide-react'
 import { updateChecklistItem } from '@/lib/factory/batch-actions'
 import type { ChecklistItem } from '@/lib/factory/batch-actions'
+import { updateRebarChecklistItem } from '@/lib/factory/rebar-batch-actions'
+import { useRealtimeRebarBatches } from '@/lib/hooks/useRealtimeRebarBatches'
 
 interface ManageElement {
   id: string
@@ -69,6 +71,7 @@ interface ManageProductionViewProps {
   defaultProjectId: string | null
   elements: ManageElement[]
   activeBatches: ActiveBatch[]
+  activeRebarBatches?: ActiveBatch[]
 }
 
 const typeTabOrder = [
@@ -98,11 +101,19 @@ export function ManageProductionView({
   defaultProjectId,
   elements: initialElements,
   activeBatches,
+  activeRebarBatches = [],
 }: ManageProductionViewProps) {
   const router = useRouter()
   const [selectedProjectId, setSelectedProjectId] = useState(defaultProjectId || '')
   const [collapsedFloors, setCollapsedFloors] = useState<Set<string>>(new Set())
   const [loadingChecklistKey, setLoadingChecklistKey] = useState<string | null>(null)
+
+  // The component receives activeRebarBatches directly from props now correctly typed.
+  const rebarBatchesToMonitor = activeRebarBatches || [];
+
+  const { batches: realtimeRebarBatches } = useRealtimeRebarBatches(rebarBatchesToMonitor, {
+    enabled: rebarBatchesToMonitor.length > 0,
+  })
 
   // Group elements by type
   const groupedByType = useMemo(() => {
@@ -174,6 +185,15 @@ export function ManageProductionView({
     router.refresh()
   }
 
+  // Checklist handling for rebar batches
+  async function handleRebarChecklistToggle(batchId: string, itemKey: string, checked: boolean) {
+    const loadKey = `${batchId}:${itemKey}`
+    setLoadingChecklistKey(loadKey)
+    await updateRebarChecklistItem(batchId, itemKey, checked)
+    setLoadingChecklistKey(null)
+    // No router.refresh() needed here as useRealtimeRebarBatches handles updates
+  }
+
   // Stats
   const totalElements = initialElements.length
   const inBatch = initialElements.filter((e) => e.batch_id).length
@@ -228,17 +248,17 @@ export function ManageProductionView({
         </Card>
       </div>
 
-      {/* Active batch checklists */}
-      {activeBatches.length > 0 && (
+      {/* Active rebar batch checklists */}
+      {realtimeRebarBatches && realtimeRebarBatches.length > 0 && (
         <Card className="border-zinc-200">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <ClipboardCheck className="h-5 w-5 text-blue-600" />
-              Virkir gátlistar ({activeBatches.length} lotur)
+              <ClipboardCheck className="h-5 w-5 text-yellow-600" />
+              Virkir járnagátlistar ({realtimeRebarBatches.length} lotur)
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {activeBatches.map((batch) => {
+            {realtimeRebarBatches.map((batch) => {
               const checklist = (batch.checklist as unknown as ChecklistItem[]) || []
               const checkedCount = checklist.filter((i) => i.checked).length
               const allChecked = checkedCount === checklist.length
@@ -247,22 +267,20 @@ export function ManageProductionView({
               return (
                 <div
                   key={batch.id}
-                  className={`border rounded-lg p-3 ${
-                    isIncomplete ? 'border-red-200 bg-red-50/30' : 'border-zinc-200'
-                  }`}
+                  className={`border rounded-lg p-3 ${isIncomplete ? 'border-red-200 bg-red-50/30' : 'border-zinc-200'
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-semibold text-sm">{batch.batch_number}</span>
                       <Badge
                         variant="outline"
-                        className={`text-xs ${
-                          allChecked
-                            ? 'bg-green-100 text-green-800 border-green-200'
-                            : isIncomplete
+                        className={`text-xs ${allChecked
+                          ? 'bg-green-100 text-green-800 border-green-200'
+                          : isIncomplete
                             ? 'bg-red-100 text-red-700 border-red-200'
                             : 'bg-zinc-100'
-                        }`}
+                          }`}
                       >
                         {checkedCount}/{checklist.length}
                       </Badge>
@@ -298,9 +316,104 @@ export function ManageProductionView({
                       return (
                         <label
                           key={item.key}
-                          className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer ${
-                            item.checked ? 'bg-green-50 text-green-800' : 'hover:bg-zinc-50'
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer ${item.checked ? 'bg-green-50 text-green-800' : 'hover:bg-zinc-50'
+                            }`}
+                        >
+                          {isLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
+                          ) : (
+                            <Checkbox
+                              checked={item.checked}
+                              onCheckedChange={(checked) =>
+                                handleRebarChecklistToggle(batch.id, item.key, checked === true)
+                              }
+                              disabled={isLoading || loadingChecklistKey !== null}
+                            />
+                          )}
+                          <span className={item.checked ? 'line-through' : ''}>
+                            {item.label}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Active batch checklists */}
+      {activeBatches.length > 0 && (
+        <Card className="border-zinc-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ClipboardCheck className="h-5 w-5 text-blue-600" />
+              Virkir gátlistar ({activeBatches.length} lotur)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {activeBatches.map((batch) => {
+              const checklist = (batch.checklist as unknown as ChecklistItem[]) || []
+              const checkedCount = checklist.filter((i) => i.checked).length
+              const allChecked = checkedCount === checklist.length
+              const isIncomplete = batch.status === 'preparing' && !allChecked
+
+              return (
+                <div
+                  key={batch.id}
+                  className={`border rounded-lg p-3 ${isIncomplete ? 'border-red-200 bg-red-50/30' : 'border-zinc-200'
+                    }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-semibold text-sm">{batch.batch_number}</span>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${allChecked
+                          ? 'bg-green-100 text-green-800 border-green-200'
+                          : isIncomplete
+                            ? 'bg-red-100 text-red-700 border-red-200'
+                            : 'bg-zinc-100'
                           }`}
+                      >
+                        {checkedCount}/{checklist.length}
+                      </Badge>
+                      {batch.concrete_grade && (
+                        <span className="text-xs text-zinc-500">{batch.concrete_grade}</span>
+                      )}
+                      {batch.air_temperature_c != null && (
+                        <span className="text-xs text-zinc-500 flex items-center gap-0.5">
+                          <Thermometer className="h-3 w-3" />
+                          {batch.air_temperature_c}°C
+                        </span>
+                      )}
+                    </div>
+                    <Link
+                      href={`/factory/batches/${batch.id}`}
+                      className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                    >
+                      Opna <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  </div>
+
+                  {isIncomplete && (
+                    <div className="flex items-center gap-2 mb-2 text-xs text-red-700">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      Staðfesta verður alla liði áður en steypt er
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
+                    {checklist.map((item) => {
+                      const loadKey = `${batch.id}:${item.key}`
+                      const isLoading = loadingChecklistKey === loadKey
+                      return (
+                        <label
+                          key={item.key}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer ${item.checked ? 'bg-green-50 text-green-800' : 'hover:bg-zinc-50'
+                            }`}
                         >
                           {isLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />

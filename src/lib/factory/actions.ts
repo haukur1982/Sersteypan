@@ -16,7 +16,7 @@ type ProjectRow = Database['public']['Tables']['projects']['Row']
 type CompanyRow = Database['public']['Tables']['companies']['Row']
 type ProductionElement = Pick<
   ElementRow,
-  'id' | 'name' | 'element_type' | 'status' | 'priority' | 'floor' | 'created_at'
+  'id' | 'name' | 'element_type' | 'status' | 'priority' | 'floor' | 'created_at' | 'rebar_batch_id'
 > & {
   projects?: (Pick<ProjectRow, 'id' | 'name'> & { companies?: Pick<CompanyRow, 'name'> | null }) | null
   production_batches?: { id: string; batch_number: string } | null
@@ -90,6 +90,7 @@ export async function getProductionQueuePaginated(
       priority,
       floor,
       created_at,
+      rebar_batch_id,
       projects (
         id,
         name,
