@@ -255,6 +255,55 @@ export async function deleteDocument(documentId: string, projectId: string) {
   return { success: true }
 }
 
+// Deactivate document (soft delete with reason)
+export async function deactivateDocument(documentId: string, projectId: string, reason: string) {
+  const supabase = await createClient()
+
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  // Validate user is admin or factory manager
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !['admin', 'factory_manager'].includes(profile.role)) {
+    return { error: 'Unauthorized' }
+  }
+
+  // Update in database (soft delete)
+  const { error: dbError } = await supabase
+    .from('project_documents')
+    .update({
+      is_active: false,
+      deactivated_at: new Date().toISOString(),
+      deactivated_by: user.id,
+      deactivation_reason: reason
+    })
+    .eq('id', documentId)
+
+  if (dbError) {
+    console.error('Error deactivating document record:', dbError)
+    // Fallback if column doesn't exist yet (before migration runs)
+    if (dbError.message?.includes('is_active')) {
+      return { error: 'Gagnagrunnur hefur ekki verið uppfærður enn til að styðja þetta (keyrðu migration script)' }
+    }
+    return { error: 'Villa við að gera skjal óvirkt' }
+  }
+
+  // Revalidate project pages
+  revalidatePath(`/admin/projects/${projectId}`)
+  revalidatePath(`/factory/projects/${projectId}`)
+  revalidatePath('/factory/drawings')
+
+  return { success: true }
+}
+
 // Get drawings linked to a specific element (plus project-level drawings)
 export async function getElementDrawings(elementId: string, projectId: string) {
   const supabase = await createClient()

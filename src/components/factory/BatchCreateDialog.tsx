@@ -71,7 +71,7 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
   const [elements, setElements] = useState<UnbatchedElement[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [concreteSupplier, setConcreteSupplier] = useState('')
-  const [concreteGrade, setConcreteGrade] = useState('')
+  const [concreteGrade, setConcreteGrade] = useState('C35 ½ flot 70-75 á mæli')
   const [airTemperature, setAirTemperature] = useState('')
   const [notes, setNotes] = useState('')
   const [collapsedFloors, setCollapsedFloors] = useState<Set<string>>(new Set())
@@ -85,7 +85,13 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
       try {
         const { data, error: fetchError } = await getUnbatchedElements(projectId)
         if (cancelled) return
-        setElements(data)
+
+        // F2: Natural alphanumeric sort by name (e.g. F(A)-1-2 after F(A)-1-1)
+        const sortedData = (data || []).sort((a, b) =>
+          a.name.localeCompare(b.name, 'en', { numeric: true, sensitivity: 'base' })
+        )
+
+        setElements(sortedData)
         if (fetchError) setError(fetchError)
       } catch {
         if (!cancelled) setError('Villa við að sækja einingar')
@@ -260,12 +266,12 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
-        setOpen(isOpen)
-        if (isOpen) {
-          setFetchingElements(true)
-          setError(null)
-        }
-      }}>
+      setOpen(isOpen)
+      if (isOpen) {
+        setFetchingElements(true)
+        setError(null)
+      }
+    }}>
       <DialogTrigger asChild>
         {trigger || (
           <Button className="bg-blue-600 hover:bg-blue-700">
@@ -391,11 +397,10 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
                       {tab.label}
                       <Badge
                         variant="secondary"
-                        className={`ml-1.5 text-[10px] px-1.5 py-0 ${
-                          selCount > 0
+                        className={`ml-1.5 text-[10px] px-1.5 py-0 ${selCount > 0
                             ? 'bg-blue-100 text-blue-700'
                             : 'bg-zinc-200 text-zinc-600'
-                        }`}
+                          }`}
                       >
                         {selCount > 0 ? `${selCount}/${tab.count}` : tab.count}
                       </Badge>

@@ -119,7 +119,7 @@ class AnthropicProvider implements AIDrawingAnalysisProvider {
 // Google Gemini Provider (Gemini 3 Pro / Deep Think)
 // ---------------------------------------------------------------------------
 
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro'
+const DEFAULT_GEMINI_MODEL = 'gemini-3.1-pro-preview';
 
 class GeminiProvider implements AIDrawingAnalysisProvider {
   name = 'google'
@@ -203,7 +203,7 @@ export function getDrawingAnalysisProvider(): AIDrawingAnalysisProvider {
   if (!provider) {
     throw new Error(
       `Unknown AI_DRAWING_PROVIDER: "${providerName}". ` +
-        `Supported: ${Object.keys(providers).join(', ')}`
+      `Supported: ${Object.keys(providers).join(', ')}`
     )
   }
 

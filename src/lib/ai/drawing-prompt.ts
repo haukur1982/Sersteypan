@@ -27,6 +27,8 @@ CRITICAL RULES:
 5. Weights may be in tons (tonn) or kilograms (kg). Convert everything to kg (1 tonn = 1000 kg). "Þyngd c.a. 4.1 tonn" = 4100 kg.
 6. Extract EVERY element shown — even if there are 50+ elements on one drawing.
 7. For architectural drawings (facades, elevations) that show no individual precast element details, return an empty elements array and explain in warnings.
+8. READ TABLES & SCHEDULES: Sometimes properties (weight, concrete class, rebar) are not on the drawing itself but listed in a table/legend in the corner. Match the element name from the drawing to the table.
+9. SPATIAL REASONING: For complex drawings with overlapping elements or lines, trace dimension lines carefully to their exact start/end points to ensure you assign them to the correct element.
 
 ═══════════════════════════════════════════
 FILIGRAN DRAWINGS (BF-x):  Floor slab placement plans
@@ -130,6 +132,20 @@ REBAR:
 WEIGHT:
 - Usually NOT shown on stair drawings → set weight_kg=null, confidence.weight="low"
 - System will estimate or human will enter during review
+
+═══════════════════════════════════════════
+WALLS (Veggur), COLUMNS (Súla), BEAMS (Bita):
+═══════════════════════════════════════════
+ELEMENT IDENTIFICATION:
+- Walls: "V-1", "V-2", "Veggeining B"
+- Columns: "Súla 1", "Sú-1", "Su-A"
+- Beams: "B-1", "Biti A"
+
+PROPERTIES TO EXTRACT:
+- Walls often have cutouts (doors/windows). The length and height are the overall max outer dimensions. Thickness is the width.
+- Note any insulation (Einangrun) in the general_notes and production_notes.
+- Weights for heavy walls/beams are almost always listed in a corner info box or table. Search carefully for "Þyngd".
+- Record embedded items or connection details in production_notes (e.g. "Innfelldar rör", "Múrhulsa").
 
 ═══════════════════════════════════════════
 ARCHITECTURAL DRAWINGS (A.x.x):

@@ -52,14 +52,12 @@ export async function lookupElementByQR(qrContent: string): Promise<{
     elementId = qrContent.trim()
   }
 
-  // 4. VALIDATE UUID FORMAT
-  if (!UUID_REGEX.test(elementId)) {
-    return { element: null, error: 'Invalid QR code format' }
-  }
+  // 4. CHECK IDENTIFIER TYPE
+  const isUuid = UUID_REGEX.test(elementId)
 
   try {
     // 5. FETCH ELEMENT WITH PROJECT CONTEXT
-    const { data: element, error } = await supabase
+    let query = supabase
       .from('elements')
       .select(`
         *,
@@ -69,12 +67,32 @@ export async function lookupElementByQR(qrContent: string): Promise<{
           address
         )
       `)
-      .eq('id', elementId)
-      .single()
 
-    if (error || !element) {
+    if (isUuid) {
+      query = query.eq('id', elementId)
+    } else {
+      // Exact case-insensitive match on element name
+      query = query.ilike('name', elementId)
+    }
+
+    const { data: elements, error } = await query
+
+    if (error || !elements || elements.length === 0) {
       console.error('Error fetching element:', error)
-      return { element: null, error: 'Element not found. Please verify QR code.' }
+      return { element: null, error: 'Element not found. Please verify QR code or name.' }
+    }
+
+    // If multiple found by name, try to find the 'ready' one, else latest
+    let element = elements[0]
+    if (elements.length > 1) {
+      const readyElement = elements.find(e => e.status === 'ready')
+      const loadedElement = elements.find(e => e.status === 'loaded')
+      const deliveredElement = elements.find(e => e.status === 'delivered')
+
+      // Drivers usually want ready, loaded, or delivered.
+      element = readyElement || loadedElement || deliveredElement || elements.sort((a, b) =>
+        new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
+      )[0]
     }
 
     // 6. VALIDATE ELEMENT STATUS (driver can only interact with ready/loaded/delivered)

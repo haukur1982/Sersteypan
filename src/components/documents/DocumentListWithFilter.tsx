@@ -4,9 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, Download, Trash2, Loader2, Check, X, Building2 } from 'lucide-react'
+import { Eye, Download, Trash2, Loader2, Check, X, Building2, Archive, ArchiveX } from 'lucide-react'
 import { DocumentPreview } from './DocumentPreview'
-import { deleteDocument } from '@/lib/documents/actions'
+import { deleteDocument, deactivateDocument } from '@/lib/documents/actions'
 
 const categoryConfig: Record<string, { label: string; color: string }> = {
     drawing: { label: 'Teikning', color: 'bg-blue-100 text-blue-800' },
@@ -29,6 +29,8 @@ interface Document {
     building?: { id: string; name: string } | null
     floor?: number | null
     profiles?: { full_name: string } | null
+    is_active?: boolean | null
+    deactivation_reason?: string | null
 }
 
 interface DocumentListWithFilterProps {
@@ -43,7 +45,9 @@ export function DocumentListWithFilter({ documents, projectId, canDelete = false
     const [buildingFilter, setBuildingFilter] = useState<string | null>(null)
     const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
     const [confirmingId, setConfirmingId] = useState<string | null>(null)
-    const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [deactivatingId, setDeactivatingId] = useState<string | null>(null)
+    const [actionId, setActionId] = useState<string | null>(null)
+    const [deactivateReason, setDeactivateReason] = useState('')
     const [error, setError] = useState<string | null>(null)
 
     const filtered = documents.filter(d => {
@@ -68,16 +72,36 @@ export function DocumentListWithFilter({ documents, projectId, canDelete = false
 
     async function handleDelete(docId: string) {
         if (!projectId) return
-        setDeletingId(docId)
+        setActionId(docId)
         setError(null)
         const result = await deleteDocument(docId, projectId)
         if (result.error) {
             setError(result.error)
-            setDeletingId(null)
+            setActionId(null)
             setConfirmingId(null)
         } else {
-            setDeletingId(null)
+            setActionId(null)
             setConfirmingId(null)
+            router.refresh()
+        }
+    }
+
+    async function handleDeactivate(docId: string) {
+        if (!projectId) return
+        if (!deactivateReason.trim()) {
+            setError('Vinsamlegast skrifaðu ástæðu fyrir óvirkjun.')
+            return
+        }
+        setActionId(docId)
+        setError(null)
+        const result = await deactivateDocument(docId, projectId, deactivateReason)
+        if (result.error) {
+            setError(result.error)
+            setActionId(null)
+        } else {
+            setActionId(null)
+            setDeactivatingId(null)
+            setDeactivateReason('')
             router.refresh()
         }
     }
@@ -153,94 +177,151 @@ export function DocumentListWithFilter({ documents, projectId, canDelete = false
                     {filtered.map((doc) => {
                         const catInfo = categoryConfig[doc.category] || categoryConfig.other
                         const isConfirming = confirmingId === doc.id
-                        const isDeleting = deletingId === doc.id
+                        const isDeactivating = deactivatingId === doc.id
+                        const isActing = actionId === doc.id
+                        const inactive = doc.is_active === false
                         return (
                             <div
                                 key={doc.id}
-                                className="flex items-center justify-between p-3 border border-border rounded-md hover:bg-muted/50"
+                                className={`flex flex-col p-3 border border-border rounded-md hover:bg-muted/50 ${inactive ? 'opacity-70 bg-zinc-50' : ''}`}
                             >
-                                <button
-                                    onClick={() => setPreviewDoc(doc)}
-                                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
-                                >
-                                    <Eye className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-sm font-medium text-foreground truncate">
-                                                {doc.name}
+                                <div className="flex items-center justify-between">
+                                    <button
+                                        onClick={() => setPreviewDoc(doc)}
+                                        className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                                    >
+                                        <Eye className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm font-medium text-foreground truncate">
+                                                    {doc.name}
+                                                </p>
+                                                <Badge variant="secondary" className={`${catInfo.color} border-0 text-[10px] px-1.5 py-0 flex-shrink-0`}>
+                                                    {catInfo.label}
+                                                </Badge>
+                                                {doc.element?.name && (
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0 border-purple-200 text-purple-700">
+                                                        {doc.element.name}
+                                                    </Badge>
+                                                )}
+                                                {doc.building?.name && (
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0 border-teal-200 text-teal-700">
+                                                        {doc.building.name}{doc.floor != null ? ` / hæð ${doc.floor}` : ''}
+                                                    </Badge>
+                                                )}
+                                                {inactive && (
+                                                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0 flex-shrink-0">
+                                                        Óvirkt
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            {doc.description && !inactive && (
+                                                <p className="text-xs text-muted-foreground truncate">
+                                                    {doc.description}
+                                                </p>
+                                            )}
+                                            {inactive && (
+                                                <p className="text-xs text-red-600 truncate">
+                                                    Ástæða: {doc.deactivation_reason}
+                                                </p>
+                                            )}
+                                            <p className="text-xs text-muted-foreground/70 mt-1">
+                                                {doc.profiles?.full_name} • {doc.created_at ? new Date(doc.created_at).toLocaleDateString('is-IS') : 'Óþekkt'}
                                             </p>
-                                            <Badge variant="secondary" className={`${catInfo.color} border-0 text-[10px] px-1.5 py-0 flex-shrink-0`}>
-                                                {catInfo.label}
-                                            </Badge>
-                                            {doc.element?.name && (
-                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0 border-purple-200 text-purple-700">
-                                                    {doc.element.name}
-                                                </Badge>
-                                            )}
-                                            {doc.building?.name && (
-                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0 border-teal-200 text-teal-700">
-                                                    {doc.building.name}{doc.floor != null ? ` / hæð ${doc.floor}` : ''}
-                                                </Badge>
-                                            )}
                                         </div>
-                                        {doc.description && (
-                                            <p className="text-xs text-muted-foreground truncate">
-                                                {doc.description}
-                                            </p>
-                                        )}
-                                        <p className="text-xs text-muted-foreground/70">
-                                            {doc.profiles?.full_name} • {doc.created_at ? new Date(doc.created_at).toLocaleDateString('is-IS') : 'Óþekkt'}
-                                        </p>
-                                    </div>
-                                </button>
-                                <div className="flex items-center gap-1 flex-shrink-0">
-                                    {isConfirming ? (
-                                        <>
-                                            <span className="text-xs text-muted-foreground mr-1">Eyða?</span>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                onClick={() => handleDelete(doc.id)}
-                                                disabled={isDeleting}
-                                            >
-                                                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8"
-                                                onClick={() => setConfirmingId(null)}
-                                                disabled={isDeleting}
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                asChild
-                                                className="h-8 w-8 text-muted-foreground hover:text-blue-600"
-                                            >
-                                                <a href={doc.file_url} download target="_blank" rel="noopener noreferrer">
-                                                    <Download className="h-4 w-4" />
-                                                </a>
-                                            </Button>
-                                            {canDelete && (
+                                    </button>
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                        {isConfirming ? (
+                                            <>
+                                                <span className="text-xs text-muted-foreground mr-1">Eyða?</span>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-red-600"
-                                                    onClick={() => setConfirmingId(doc.id)}
+                                                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                    onClick={() => handleDelete(doc.id)}
+                                                    disabled={isActing}
                                                 >
-                                                    <Trash2 className="h-4 w-4" />
+                                                    {isActing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                                                 </Button>
-                                            )}
-                                        </>
-                                    )}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    onClick={() => setConfirmingId(null)}
+                                                    disabled={isActing}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    asChild
+                                                    className="h-8 w-8 text-muted-foreground hover:text-blue-600"
+                                                >
+                                                    <a href={doc.file_url} download target="_blank" rel="noopener noreferrer">
+                                                        <Download className="h-4 w-4" />
+                                                    </a>
+                                                </Button>
+                                                {canDelete && !inactive && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-orange-600"
+                                                        onClick={() => { setDeactivatingId(doc.id); setConfirmingId(null); setError(null); }}
+                                                        title="Óvirkja skjal (soft delete)"
+                                                    >
+                                                        <Archive className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                                {canDelete && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                                                        onClick={() => { setConfirmingId(doc.id); setDeactivatingId(null); setError(null); }}
+                                                        title="Eyða alveg (hard delete)"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
+                                {isDeactivating && (
+                                    <div className="mt-3 pt-3 border-t border-border flex flex-col gap-2 relative z-10">
+                                        <p className="text-sm font-medium text-amber-800">Óvirkja skjal (verður áfram í sögu)</p>
+                                        <input
+                                            type="text"
+                                            value={deactivateReason}
+                                            onChange={(e) => setDeactivateReason(e.target.value)}
+                                            placeholder="Af hverju er þetta óvirkt? (t.d. ný tenging eða villa)"
+                                            className="h-9 px-3 py-1 bg-white border border-input rounded-md text-sm"
+                                        />
+                                        <div className="flex justify-end gap-2 mt-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setDeactivatingId(null)}
+                                                disabled={isActing}
+                                            >
+                                                Hætta við
+                                            </Button>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={() => handleDeactivate(doc.id)}
+                                                disabled={isActing || !deactivateReason.trim()}
+                                            >
+                                                {isActing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ArchiveX className="h-4 w-4 mr-2" />}
+                                                Óvirkja
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )
                     })}

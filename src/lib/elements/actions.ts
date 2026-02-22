@@ -619,3 +619,55 @@ export async function getElementTypes() {
   return { success: true, data }
 }
 
+// Bulk update elements
+export async function bulkUpdateElements(ids: string[], updates: Partial<Database['public']['Tables']['elements']['Update']>) {
+  const supabase = await createClient()
+
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  // Validate user is admin or factory_manager (for some statuses)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !['admin', 'factory_manager'].includes(profile.role)) {
+    return { error: 'Unauthorized - Admin or Factory Manager only' }
+  }
+
+  if (!ids || ids.length === 0) {
+    return { error: 'EKKI var valið neinar einingar' }
+  }
+
+  // Find project_id for revalidation (assume all from same project)
+  const { data: sampleElement } = await supabase
+    .from('elements')
+    .select('project_id')
+    .eq('id', ids[0])
+    .single()
+
+  const safeUpdates = { ...updates, updated_at: new Date().toISOString() }
+
+  const { error } = await supabase
+    .from('elements')
+    .update(safeUpdates)
+    .in('id', ids)
+
+  if (error) {
+    console.error('Error bulk updating elements:', error)
+    return { error: 'Villa við að uppfæra einingar.' }
+  }
+
+  revalidatePath('/admin/projects')
+  if (sampleElement) {
+    revalidatePath(`/admin/projects/${sampleElement.project_id}`)
+  }
+
+  return { success: true }
+}
+

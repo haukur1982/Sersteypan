@@ -31,6 +31,7 @@ import {
 import { DocumentUploadTabs } from '@/components/documents/DocumentUploadTabs'
 import { DocumentListWithFilter } from '@/components/documents/DocumentListWithFilter'
 import { ProjectActionButtons } from '@/components/admin/ProjectActionButtons'
+import { ProjectElementsTableClient } from '@/components/admin/ProjectElementsTableClient'
 import type { Database } from '@/types/database'
 
 type ElementRow = Database['public']['Tables']['elements']['Row']
@@ -176,86 +177,7 @@ export default async function ProjectPage({
                     </div>
                 )}
 
-                <Card className="border-zinc-200 shadow-sm overflow-hidden">
-                    <Table>
-                        <TableHeader className="bg-zinc-50">
-                            <TableRow>
-                                <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider">Nafn (Name)</TableHead>
-                                <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider">Tegund (Type)</TableHead>
-                                <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider">Staða (Status)</TableHead>
-                                <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider w-[100px]">Forgangur</TableHead>
-                                <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider w-[100px]">Hæð</TableHead>
-                                <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider w-[140px]">QR</TableHead>
-                                <TableHead className="py-4 font-medium text-xs text-zinc-500 uppercase tracking-wider text-right">Aðgerðir</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {elementList.length > 0 ? (
-                                elementList.map((element) => {
-                                    const typeInfo = typeConfig[element.element_type as keyof typeof typeConfig] || typeConfig.other
-                                    const statusInfo = statusConfig[element.status as keyof typeof statusConfig] || statusConfig.planned
-                                    const TypeIcon = typeInfo.icon
-
-                                    return (
-                                        <TableRow key={element.id} className="hover:bg-zinc-50">
-                                            <TableCell className="font-semibold text-zinc-900 py-4">
-                                                {element.name}
-                                            </TableCell>
-                                            <TableCell className="py-4">
-                                                <Badge variant="secondary" className={`${typeInfo.color} gap-1 border-0 font-normal`}>
-                                                    <TypeIcon className="h-3 w-3" />
-                                                    {typeInfo.label}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="py-4">
-                                                <Badge variant="secondary" className={`${statusInfo.color} border-0 font-medium`}>
-                                                    {statusInfo.label}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="py-4 text-zinc-600">
-                                                {(element.priority ?? 0) > 0 ? (
-                                                    <span className="font-medium text-orange-600">{element.priority}</span>
-                                                ) : (
-                                                    <span className="text-zinc-400">0</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="py-4 text-zinc-600">
-                                                {element.floor || '-'}
-                                            </TableCell>
-                                            <TableCell className="py-4 text-zinc-600">
-                                                {element.qr_code_url ? (
-                                                    <a
-                                                        href={element.qr_code_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-blue-600 hover:underline text-sm"
-                                                    >
-                                                        View QR
-                                                    </a>
-                                                ) : (
-                                                    <span className="text-zinc-400">—</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="py-4 text-right">
-                                                <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-zinc-500 hover:text-blue-600">
-                                                    <Link href={`/admin/elements/${element.id}/edit`}>
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Link>
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                })
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="h-32 text-center text-zinc-500">
-                                        Engar einingar skráðar (No elements found).
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </Card>
+                <ProjectElementsTableClient elements={elementList} projectId={projectId} />
             </div>
 
             {/* Documents Section */}

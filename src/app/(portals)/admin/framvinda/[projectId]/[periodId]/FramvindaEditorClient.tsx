@@ -385,26 +385,32 @@ export function FramvindaEditorClient({
         </div>
         <div className="flex gap-2">
           {isDraft && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleAutoSuggest}
-                disabled={elements.length === 0}
-              >
-                <Wand2 className="mr-1 h-3.5 w-3.5" />
-                Stinga upp
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDelete}
-                className="text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="mr-1 h-3.5 w-3.5" />
-                Eyða
-              </Button>
-            </>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAutoSuggest}
+                  disabled={elements.length === 0}
+                  title="Sækir sjálfvirkt magn byggt á dagsetningum tímabilsins"
+                >
+                  <Wand2 className="mr-1 h-3.5 w-3.5 text-blue-600" />
+                  Stinga upp magni (Úr kerfi)
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDelete}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" />
+                  Eyða
+                </Button>
+              </div>
+              <p className="text-[10px] text-zinc-500 max-w-[200px] text-right">
+                Reiknar magn fyrir einingar sem kláruðust á bilinu {new Date(period.period_start).toLocaleDateString('is-IS')} — {new Date(period.period_end).toLocaleDateString('is-IS')}
+              </p>
+            </div>
           )}
           {!isDraft && (
             <Button variant="outline" size="sm" onClick={handleReopen}>

@@ -526,7 +526,7 @@ export async function getUnbatchedElements(projectId: string) {
       .select('id, name, element_type, status, floor, weight_kg')
       .eq('project_id', projectId)
       .is('batch_id', null)
-      .in('status', ['planned', 'rebar'])
+      .eq('status', 'rebar')
       .order('name')
 
     if (error) {

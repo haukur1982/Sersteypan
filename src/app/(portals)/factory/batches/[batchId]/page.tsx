@@ -255,7 +255,7 @@ export default async function BatchDetailPage({
               batchId={batch.id}
               existingUrl={batch.concrete_slip_url}
               existingName={batch.concrete_slip_name}
-              disabled={!isEditable}
+              disabled={isCancelled}
             />
           </div>
 
