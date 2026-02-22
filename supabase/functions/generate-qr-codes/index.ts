@@ -108,18 +108,18 @@ serve(async (req) => {
     const results: Array<{ element_id: string; qr_url: string }> = []
 
     for (const elementId of elementIds) {
-      const pngBuffer = await QRCode.toBuffer(elementId, {
-        type: 'png',
+      const svgString = await QRCode.toString(elementId, {
+        type: 'svg',
         errorCorrectionLevel: 'M',
         margin: 2,
         width: 512,
       })
 
-      const filePath = `${elementId}.png`
+      const filePath = `${elementId}.svg`
       const uploadRes = await supabase.storage
         .from(bucket)
-        .upload(filePath, pngBuffer, {
-          contentType: 'image/png',
+        .upload(filePath, svgString, {
+          contentType: 'image/svg+xml',
           upsert: true,
         })
 
