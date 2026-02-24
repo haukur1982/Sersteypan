@@ -2,8 +2,18 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { formatZodError, validateUserCreate, validateUserUpdate } from '@/lib/schemas'
+
+// Service role client for Supabase Admin Auth API (createUser, deleteUser)
+// The regular cookie-based client uses the anon key which lacks admin privileges.
+function getServiceRoleClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) throw new Error('Missing Supabase service role configuration')
+  return createSupabaseClient(url, key, { auth: { persistSession: false } })
+}
 
 // Get all users (admin only)
 export async function getUsers() {
@@ -123,8 +133,11 @@ export async function createUser(formData: FormData) {
 
   const validatedData = validation.data
 
-  // Create auth user using admin API
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+  // Service role client required for auth.admin.* calls
+  const adminClient = getServiceRoleClient()
+
+  // Create auth user using admin API (requires service role key)
+  const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
     email: validatedData.email.trim(),
     password: validatedData.password,
     email_confirm: true, // Auto-confirm email
@@ -142,7 +155,7 @@ export async function createUser(formData: FormData) {
     return { error: 'Failed to create user' }
   }
 
-  // Create profile record
+  // Create profile record (uses regular RLS-protected client)
   const { error: profileError } = await supabase
     .from('profiles')
     .upsert(
@@ -160,8 +173,8 @@ export async function createUser(formData: FormData) {
 
   if (profileError) {
     console.error('Error creating profile:', profileError)
-    // Try to delete the auth user if profile creation fails
-    await supabase.auth.admin.deleteUser(authData.user.id)
+    // Rollback: delete the auth user if profile creation fails
+    await adminClient.auth.admin.deleteUser(authData.user.id)
     return { error: 'Failed to create user profile' }
   }
 
