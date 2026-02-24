@@ -3,8 +3,10 @@
 import {
   FRAMVINDA_CATEGORIES,
   CATEGORY_LABELS,
+  PRICING_UNIT_LABELS,
   type FramvindaCategory,
   type FramvindaContractLine,
+  type PricingUnit,
 } from '@/lib/framvinda/types'
 import { formatISK, formatNumber, formatPercent } from '@/lib/framvinda/calculations'
 import { Card, CardContent } from '@/components/ui/card'
@@ -74,21 +76,19 @@ export function ProgressSummary({ contractLines, cumulative }: Props) {
   return (
     <Card className="border-zinc-200 shadow-sm">
       <CardContent className="pt-6">
-        <h2 className="text-lg font-semibold text-zinc-900 mb-4">
-          Framvindayfirlit
-        </h2>
-
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-xs text-zinc-500 uppercase tracking-wider">
                 <th className="text-left py-2 pr-4">Verkþáttur</th>
-                <th className="text-right py-2 px-2">Samn. magn</th>
+                <th className="text-right py-2 px-2">Stk</th>
+                <th className="text-right py-2 px-2">m²/stk</th>
+                <th className="text-right py-2 px-2">Magn</th>
+                <th className="text-right py-2 px-2">Verð</th>
+                <th className="text-right py-2 px-2">Samtals</th>
                 <th className="text-right py-2 px-2">Framleitt</th>
-                <th className="text-right py-2 px-2">Eftirstöðvar</th>
-                <th className="text-right py-2 px-2 w-24">%</th>
-                <th className="text-right py-2 px-2">Samn. upph.</th>
                 <th className="text-right py-2 px-2">Rukkað</th>
+                <th className="text-right py-2 px-2 w-24">%</th>
                 <th className="text-right py-2 pl-2">Eftir</th>
               </tr>
             </thead>
@@ -103,14 +103,16 @@ export function ProgressSummary({ contractLines, cumulative }: Props) {
                 <td className="text-right py-3 px-2"></td>
                 <td className="text-right py-3 px-2"></td>
                 <td className="text-right py-3 px-2"></td>
-                <td className="text-right py-3 px-2">
-                  <ProgressBar percent={grandPercent} />
-                </td>
+                <td className="text-right py-3 px-2"></td>
                 <td className="text-right py-3 px-2 tabular-nums text-zinc-900">
                   {formatISK(grandContractTotal)}
                 </td>
+                <td className="text-right py-3 px-2"></td>
                 <td className="text-right py-3 px-2 tabular-nums text-green-700">
                   {formatISK(grandProducedTotal)}
+                </td>
+                <td className="text-right py-3 px-2">
+                  <ProgressBar percent={grandPercent} />
                 </td>
                 <td className="text-right py-3 pl-2 tabular-nums text-amber-700">
                   {formatISK(grandRemainingTotal)}
@@ -146,41 +148,56 @@ function CategorySection({ data }: {
     <>
       {/* Category header */}
       <tr className="bg-zinc-50">
-        <td colSpan={8} className="py-2 pr-4 font-semibold text-zinc-800">
+        <td colSpan={10} className="py-2 pr-4 font-semibold text-zinc-800">
           {CATEGORY_LABELS[data.category as FramvindaCategory]}
         </td>
       </tr>
 
       {/* Lines */}
-      {data.lines.map((line) => (
-        <tr key={line.cl.id} className="border-b border-zinc-100 hover:bg-zinc-50">
-          <td className="py-2 pr-4 text-zinc-700 pl-4">
-            {line.cl.label}
-          </td>
-          <td className="text-right py-2 px-2 tabular-nums text-zinc-600">
-            {formatNumber(line.cl.total_quantity, line.cl.pricing_unit === 'm2' ? 2 : 0)}
-          </td>
-          <td className="text-right py-2 px-2 tabular-nums text-zinc-900">
-            {formatNumber(line.produced, line.cl.pricing_unit === 'm2' ? 2 : 0)}
-          </td>
-          <td className={`text-right py-2 px-2 tabular-nums ${line.isOverBilled ? 'text-red-600 font-medium' : 'text-zinc-600'}`}>
-            {formatNumber(line.remaining, line.cl.pricing_unit === 'm2' ? 2 : 0)}
-            {line.isOverBilled && ' !'}
-          </td>
-          <td className="text-right py-2 px-2">
-            <ProgressBar percent={line.percent} />
-          </td>
-          <td className="text-right py-2 px-2 tabular-nums text-zinc-600">
-            {formatISK(line.cl.total_price)}
-          </td>
-          <td className="text-right py-2 px-2 tabular-nums text-green-700">
-            {line.producedAmount > 0 ? formatISK(line.producedAmount) : '—'}
-          </td>
-          <td className={`text-right py-2 pl-2 tabular-nums ${line.isOverBilled ? 'text-red-600 font-medium' : 'text-amber-700'}`}>
-            {line.remainingAmount !== 0 ? formatISK(line.remainingAmount) : '—'}
-          </td>
-        </tr>
-      ))}
+      {data.lines.map((line) => {
+        const unitLabel = PRICING_UNIT_LABELS[line.cl.pricing_unit as PricingUnit] ?? line.cl.pricing_unit
+        const isM2 = line.cl.pricing_unit === 'm2'
+
+        return (
+          <tr key={line.cl.id} className="border-b border-zinc-100 hover:bg-zinc-50">
+            <td className="py-2 pr-4 text-zinc-700 pl-4">
+              {line.cl.label}
+            </td>
+            <td className="text-right py-2 px-2 tabular-nums text-zinc-500">
+              {line.cl.contract_count != null && line.cl.contract_count > 0
+                ? line.cl.contract_count
+                : '—'}
+            </td>
+            <td className="text-right py-2 px-2 tabular-nums text-zinc-500">
+              {line.cl.unit_area_m2 != null && line.cl.unit_area_m2 > 0
+                ? formatNumber(line.cl.unit_area_m2, 1)
+                : '—'}
+            </td>
+            <td className="text-right py-2 px-2 tabular-nums text-zinc-600">
+              {formatNumber(line.cl.total_quantity, isM2 ? 2 : 0)}
+              <span className="text-zinc-400 text-xs ml-0.5">{unitLabel}</span>
+            </td>
+            <td className="text-right py-2 px-2 tabular-nums text-zinc-600">
+              {formatISK(line.cl.unit_price)}
+            </td>
+            <td className="text-right py-2 px-2 tabular-nums text-zinc-800 font-medium">
+              {formatISK(line.cl.total_price)}
+            </td>
+            <td className="text-right py-2 px-2 tabular-nums text-zinc-900">
+              {formatNumber(line.produced, isM2 ? 2 : 0)}
+            </td>
+            <td className="text-right py-2 px-2 tabular-nums text-green-700">
+              {line.producedAmount > 0 ? formatISK(line.producedAmount) : '—'}
+            </td>
+            <td className="text-right py-2 px-2">
+              <ProgressBar percent={line.percent} />
+            </td>
+            <td className={`text-right py-2 pl-2 tabular-nums ${line.isOverBilled ? 'text-red-600 font-medium' : 'text-amber-700'}`}>
+              {line.remainingAmount !== 0 ? formatISK(line.remainingAmount) : '—'}
+            </td>
+          </tr>
+        )
+      })}
 
       {/* Category subtotal */}
       <tr className="bg-zinc-50 border-b border-zinc-200 font-medium">
@@ -190,14 +207,16 @@ function CategorySection({ data }: {
         <td className="text-right py-2 px-2"></td>
         <td className="text-right py-2 px-2"></td>
         <td className="text-right py-2 px-2"></td>
-        <td className="text-right py-2 px-2">
-          <ProgressBar percent={data.percentTotal} />
-        </td>
+        <td className="text-right py-2 px-2"></td>
         <td className="text-right py-2 px-2 tabular-nums">
           {formatISK(data.contractTotal)}
         </td>
+        <td className="text-right py-2 px-2"></td>
         <td className="text-right py-2 px-2 tabular-nums text-green-700">
           {formatISK(data.producedTotal)}
+        </td>
+        <td className="text-right py-2 px-2">
+          <ProgressBar percent={data.percentTotal} />
         </td>
         <td className="text-right py-2 pl-2 tabular-nums text-amber-700">
           {formatISK(data.remainingTotal)}

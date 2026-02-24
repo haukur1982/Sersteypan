@@ -276,17 +276,19 @@ const s = StyleSheet.create({
   },
 
   // Table columns — AIA G703-inspired financial flow
-  // Contract (1-4) → Billing history (5-6) → Status (7-8) → Progress (9) → Notes (10)
-  colLabel: { width: '15%', paddingRight: 2 },
+  // Contract (1-6) → Billing history (7-8) → Status (9-10) → Progress (11) → Notes (12)
+  colLabel: { width: '13%', paddingRight: 2 },
+  colStk: { width: '3.5%', textAlign: 'right' as const, paddingRight: 2 },
+  colArea: { width: '4.5%', textAlign: 'right' as const, paddingRight: 2 },
   colQty: { width: '5%', textAlign: 'right' as const, paddingRight: 2 },
   colPrice: { width: '5%', textAlign: 'right' as const, paddingRight: 2 },
-  colContract: { width: '9%', textAlign: 'right' as const, paddingRight: 2 },
-  colPrevBilled: { width: '9%', textAlign: 'right' as const, paddingRight: 2 },
-  colThisPeriod: { width: '9%', textAlign: 'right' as const, paddingRight: 2 },
-  colBilledTotal: { width: '9%', textAlign: 'right' as const, paddingRight: 2 },
-  colBalance: { width: '9%', textAlign: 'right' as const, paddingRight: 2 },
+  colContract: { width: '8%', textAlign: 'right' as const, paddingRight: 2 },
+  colPrevBilled: { width: '8%', textAlign: 'right' as const, paddingRight: 2 },
+  colThisPeriod: { width: '8%', textAlign: 'right' as const, paddingRight: 2 },
+  colBilledTotal: { width: '8%', textAlign: 'right' as const, paddingRight: 2 },
+  colBalance: { width: '8%', textAlign: 'right' as const, paddingRight: 2 },
   colPercent: { width: '7%', textAlign: 'right' as const, paddingRight: 2 },
-  colNotes: { width: '7%', paddingLeft: 2 },
+  colNotes: { width: '6%', paddingLeft: 2 },
 
   // Sub-text styles for secondary info
   labelItemDetail: {
@@ -712,9 +714,11 @@ export function FramvindaPdfDocument({
           {/* Table header — AIA G703 financial flow */}
           <View style={s.tableHeader} fixed>
             <Text style={[s.tableHeaderText, s.colLabel]}>VERKÞÁTTUR</Text>
+            <Text style={[s.tableHeaderText, s.colStk]}>STK</Text>
+            <Text style={[s.tableHeaderText, s.colArea]}>m²/STK</Text>
             <Text style={[s.tableHeaderText, s.colQty]}>MAGN</Text>
             <Text style={[s.tableHeaderText, s.colPrice]}>VERÐ</Text>
-            <Text style={[s.tableHeaderText, s.colContract]}>SAMNINGSVERÐ</Text>
+            <Text style={[s.tableHeaderText, s.colContract]}>SAMTALS</Text>
             <Text style={[s.tableHeaderText, s.colPrevBilled]}>ÁÐUR RUKKAÐ</Text>
             <Text style={[s.tableHeaderText, s.colThisPeriod]}>ÞETTA TÍMABIL</Text>
             <Text style={[s.tableHeaderText, s.colBilledTotal]}>SAMTALS RUKKAÐ</Text>
@@ -757,10 +761,6 @@ export function FramvindaPdfDocument({
                     ? COLORS.amber
                     : COLORS.zinc400
 
-                  // Item detail: show contract_count × unit_area when available
-                  const hasItemDetail = d.cl.contract_count != null
-                    && d.cl.contract_count > 1
-                    && d.cl.unit_area_m2 != null
                   const unitLabel = PRICING_UNIT_LABELS[d.effectivePricingUnit as PricingUnit] ?? d.effectivePricingUnit
 
                   // Balance color: red if over-billed, green if zero (fully billed)
@@ -775,18 +775,25 @@ export function FramvindaPdfDocument({
                       key={d.cl.id}
                       style={idx % 2 === 0 ? s.dataRow : s.dataRowAlt}
                     >
-                      {/* VERKÞÁTTUR — enhanced with item detail */}
+                      {/* VERKÞÁTTUR */}
                       <View style={s.colLabel}>
                         <Text>
                           {d.cl.is_extra ? '  ↳ ' : ''}
                           {d.effectiveLabel}
                         </Text>
-                        {hasItemDetail ? (
-                          <Text style={s.labelItemDetail}>
-                            {d.cl.contract_count} stk × {fmtNum(d.cl.unit_area_m2!, 2)} {unitLabel}
-                          </Text>
-                        ) : null}
                       </View>
+                      {/* STK — contract count */}
+                      <Text style={s.colStk}>
+                        {d.cl.contract_count != null && d.cl.contract_count > 0
+                          ? d.cl.contract_count.toString()
+                          : ''}
+                      </Text>
+                      {/* m²/STK — unit area */}
+                      <Text style={s.colArea}>
+                        {d.cl.unit_area_m2 != null && d.cl.unit_area_m2 > 0
+                          ? fmtNum(d.cl.unit_area_m2, 1)
+                          : ''}
+                      </Text>
                       {/* MAGN — contract quantity */}
                       <Text style={s.colQty}>
                         {fmtNum(d.effectiveTotalQuantity, d.effectivePricingUnit === 'm2' ? 2 : 0)}
@@ -795,7 +802,7 @@ export function FramvindaPdfDocument({
                       <Text style={s.colPrice}>
                         {fmtNum(d.effectiveUnitPrice, 0)}
                       </Text>
-                      {/* SAMNINGSVERÐ — contract total */}
+                      {/* SAMTALS — contract total */}
                       <Text style={s.colContract}>
                         {fmtISK(d.effectiveTotalPrice)}
                       </Text>
@@ -847,6 +854,8 @@ export function FramvindaPdfDocument({
                   <Text style={[s.colLabel, s.bold]}>
                     {CATEGORY_LABELS[cat as FramvindaCategory]} samtals
                   </Text>
+                  <Text style={s.colStk} />
+                  <Text style={s.colArea} />
                   <Text style={s.colQty} />
                   <Text style={s.colPrice} />
                   <Text style={[s.colContract, s.bold]}>{fmtISK(catContractTotal)}</Text>
