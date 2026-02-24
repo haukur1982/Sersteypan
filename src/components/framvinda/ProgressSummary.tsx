@@ -98,7 +98,7 @@ export function ProgressSummary({ contractLines, cumulative }: Props) {
               ))}
 
               {/* Grand total */}
-              <tr className="border-t-2 border-zinc-300 font-bold">
+              <tr className="border-t-2 border-zinc-900 font-bold bg-zinc-50 text-base">
                 <td className="py-3 pr-4 text-zinc-900">Samtals</td>
                 <td className="text-right py-3 px-2"></td>
                 <td className="text-right py-3 px-2"></td>
@@ -219,8 +219,8 @@ function ProgressBar({ percent }: { percent: number }) {
       : 'bg-zinc-200'
 
   return (
-    <div className="flex items-center gap-1.5">
-      <div className="w-12 h-2 bg-zinc-100 rounded-full overflow-hidden">
+    <div className="flex items-center gap-2">
+      <div className="w-20 h-3 bg-zinc-100 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full ${color} transition-all`}
           style={{ width: `${Math.min(100, pct)}%` }}

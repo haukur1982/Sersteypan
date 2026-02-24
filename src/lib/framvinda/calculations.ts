@@ -402,3 +402,17 @@ export function formatNumber(n: number, decimals = 2): string {
 export function formatPercent(n: number): string {
   return Math.round(n * 100) + '%'
 }
+
+/** Format large ISK amounts in abbreviated form for chart labels: "1,2M kr" or "500þ kr" */
+export function formatISKShort(amount: number): string {
+  const abs = Math.abs(amount)
+  if (abs >= 1_000_000) {
+    const millions = amount / 1_000_000
+    return millions.toLocaleString('is-IS', { maximumFractionDigits: 1 }) + 'M kr'
+  }
+  if (abs >= 1_000) {
+    const thousands = Math.round(amount / 1_000)
+    return thousands.toLocaleString('is-IS') + 'þ kr'
+  }
+  return Math.round(amount).toLocaleString('is-IS') + ' kr'
+}

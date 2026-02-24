@@ -148,12 +148,16 @@ export async function POST(req: Request) {
 
     const companies = project?.companies as unknown as { name: string; kennitala: string } | null
     const companyName = companies?.name ?? ''
+    const companyKennitala = companies?.kennitala ?? null
     const projectName = project?.name ?? ''
+    const projectAddress = project?.address ?? null
 
     // Generate PDF
     const doc = FramvindaPdfDocument({
       projectName,
       companyName,
+      projectAddress,
+      companyKennitala,
       contract,
       contractLines: contractLines ?? [],
       period,
