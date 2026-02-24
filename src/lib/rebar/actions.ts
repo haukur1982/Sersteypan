@@ -109,7 +109,7 @@ export async function markRebarComplete(elementId: string): Promise<{
   // Verify element is in 'rebar' status
   const { data: element, error: fetchError } = await supabase
     .from('elements')
-    .select('id, status, project_id')
+    .select('id, status, project_id, piece_count, rebar_done_count')
     .eq('id', elementId)
     .single()
 
@@ -122,11 +122,16 @@ export async function markRebarComplete(elementId: string): Promise<{
   }
 
   const now = new Date().toISOString()
+  const pieceCount = element.piece_count ?? 1
+  const currentDone = element.rebar_done_count ?? 0
+  const newDone = currentDone + 1
+  const isFullyDone = newDone >= pieceCount
 
   const { error: updateError } = await supabase
     .from('elements')
     .update({
-      rebar_completed_at: now,
+      rebar_done_count: newDone,
+      rebar_completed_at: isFullyDone ? now : null,
       updated_at: now,
     })
     .eq('id', elementId)

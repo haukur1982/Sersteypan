@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getRebarElements } from '@/lib/rebar/queries'
+import { getRebarDocuments } from '@/lib/rebar/queries'
 import { RebarProjectClient } from './RebarProjectClient'
 
 interface RebarProjectPageProps {
@@ -25,13 +26,17 @@ export default async function RebarProjectPage({ params }: RebarProjectPageProps
     return notFound()
   }
 
-  // Fetch rebar-relevant elements
-  const elements = await getRebarElements(projectId)
+  // Fetch rebar-relevant elements and project documents in parallel
+  const [elements, documents] = await Promise.all([
+    getRebarElements(projectId),
+    getRebarDocuments(projectId),
+  ])
 
   return (
     <RebarProjectClient
       project={project}
       elements={elements}
+      documents={documents}
     />
   )
 }

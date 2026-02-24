@@ -15,15 +15,7 @@ import {
   MapPin,
   ExternalLink,
 } from 'lucide-react'
-import { markRebarComplete, updateChecklistItem } from '@/lib/rebar/actions'
-
-interface ChecklistItem {
-  key: string
-  label: string
-  checked: boolean
-  checked_by: string | null
-  checked_at: string | null
-}
+import { markRebarComplete } from '@/lib/rebar/actions'
 
 interface Document {
   id: string
@@ -47,10 +39,11 @@ interface ElementData {
   rebar_completed_at: string | null
   position_description: string | null
   drawing_reference: string | null
-  checklist: unknown
   qr_code_url: string | null
   production_notes: string | null
   project_id: string
+  piece_count: number | null
+  rebar_done_count: number | null
   created_at: string | null
   updated_at: string | null
   project: {
@@ -65,16 +58,12 @@ interface RebarElementClientProps {
   documents: Document[]
 }
 
-// Rebar-relevant checklist keys — highlight these for the rebar worker
-const REBAR_KEYS = ['rebar', 'dimensions', 'mold_oiled']
-
 export function RebarElementClient({ element, documents }: RebarElementClientProps) {
-  const [checklist, setChecklist] = useState<ChecklistItem[]>(
-    (element.checklist as ChecklistItem[]) || []
-  )
-  const [isCompleted, setIsCompleted] = useState(!!element.rebar_completed_at)
+  const pieceCount = element.piece_count ?? 1
+  const [rebarDoneCount, setRebarDoneCount] = useState(element.rebar_done_count ?? 0)
+  const isFullyCompleted = rebarDoneCount >= pieceCount
+  const [isCompleted, setIsCompleted] = useState(!!element.rebar_completed_at || isFullyCompleted)
   const [isPending, startTransition] = useTransition()
-  const [pendingAction, setPendingAction] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -83,48 +72,23 @@ export function RebarElementClient({ element, documents }: RebarElementClientPro
     element.width_mm != null ||
     element.height_mm != null
 
-  // Sort checklist: rebar-relevant items first
-  const sortedChecklist = [...checklist].sort((a, b) => {
-    const aIsRebar = REBAR_KEYS.includes(a.key) ? 0 : 1
-    const bIsRebar = REBAR_KEYS.includes(b.key) ? 0 : 1
-    return aIsRebar - bIsRebar
-  })
-
-  const handleChecklistToggle = (itemKey: string, currentChecked: boolean) => {
-    const newChecked = !currentChecked
-    setPendingAction(itemKey)
-    setError(null)
-
-    startTransition(async () => {
-      const result = await updateChecklistItem(element.id, itemKey, newChecked)
-      setPendingAction(null)
-
-      if (result.success) {
-        setChecklist((prev) =>
-          prev.map((item) =>
-            item.key === itemKey
-              ? { ...item, checked: newChecked }
-              : item
-          )
-        )
-      } else {
-        setError(result.error || 'Villa')
-      }
-    })
-  }
-
   const handleMarkComplete = () => {
-    setPendingAction('complete')
     setError(null)
     setSuccessMessage(null)
 
     startTransition(async () => {
       const result = await markRebarComplete(element.id)
-      setPendingAction(null)
 
       if (result.success) {
-        setIsCompleted(true)
-        setSuccessMessage('Járnabinding skráð sem lokið!')
+        const newDone = rebarDoneCount + 1
+        setRebarDoneCount(newDone)
+
+        if (newDone >= pieceCount) {
+          setIsCompleted(true)
+          setSuccessMessage('Járnabinding skráð sem lokið!')
+        } else {
+          setSuccessMessage(`Járnabinding lokið fyrir stk ${newDone}/${pieceCount}`)
+        }
       } else {
         setError(result.error || 'Villa')
       }
@@ -284,58 +248,32 @@ export function RebarElementClient({ element, documents }: RebarElementClientPro
         </div>
       )}
 
-      {/* Checklist */}
-      {sortedChecklist.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="font-semibold text-zinc-800 text-lg">Gátlisti</h3>
-
-          <div className="space-y-2">
-            {sortedChecklist.map((item) => {
-              const isRebarKey = REBAR_KEYS.includes(item.key)
-              const isItemPending = isPending && pendingAction === item.key
-
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => handleChecklistToggle(item.key, item.checked)}
-                  disabled={isPending}
-                  className={`w-full text-left p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
-                    item.checked
-                      ? 'bg-green-50 border-green-300'
-                      : isRebarKey
-                      ? 'bg-amber-50 border-amber-200'
-                      : 'bg-white border-zinc-200'
+      {/* Piece progress — shown when piece_count > 1 */}
+      {pieceCount > 1 && !isCompleted && (
+        <Card className="p-4 bg-blue-50 border-2 border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-blue-900">Fjöldi stk: {pieceCount}</p>
+              <p className="text-sm text-blue-700">
+                {rebarDoneCount}/{pieceCount} lokið
+              </p>
+            </div>
+            <div className="flex gap-1">
+              {Array.from({ length: pieceCount }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                    i < rebarDoneCount
+                      ? 'bg-green-500 text-white'
+                      : 'bg-blue-200 text-blue-700'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    {isItemPending ? (
-                      <Loader2 className="w-7 h-7 text-zinc-400 animate-spin shrink-0" />
-                    ) : item.checked ? (
-                      <CheckCircle className="w-7 h-7 text-green-600 shrink-0" />
-                    ) : (
-                      <div className={`w-7 h-7 rounded-full border-2 shrink-0 ${
-                        isRebarKey ? 'border-amber-400' : 'border-zinc-300'
-                      }`} />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <span className={`font-medium text-lg ${
-                        item.checked ? 'text-green-800 line-through' : 'text-zinc-900'
-                      }`}>
-                        {item.label}
-                      </span>
-                      {item.checked && item.checked_by && (
-                        <p className="text-xs text-green-600 mt-0.5">
-                          {item.checked_by}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
+                  {i + 1}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Mark rebar complete — big green button */}
@@ -343,15 +281,17 @@ export function RebarElementClient({ element, documents }: RebarElementClientPro
         <div className="fixed bottom-20 left-0 right-0 px-4 pb-4 bg-gradient-to-t from-white via-white to-transparent pt-6 z-30">
           <Button
             onClick={handleMarkComplete}
-            disabled={isPending && pendingAction === 'complete'}
+            disabled={isPending}
             className="w-full h-16 text-xl font-bold bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-lg"
           >
-            {isPending && pendingAction === 'complete' ? (
+            {isPending ? (
               <Loader2 className="w-6 h-6 mr-2 animate-spin" />
             ) : (
               <CheckCircle className="w-6 h-6 mr-2" />
             )}
-            Járnabinding lokið
+            {pieceCount > 1
+              ? `Járnabinding lokið (${rebarDoneCount + 1}/${pieceCount})`
+              : 'Járnabinding lokið'}
           </Button>
         </div>
       )}
@@ -362,6 +302,7 @@ export function RebarElementClient({ element, documents }: RebarElementClientPro
           <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-2" />
           <p className="text-xl font-bold text-green-800">
             Járnabinding lokið
+            {pieceCount > 1 && ` (${pieceCount}/${pieceCount})`}
           </p>
           <p className="text-sm text-green-600 mt-1">
             Bíður eftir steypuskráningu frá verksmiðjustjóra

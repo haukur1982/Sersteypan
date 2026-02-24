@@ -71,6 +71,8 @@ export async function getRebarElements(projectId: string) {
       drawing_reference,
       checklist,
       qr_code_url,
+      piece_count,
+      rebar_done_count,
       created_at,
       updated_at
     `)
@@ -108,10 +110,11 @@ export async function getRebarElement(elementId: string) {
       rebar_completed_at,
       position_description,
       drawing_reference,
-      checklist,
       qr_code_url,
       production_notes,
       project_id,
+      piece_count,
+      rebar_done_count,
       created_at,
       updated_at,
       project:projects(

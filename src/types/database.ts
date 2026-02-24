@@ -758,7 +758,9 @@ export type Database = {
           rebar_batch_id: string | null
           rebar_batch_number: string | null
           rebar_completed_at: string | null
+          rebar_done_count: number
           rebar_spec: string | null
+          cast_done_count: number
           status: string | null
           updated_at: string | null
           weight_kg: number | null
@@ -793,7 +795,9 @@ export type Database = {
           rebar_batch_id?: string | null
           rebar_batch_number?: string | null
           rebar_completed_at?: string | null
+          rebar_done_count?: number
           rebar_spec?: string | null
+          cast_done_count?: number
           status?: string | null
           updated_at?: string | null
           weight_kg?: number | null
@@ -828,7 +832,9 @@ export type Database = {
           rebar_batch_id?: string | null
           rebar_batch_number?: string | null
           rebar_completed_at?: string | null
+          rebar_done_count?: number
           rebar_spec?: string | null
+          cast_done_count?: number
           status?: string | null
           updated_at?: string | null
           weight_kg?: number | null
