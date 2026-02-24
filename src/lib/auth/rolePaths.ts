@@ -10,6 +10,8 @@ export function dashboardPathForRole(role: AuthUser['role']): string {
       return '/buyer'
     case 'driver':
       return '/driver'
+    case 'rebar_worker':
+      return '/rebar'
     default:
       return '/login'
   }

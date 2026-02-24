@@ -239,6 +239,7 @@ export function UserForm({ companies }: UserFormProps) {
                                     <SelectItem value="factory_manager">Factory Manager - Verkstjóri</SelectItem>
                                     <SelectItem value="buyer">Buyer - Kaupandi</SelectItem>
                                     <SelectItem value="driver">Driver - Bílstjóri</SelectItem>
+                                    <SelectItem value="rebar_worker">Rebar Worker - Járnamaður</SelectItem>
                                 </SelectContent>
                             </Select>
                             <FieldError message={fieldErrors.role} />

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { emailSchema, safeStringSchema, phoneSchema, uuidSchema } from './common'
 
 // Role enum
-export const userRoleSchema = z.enum(['admin', 'factory_manager', 'buyer', 'driver'])
+export const userRoleSchema = z.enum(['admin', 'factory_manager', 'buyer', 'driver', 'rebar_worker'])
 
 // Create user schema
 export const userCreateSchema = z.object({

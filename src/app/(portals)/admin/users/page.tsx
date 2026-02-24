@@ -21,6 +21,7 @@ const roleConfig: Record<string, { color: string; label: string }> = {
     factory_manager: { color: 'bg-blue-100 text-blue-800', label: 'Verkstjóri' },
     buyer: { color: 'bg-green-100 text-green-800', label: 'Kaupandi' },
     driver: { color: 'bg-purple-100 text-purple-800', label: 'Bílstjóri' },
+    rebar_worker: { color: 'bg-amber-100 text-amber-800', label: 'Járnamaður' },
 }
 
 interface PageProps {

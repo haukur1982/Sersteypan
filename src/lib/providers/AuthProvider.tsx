@@ -13,7 +13,7 @@ export interface AuthUser {
   id: string
   email: string
   fullName: string
-  role: 'admin' | 'factory_manager' | 'buyer' | 'driver'
+  role: 'admin' | 'factory_manager' | 'buyer' | 'driver' | 'rebar_worker'
   companyId: string | null
   preferences: UserPreferences
 }

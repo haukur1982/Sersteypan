@@ -45,7 +45,8 @@ export async function updateSession(request: NextRequest) {
         request.nextUrl.pathname.startsWith('/admin') ||
         request.nextUrl.pathname.startsWith('/factory') ||
         request.nextUrl.pathname.startsWith('/buyer') ||
-        request.nextUrl.pathname.startsWith('/driver')
+        request.nextUrl.pathname.startsWith('/driver') ||
+        request.nextUrl.pathname.startsWith('/rebar')
 
     // Only check auth for protected routes or login page
     if (isProtectedRoute || request.nextUrl.pathname === '/login') {
@@ -79,6 +80,7 @@ export async function updateSession(request: NextRequest) {
                     factory_manager: '/factory',
                     buyer: '/buyer',
                     driver: '/driver',
+                    rebar_worker: '/rebar',
                 }
                 const dashboard = dashboardMap[profile.role] || '/admin'
                 const url = request.nextUrl.clone()

@@ -69,6 +69,7 @@ export async function login(
     factory_manager: '/factory',
     buyer: '/buyer',
     driver: '/driver',
+    rebar_worker: '/rebar',
   }
 
   const dashboard = dashboardMap[profile.role as keyof typeof dashboardMap] || '/admin'
@@ -77,10 +78,11 @@ export async function login(
   const redirectTo = safeRedirectPath(formData.get('redirectTo'))
   if (redirectTo) {
     const rolePortalAccess: Record<string, string[]> = {
-      admin: ['/admin', '/factory', '/buyer', '/driver'],
+      admin: ['/admin', '/factory', '/buyer', '/driver', '/rebar'],
       factory_manager: ['/factory'],
       buyer: ['/buyer'],
       driver: ['/driver'],
+      rebar_worker: ['/rebar'],
     }
     const allowed = rolePortalAccess[profile.role as keyof typeof rolePortalAccess] || []
     if (allowed.some((p) => redirectTo.startsWith(p))) {
