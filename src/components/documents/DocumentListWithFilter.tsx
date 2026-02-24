@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, Download, Trash2, Loader2, Check, X, Building2, Archive, ArchiveX } from 'lucide-react'
+import { Eye, Download, Trash2, Loader2, Check, X, Building2, Archive, ArchiveX, RefreshCw } from 'lucide-react'
 import { DocumentPreview } from './DocumentPreview'
-import { deleteDocument, deactivateDocument } from '@/lib/documents/actions'
+import { deleteDocument, deactivateDocument, replaceDocument } from '@/lib/documents/actions'
 
 const categoryConfig: Record<string, { label: string; color: string }> = {
     drawing: { label: 'Teikning', color: 'bg-blue-100 text-blue-800' },
@@ -48,6 +48,8 @@ export function DocumentListWithFilter({ documents, projectId, canDelete = false
     const [deactivatingId, setDeactivatingId] = useState<string | null>(null)
     const [actionId, setActionId] = useState<string | null>(null)
     const [deactivateReason, setDeactivateReason] = useState('')
+    const [replacingId, setReplacingId] = useState<string | null>(null)
+    const replaceInputRef = useRef<HTMLInputElement>(null)
     const [error, setError] = useState<string | null>(null)
 
     const filtered = documents.filter(d => {
@@ -106,8 +108,45 @@ export function DocumentListWithFilter({ documents, projectId, canDelete = false
         }
     }
 
+    function handleReplaceClick(docId: string) {
+        setReplacingId(docId)
+        // Trigger file input click after state update
+        setTimeout(() => replaceInputRef.current?.click(), 0)
+    }
+
+    async function handleReplaceFile(e: React.ChangeEvent<HTMLInputElement>) {
+        if (!projectId || !replacingId) return
+        const file = e.target.files?.[0]
+        if (!file) {
+            setReplacingId(null)
+            return
+        }
+        setActionId(replacingId)
+        setError(null)
+        const formData = new FormData()
+        formData.append('file', file)
+        const result = await replaceDocument(replacingId, projectId, formData)
+        if (result.error) {
+            setError(result.error)
+        } else {
+            router.refresh()
+        }
+        setActionId(null)
+        setReplacingId(null)
+        // Reset file input
+        if (replaceInputRef.current) replaceInputRef.current.value = ''
+    }
+
     return (
         <div>
+            {/* Hidden file input for replacement */}
+            <input
+                ref={replaceInputRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.doc,.docx"
+                onChange={handleReplaceFile}
+            />
             {/* Filter tabs */}
             {documents.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-4">
@@ -265,6 +304,20 @@ export function DocumentListWithFilter({ documents, projectId, canDelete = false
                                                         <Download className="h-4 w-4" />
                                                     </a>
                                                 </Button>
+                                                {canDelete && !inactive && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-green-600"
+                                                        onClick={() => handleReplaceClick(doc.id)}
+                                                        disabled={replacingId === doc.id && actionId === doc.id}
+                                                        title="Skipta út skjali (halda tengingu)"
+                                                    >
+                                                        {replacingId === doc.id && actionId === doc.id
+                                                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                                                            : <RefreshCw className="h-4 w-4" />}
+                                                    </Button>
+                                                )}
                                                 {canDelete && !inactive && (
                                                     <Button
                                                         variant="ghost"

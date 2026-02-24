@@ -305,6 +305,133 @@ export async function deactivateDocument(documentId: string, projectId: string, 
   return { success: true }
 }
 
+// Replace a document (upload new version, inherit element link, deactivate old)
+export async function replaceDocument(documentId: string, projectId: string, formData: FormData) {
+  const supabase = await createClient()
+
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  // Validate user is admin or factory manager
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !['admin', 'factory_manager'].includes(profile.role)) {
+    return { error: 'Unauthorized' }
+  }
+
+  // Fetch the old document to copy its metadata
+  const { data: oldDoc, error: fetchError } = await supabase
+    .from('project_documents')
+    .select('*')
+    .eq('id', documentId)
+    .eq('project_id', projectId)
+    .single()
+
+  if (fetchError || !oldDoc) {
+    return { error: 'Skjal fannst ekki' }
+  }
+
+  // Get new file from form data
+  const file = formData.get('file') as File
+  if (!file) {
+    return { error: 'Engin skrá valin' }
+  }
+
+  // Validate file size (max 50MB)
+  const maxSize = 50 * 1024 * 1024
+  if (file.size > maxSize) {
+    return { error: 'Skrá of stór. Hámark 50MB.' }
+  }
+
+  // Validate file type
+  const allowedTypes = [
+    'application/pdf',
+    'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ]
+
+  if (!allowedTypes.includes(file.type)) {
+    return { error: 'Ógild skráartegund. Leyft: PDF, myndir, Excel, Word' }
+  }
+
+  // Upload new file to storage
+  const timestamp = Date.now()
+  const fileName = `${projectId}/${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+
+  const { error: uploadError } = await supabase
+    .storage
+    .from(DOCUMENTS_BUCKET)
+    .upload(fileName, file, {
+      cacheControl: '3600',
+      contentType: file.type,
+      upsert: false
+    })
+
+  if (uploadError) {
+    console.error('Error uploading replacement file:', uploadError)
+    return { error: `Villa við að hlaða upp skrá: ${uploadError.message}` }
+  }
+
+  // Determine file type
+  let fileType = 'other'
+  if (file.type === 'application/pdf') fileType = 'pdf'
+  else if (file.type.startsWith('image/')) fileType = 'image'
+  else if (file.type.includes('excel') || file.type.includes('spreadsheet')) fileType = 'excel'
+  else if (file.type.includes('word') || file.type.includes('document')) fileType = 'word'
+
+  // Insert new document inheriting metadata from old document
+  const { error: insertError } = await supabase
+    .from('project_documents')
+    .insert({
+      project_id: projectId,
+      name: file.name,
+      description: oldDoc.description,
+      file_url: fileName,
+      file_type: fileType,
+      file_size_bytes: file.size,
+      uploaded_by: user.id,
+      category: oldDoc.category,
+      element_id: oldDoc.element_id,
+      building_id: oldDoc.building_id,
+      floor: oldDoc.floor,
+      replaces_document_id: oldDoc.id,
+    })
+
+  if (insertError) {
+    console.error('Error creating replacement document record:', insertError)
+    await supabase.storage.from(DOCUMENTS_BUCKET).remove([fileName])
+    return { error: 'Villa við að vista nýtt skjal' }
+  }
+
+  // Deactivate the old document
+  await supabase
+    .from('project_documents')
+    .update({
+      is_active: false,
+      deactivated_at: new Date().toISOString(),
+      deactivated_by: user.id,
+      deactivation_reason: 'Skipt út fyrir nýja útgáfu',
+    })
+    .eq('id', documentId)
+
+  // Revalidate
+  revalidatePath(`/admin/projects/${projectId}`)
+  revalidatePath(`/factory/projects/${projectId}`)
+  revalidatePath('/factory/drawings')
+
+  return { success: true, message: 'Skjal skipt út' }
+}
+
 // Get drawings linked to a specific element (plus project-level drawings)
 export async function getElementDrawings(elementId: string, projectId: string) {
   const supabase = await createClient()

@@ -748,6 +748,7 @@ export type Database = {
           length_mm: number | null
           loaded_at: string | null
           name: string
+          piece_count: number
           position_description: string | null
           priority: number | null
           production_notes: string | null
@@ -782,6 +783,7 @@ export type Database = {
           length_mm?: number | null
           loaded_at?: string | null
           name: string
+          piece_count?: number
           position_description?: string | null
           priority?: number | null
           production_notes?: string | null
@@ -816,6 +818,7 @@ export type Database = {
           length_mm?: number | null
           loaded_at?: string | null
           name?: string
+          piece_count?: number
           position_description?: string | null
           priority?: number | null
           production_notes?: string | null
@@ -1744,6 +1747,7 @@ export type Database = {
           deactivated_at: string | null
           deactivated_by: string | null
           deactivation_reason: string | null
+          replaces_document_id: string | null
         }
         Insert: {
           building_id?: string | null
@@ -1763,6 +1767,7 @@ export type Database = {
           deactivated_at?: string | null
           deactivated_by?: string | null
           deactivation_reason?: string | null
+          replaces_document_id?: string | null
         }
         Update: {
           building_id?: string | null
@@ -1782,6 +1787,7 @@ export type Database = {
           deactivated_at?: string | null
           deactivated_by?: string | null
           deactivation_reason?: string | null
+          replaces_document_id?: string | null
         }
         Relationships: [
           {

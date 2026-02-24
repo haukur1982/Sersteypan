@@ -142,7 +142,8 @@ export async function createUser(formData: FormData) {
     password: validatedData.password,
     email_confirm: true, // Auto-confirm email
     user_metadata: {
-      full_name: validatedData.full_name
+      full_name: validatedData.full_name,
+      role: validatedData.role,
     }
   })
 
@@ -155,8 +156,8 @@ export async function createUser(formData: FormData) {
     return { error: 'Failed to create user' }
   }
 
-  // Create profile record (uses regular RLS-protected client)
-  const { error: profileError } = await supabase
+  // Create profile record (uses service role client to bypass RLS)
+  const { error: profileError } = await adminClient
     .from('profiles')
     .upsert(
       {

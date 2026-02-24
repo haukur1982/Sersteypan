@@ -156,7 +156,11 @@ export default async function BatchDetailPage({
               <CardTitle className="flex items-center justify-between text-base">
                 <span className="flex items-center gap-2">
                   <Layers className="h-4 w-4 text-blue-600" />
-                  Einingar í lotu ({batch.elements?.length || 0})
+                  Einingar í lotu ({(() => {
+                    const total = batch.elements?.reduce((sum, el) => sum + ((el as Record<string, unknown>).piece_count as number || 1), 0) || 0
+                    const rows = batch.elements?.length || 0
+                    return total !== rows ? `${total} stk` : `${rows}`
+                  })()})
                 </span>
                 {totalWeight > 0 && (
                   <span className="text-sm font-normal text-zinc-500">
@@ -181,7 +185,12 @@ export default async function BatchDetailPage({
                         className="flex items-center justify-between py-2.5 px-2 hover:bg-zinc-50 rounded-md -mx-2 transition-colors"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="font-medium text-sm text-zinc-900">{element.name}</span>
+                          <span className="font-medium text-sm text-zinc-900">
+                            {element.name}
+                            {((element as Record<string, unknown>).piece_count as number || 1) > 1 && (
+                              <span className="text-zinc-500 font-normal ml-1">×{(element as Record<string, unknown>).piece_count as number}</span>
+                            )}
+                          </span>
                           <Badge variant="outline" className="text-xs">
                             {typeLabels[element.element_type] || element.element_type}
                           </Badge>

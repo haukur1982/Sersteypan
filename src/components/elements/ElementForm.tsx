@@ -151,6 +151,7 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
             width_mm: parseNumberInput(formData.get('width_mm') as string),
             height_mm: parseNumberInput(formData.get('height_mm') as string),
             weight_kg: parseNumberInput(formData.get('weight_kg') as string),
+            piece_count: parseInt(formData.get('piece_count') as string, 10) || 1,
             drawing_reference: formData.get('drawing_reference') as string || undefined,
             batch_number: formData.get('batch_number') as string || undefined,
             rebar_spec: formData.get('rebar_spec') as string || undefined,
@@ -397,6 +398,21 @@ export function ElementForm({ initialData, isEditing = false, preselectedProject
                                     className={`border-zinc-300 ${fieldErrors.weight_kg ? 'border-red-500' : ''}`}
                                 />
                                 <FieldError message={fieldErrors.weight_kg} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="piece_count">Fjöldi stk</Label>
+                                <Input
+                                    id="piece_count"
+                                    name="piece_count"
+                                    type="number"
+                                    min="1"
+                                    max="999"
+                                    placeholder="1"
+                                    defaultValue={initialData?.piece_count ?? 1}
+                                    disabled={loading}
+                                    className="border-zinc-300"
+                                />
+                                <p className="text-xs text-zinc-500">Fjöldi eins konar eininga (sjálfgefið 1)</p>
                             </div>
                         </div>
 

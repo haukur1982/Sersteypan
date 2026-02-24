@@ -158,7 +158,7 @@ export async function getBatch(batchId: string): Promise<{ data: BatchRecord | n
     // Fetch elements in this batch
     const { data: elements } = await supabase
       .from('elements')
-      .select('id, name, element_type, status, floor, weight_kg')
+      .select('id, name, element_type, status, floor, weight_kg, piece_count')
       .eq('batch_id', batchId)
       .order('name')
 
@@ -205,7 +205,7 @@ export async function getBatchesForProject(projectId: string): Promise<{
       (batches || []).map(async (batch) => {
         const { data: elements } = await supabase
           .from('elements')
-          .select('id, name, element_type, status, floor, weight_kg')
+          .select('id, name, element_type, status, floor, weight_kg, piece_count')
           .eq('batch_id', batch.id)
           .order('name')
 
@@ -270,7 +270,7 @@ export async function getAllBatches(statusFilter?: BatchStatus): Promise<{
     if (batchIds.length > 0) {
       const { data: elements } = await supabase
         .from('elements')
-        .select('id, name, element_type, status, floor, weight_kg, batch_id')
+        .select('id, name, element_type, status, floor, weight_kg, piece_count, batch_id')
         .in('batch_id', batchIds)
         .order('name')
 
@@ -523,7 +523,7 @@ export async function getUnbatchedElements(projectId: string) {
 
     const { data: elements, error } = await supabase
       .from('elements')
-      .select('id, name, element_type, status, floor, weight_kg')
+      .select('id, name, element_type, status, floor, weight_kg, piece_count')
       .eq('project_id', projectId)
       .is('batch_id', null)
       .eq('status', 'rebar')

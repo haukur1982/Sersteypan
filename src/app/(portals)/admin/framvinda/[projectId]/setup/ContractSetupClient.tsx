@@ -420,22 +420,25 @@ export function ContractSetupClient({
                 {catLines.length > 0 ? (
                   <div className="space-y-2">
                     {/* Table header */}
-                    <div className="grid grid-cols-12 gap-2 px-2 text-xs text-zinc-500 font-medium">
-                      <div className="col-span-3">Heiti</div>
-                      <div className="col-span-1">Stk</div>
-                      <div className="col-span-2">m²/stk</div>
-                      <div className="col-span-2">Magn</div>
-                      <div className="col-span-2">Verð</div>
-                      <div className="col-span-1 text-right">Samtals</div>
-                      <div className="col-span-1"></div>
+                    <div className="grid grid-cols-14 gap-1.5 px-2 text-xs text-zinc-500 font-medium" style={{ gridTemplateColumns: '2.5fr 1.2fr 0.6fr 0.8fr 1.2fr 1.2fr 1.5fr 1fr 0.5fr' }}>
+                      <div>Heiti</div>
+                      <div>Bygg.</div>
+                      <div>Hæð</div>
+                      <div>Stk</div>
+                      <div>m²/stk</div>
+                      <div>Magn</div>
+                      <div>Verð</div>
+                      <div className="text-right">Samtals</div>
+                      <div></div>
                     </div>
 
                     {catLines.map((line) => (
                       <div
                         key={line.tempId}
-                        className="grid grid-cols-12 gap-2 items-center bg-zinc-50 rounded-md px-2 py-1.5"
+                        className="grid gap-1.5 items-center bg-zinc-50 rounded-md px-2 py-1.5"
+                        style={{ gridTemplateColumns: '2.5fr 1.2fr 0.6fr 0.8fr 1.2fr 1.2fr 1.5fr 1fr 0.5fr' }}
                       >
-                        <div className="col-span-3">
+                        <div>
                           <Input
                             value={line.label}
                             onChange={(e) =>
@@ -445,7 +448,32 @@ export function ContractSetupClient({
                             className="h-8 text-sm"
                           />
                         </div>
-                        <div className="col-span-1">
+                        <div>
+                          <select
+                            value={line.building_id || ''}
+                            onChange={(e) =>
+                              updateLine(line.tempId, 'building_id', e.target.value || null)
+                            }
+                            className="h-8 w-full text-sm border border-zinc-200 rounded-md bg-white px-1.5"
+                          >
+                            <option value="">—</option>
+                            {buildings.map((b) => (
+                              <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <Input
+                            value={line.floor?.toString() ?? ''}
+                            onChange={(e) =>
+                              updateLine(line.tempId, 'floor', e.target.value ? parseInt(e.target.value, 10) : null)
+                            }
+                            placeholder="Hæð"
+                            type="number"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div>
                           <Input
                             value={line.contract_count}
                             onChange={(e) =>
@@ -460,7 +488,7 @@ export function ContractSetupClient({
                             className="h-8 text-sm"
                           />
                         </div>
-                        <div className="col-span-2">
+                        <div>
                           <Input
                             value={line.unit_area_m2}
                             onChange={(e) =>
@@ -478,7 +506,7 @@ export function ContractSetupClient({
                             className="h-8 text-sm"
                           />
                         </div>
-                        <div className="col-span-2">
+                        <div>
                           <Input
                             value={line.total_quantity}
                             onChange={(e) =>
@@ -494,7 +522,7 @@ export function ContractSetupClient({
                             className="h-8 text-sm"
                           />
                         </div>
-                        <div className="col-span-2">
+                        <div>
                           <Input
                             value={line.unit_price}
                             onChange={(e) =>
@@ -509,12 +537,12 @@ export function ContractSetupClient({
                             className="h-8 text-sm"
                           />
                         </div>
-                        <div className="col-span-1 text-right text-sm font-medium text-zinc-700">
+                        <div className="text-right text-sm font-medium text-zinc-700">
                           {calcLineTotal(line) > 0
                             ? formatISK(calcLineTotal(line))
                             : '—'}
                         </div>
-                        <div className="col-span-1 text-right">
+                        <div className="text-right">
                           <Button
                             variant="ghost"
                             size="icon"

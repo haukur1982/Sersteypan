@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { generateQRCodesForElements } from '@/lib/elements/actions'
 
 // ── Type color mapping for visual identification on factory floor ──
 const TYPE_COLORS: Record<string, string> = {
@@ -21,10 +23,10 @@ const TYPE_LABELS: Record<string, string> = {
     balcony: 'Svalir',
     svalagangur: 'Svalagangar',
     staircase: 'Stigi',
-    column: 'Sula',
+    column: 'Súla',
     beam: 'Biti',
-    ceiling: 'Thak',
-    other: 'Annad',
+    ceiling: 'Þak',
+    other: 'Annað',
 }
 
 interface QRLabelsClientProps {
@@ -47,10 +49,38 @@ interface QRLabelsClientProps {
 
 export default function QRLabelsClient({ projectName, projectId, elements }: QRLabelsClientProps) {
     const router = useRouter()
+    const [isGenerating, setIsGenerating] = useState(false)
+    const [generateError, setGenerateError] = useState<string | null>(null)
+
     const elementsWithQR = elements.filter(el => el.qr_code_url)
+    const elementsWithoutQR = elements.filter(el => !el.qr_code_url)
 
     const handlePrint = () => {
         window.print()
+    }
+
+    const handleGenerateQR = async () => {
+        if (elementsWithoutQR.length === 0) return
+        setIsGenerating(true)
+        setGenerateError(null)
+        try {
+            // Generate in batches of 50 (Edge Function limit)
+            const ids = elementsWithoutQR.map(el => el.id)
+            for (let i = 0; i < ids.length; i += 50) {
+                const batch = ids.slice(i, i + 50)
+                const result = await generateQRCodesForElements(batch)
+                if (result.error) {
+                    setGenerateError(result.error)
+                    setIsGenerating(false)
+                    return
+                }
+            }
+            router.refresh()
+        } catch {
+            setGenerateError('Villa við að búa til QR kóða')
+        } finally {
+            setIsGenerating(false)
+        }
     }
 
     return (
@@ -60,7 +90,7 @@ export default function QRLabelsClient({ projectName, projectId, elements }: QRL
                 <div>
                     <h1 className="text-2xl font-bold text-zinc-900">QR Merki - {projectName}</h1>
                     <p className="text-zinc-500 mt-1">
-                        {elementsWithQR.length} af {elements.length} einingar me&eth; QR k&oacute;&eth;a
+                        {elementsWithQR.length} af {elements.length} einingar með QR kóða
                     </p>
                 </div>
                 <div className="flex gap-3">
@@ -70,29 +100,57 @@ export default function QRLabelsClient({ projectName, projectId, elements }: QRL
                     >
                         &larr; Til baka
                     </button>
-                    <button
-                        onClick={handlePrint}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                    >
-                        Prenta merki
-                    </button>
+                    {elementsWithoutQR.length > 0 && (
+                        <button
+                            onClick={handleGenerateQR}
+                            disabled={isGenerating}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50"
+                        >
+                            {isGenerating ? 'Bý til...' : `Búa til QR kóða (${elementsWithoutQR.length})`}
+                        </button>
+                    )}
+                    {elementsWithQR.length > 0 && (
+                        <button
+                            onClick={handlePrint}
+                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                        >
+                            Prenta merki
+                        </button>
+                    )}
                 </div>
             </div>
 
+            {generateError && (
+                <div className="print:hidden mb-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg">
+                    {generateError}
+                </div>
+            )}
+
             {elementsWithQR.length === 0 ? (
                 <div className="text-center py-16 print:hidden">
-                    <p className="text-zinc-500 text-lg">Engir QR k&oacute;&eth;ar hafa veri&eth; b&uacute;nir til.</p>
+                    <p className="text-zinc-500 text-lg">Engir QR kóðar hafa verið búnir til.</p>
                     <p className="text-zinc-400 mt-2">
-                        Far&eth;u &iacute; verkefnas&iacute;&eth;una og smelltu &aacute; &quot;Generate QR Codes&quot;
+                        {elements.length > 0
+                            ? `${elements.length} einingar bíða eftir QR kóða.`
+                            : 'Engar einingar í þessu verkefni.'}
                     </p>
+                    {elements.length > 0 && (
+                        <button
+                            onClick={handleGenerateQR}
+                            disabled={isGenerating}
+                            className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+                        >
+                            {isGenerating ? 'Bý til QR kóða...' : `Búa til QR kóða fyrir allar einingar (${elements.length})`}
+                        </button>
+                    )}
                 </div>
             ) : (
                 <>
                     {/* Print instructions */}
                     <div className="print:hidden mb-6 p-4 bg-blue-50 text-blue-800 rounded-lg border border-blue-200">
-                        <strong>Pentlei&eth;beiningar:</strong> Stilltu prentara &aacute; A4 og &quot;100% Scale&quot;.
-                        Hver s&iacute;&eth;a inniheldur 8 merki (2 x 4 grid). Nota&eth;u l&iacute;mmi&eth;apapp&iacute;r fyrir bestu ni&eth;urst&ouml;&eth;u.
-                        Litabandi&eth; &aacute; vinstri hl&iacute;&eth; gefur til kynna tegund einingar.
+                        <strong>Prentleiðbeiningar:</strong> Stilltu prentara á A4 og &quot;100% Scale&quot;.
+                        Hver síða inniheldur 8 merki (2 x 4 grid). Notaðu límmiðapappír fyrir bestu niðurstöðu.
+                        Litabandið á vinstri hlið gefur til kynna tegund einingar.
                     </div>
 
                     {/* QR Labels Grid - Optimized for A4 printing */}
@@ -151,19 +209,19 @@ export default function QRLabelsClient({ projectName, projectId, elements }: QRL
                                                 </div>
                                                 {element.floor != null && (
                                                     <div className="flex gap-2">
-                                                        <span className="font-medium">H&aelig;&eth;:</span>
-                                                        <span>{element.floor}. h&aelig;&eth;</span>
+                                                        <span className="font-medium">Hæð:</span>
+                                                        <span>{element.floor}. hæð</span>
                                                     </div>
                                                 )}
                                                 {element.position_description && (
                                                     <div className="flex gap-2">
-                                                        <span className="font-medium">Sta&eth;s.:</span>
+                                                        <span className="font-medium">Staðs.:</span>
                                                         <span className="truncate">{element.position_description}</span>
                                                     </div>
                                                 )}
                                                 {element.rebar_spec && (
                                                     <div className="flex gap-2">
-                                                        <span className="font-medium">J&aacute;rn:</span>
+                                                        <span className="font-medium">Járn:</span>
                                                         <span className="truncate">{element.rebar_spec}</span>
                                                     </div>
                                                 )}
@@ -191,7 +249,7 @@ export default function QRLabelsClient({ projectName, projectId, elements }: QRL
 
             {/* Print-only footer */}
             <div className="hidden print:block fixed bottom-4 right-4 text-xs text-zinc-400">
-                S&eacute;rsteypan &bull; {new Date().toLocaleDateString('is-IS')}
+                Sérsteypan &bull; {new Date().toLocaleDateString('is-IS')}
             </div>
         </div>
     )

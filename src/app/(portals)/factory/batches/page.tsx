@@ -126,16 +126,18 @@ export default async function BatchesPage() {
             const config = statusConfig[batch.status] || statusConfig.preparing
             const StatusIcon = config.icon
             const elementCount = batch.elements?.length || 0
+            const totalPieces = batch.elements?.reduce((sum, el) => sum + ((el as Record<string, unknown>).piece_count as number || 1), 0) || 0
             const checklist = batch.checklist || []
             const checkedCount = checklist.filter(
               (item) => item.checked
             ).length
 
-            // Summarize element types
+            // Summarize element types (sum piece_count for accurate totals)
             const typeCounts: Record<string, number> = {}
             batch.elements?.forEach((el) => {
+              const pc = (el as Record<string, unknown>).piece_count as number || 1
               typeCounts[el.element_type] =
-                (typeCounts[el.element_type] || 0) + 1
+                (typeCounts[el.element_type] || 0) + pc
             })
             const typeSummary = Object.entries(typeCounts)
               .map(
@@ -203,7 +205,7 @@ export default async function BatchesPage() {
                         {/* Element summary */}
                         <div className="text-right hidden sm:block">
                           <p className="text-sm font-medium text-zinc-700">
-                            {elementCount} einingar
+                            {totalPieces !== elementCount ? `${totalPieces} stk (${elementCount} línur)` : `${elementCount} einingar`}
                           </p>
                           {typeSummary && (
                             <p className="text-xs text-zinc-500">
