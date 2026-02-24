@@ -25,6 +25,7 @@ import { PhotoGallery } from '@/components/shared/PhotoGallery'
 import { ElementTimeline } from '@/components/shared/ElementTimeline'
 import { ElementDrawings } from '@/components/factory/ElementDrawings'
 import { BatchDetailCard } from '@/components/factory/BatchDetailCard'
+import { ElementProductionChecklist } from '@/components/factory/ElementProductionChecklist'
 import { TraceabilityTimeline } from '@/components/factory/TraceabilityTimeline'
 import { getBatchForElement } from '@/lib/factory/batch-actions'
 import type { ElementPhoto } from '@/components/buyer/project/types'
@@ -56,6 +57,7 @@ type ElementDetail = Pick<
     | 'rebar_batch_id'
     | 'rebar_spec'
     | 'production_notes'
+    | 'checklist'
     | 'created_at'
     | 'updated_at'
     | 'rebar_completed_at'
@@ -106,7 +108,7 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
     const { elementId } = await params
     const supabase = await createClient()
 
-    // Fetch element details
+    // Fetch element details (checklist fetched separately for migration safety)
     const { data: element, error } = await supabase
         .from('elements')
         .select(`
@@ -151,7 +153,19 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
     if (error || !element) {
         return notFound()
     }
-    const elementDetail = element as ElementDetail
+
+    // Fetch checklist separately — column may not exist until migration 046 is pushed
+    let elementChecklist: import('@/lib/elements/actions').ChecklistItem[] = []
+    const { data: checklistRow } = await supabase
+        .from('elements')
+        .select('checklist')
+        .eq('id', elementId)
+        .single()
+    if (checklistRow?.checklist && Array.isArray(checklistRow.checklist)) {
+        elementChecklist = checklistRow.checklist as unknown as import('@/lib/elements/actions').ChecklistItem[]
+    }
+
+    const elementDetail = { ...element, checklist: elementChecklist } as unknown as ElementDetail
 
     // Fetch status history
     const { data: history } = await supabase
@@ -287,6 +301,13 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                     <ElementStatusUpdateForm element={elementDetail} />
                 </CardContent>
             </Card>
+
+            {/* Per-Element Production Checklist */}
+            <ElementProductionChecklist
+                elementId={elementDetail.id}
+                checklist={elementChecklist}
+                disabled={elementDetail.status === 'delivered' || elementDetail.status === 'loaded'}
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column: Element Details */}

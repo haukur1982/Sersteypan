@@ -734,6 +734,7 @@ export type Database = {
           batch_number: string | null
           building_id: string | null
           cast_at: string | null
+          checklist: Json
           created_at: string | null
           created_by: string | null
           curing_completed_at: string | null
@@ -767,6 +768,7 @@ export type Database = {
           batch_number?: string | null
           building_id?: string | null
           cast_at?: string | null
+          checklist?: Json
           created_at?: string | null
           created_by?: string | null
           curing_completed_at?: string | null
@@ -800,6 +802,7 @@ export type Database = {
           batch_number?: string | null
           building_id?: string | null
           cast_at?: string | null
+          checklist?: Json
           created_at?: string | null
           created_by?: string | null
           curing_completed_at?: string | null

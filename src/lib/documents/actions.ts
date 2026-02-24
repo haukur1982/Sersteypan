@@ -98,6 +98,7 @@ export async function uploadDocument(projectId: string, formData: FormData) {
 
   // Get file from form data
   const file = formData.get('file') as File
+  const displayName = (formData.get('display_name') as string)?.trim() || null
   const description = formData.get('description') as string
   const category = (formData.get('category') as string) || 'other'
   const elementId = (formData.get('element_id') as string) || null
@@ -163,7 +164,7 @@ export async function uploadDocument(projectId: string, formData: FormData) {
     .from('project_documents')
     .insert({
       project_id: projectId,
-      name: file.name,
+      name: displayName || file.name,
       description: description || null,
       file_url: fileName,
       file_type: fileType,

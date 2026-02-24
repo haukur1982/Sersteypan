@@ -99,6 +99,10 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
     const [pdfWidth, setPdfWidth] = useState(0)
     const containerRef = useRef<HTMLDivElement>(null)
 
+    // Adaptive resolution: render canvas at higher res when zoomed
+    const [pdfScale, setPdfScale] = useState(1)
+    const scaleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
     // UI visibility — auto-hide after 3s (images only)
     const [uiVisible, setUiVisible] = useState(true)
     const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -179,6 +183,21 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
     const goToPrevPage = useCallback(() => setCurrentPage(p => Math.max(1, p - 1)), [])
     const goToNextPage = useCallback(() => setCurrentPage(p => Math.min(numPages, p + 1)), [numPages])
 
+    // Debounced handler for zoom level changes — re-renders PDF at higher resolution
+    const handlePdfTransformed = useCallback((_: unknown, state: { scale: number }) => {
+        if (scaleDebounceRef.current) clearTimeout(scaleDebounceRef.current)
+        scaleDebounceRef.current = setTimeout(() => {
+            // Clamp to reasonable range: min 1 (no downscale), max 4
+            const newScale = Math.min(4, Math.max(1, Math.ceil(state.scale)))
+            setPdfScale(prev => prev !== newScale ? newScale : prev)
+        }, 250)
+    }, [])
+
+    // Cleanup debounce timer
+    useEffect(() => {
+        return () => { if (scaleDebounceRef.current) clearTimeout(scaleDebounceRef.current) }
+    }, [])
+
     return (
         <div
             className="fixed inset-0 z-50 bg-black flex flex-col select-none"
@@ -249,6 +268,7 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
                         wheel={{ step: 0.1 }}
                         centerOnInit
                         panning={{ velocityDisabled: true }}
+                        onTransformed={handlePdfTransformed}
                     >
                         <div ref={containerRef} className="w-full h-full flex flex-col">
                             <TransformComponent
@@ -261,13 +281,27 @@ export function DocumentViewer({ document, onClose }: DocumentViewerProps) {
                                     onLoadError={onDocumentLoadError}
                                     loading={null}
                                 >
-                                    <Page
-                                        pageNumber={currentPage}
-                                        width={pdfWidth > 0 ? pdfWidth : undefined}
-                                        loading={null}
-                                        renderAnnotationLayer={false}
-                                        renderTextLayer={false}
-                                    />
+                                    {/* Adaptive resolution: render canvas at pdfWidth * pdfScale,
+                                        then CSS-compensate so visual size stays at pdfWidth.
+                                        When zoomed, TransformWrapper scales the content, but the
+                                        canvas is already rendered at higher resolution → crisp. */}
+                                    <div style={{
+                                        width: pdfWidth > 0 ? pdfWidth : undefined,
+                                        overflow: 'hidden',
+                                    }}>
+                                        <div style={{
+                                            transform: `scale(${1 / pdfScale})`,
+                                            transformOrigin: 'top left',
+                                        }}>
+                                            <Page
+                                                pageNumber={currentPage}
+                                                width={pdfWidth > 0 ? pdfWidth * pdfScale : undefined}
+                                                loading={null}
+                                                renderAnnotationLayer={false}
+                                                renderTextLayer={false}
+                                            />
+                                        </div>
+                                    </div>
                                 </Document>
                             </TransformComponent>
 

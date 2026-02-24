@@ -156,6 +156,21 @@ export function DocumentUploadForm({ projectId, elements, defaultElementId, buil
       )}
 
       <div className="space-y-2">
+        <Label htmlFor="display_name">Heiti skjals</Label>
+        <Input
+          id="display_name"
+          name="display_name"
+          type="text"
+          placeholder="t.d. Þakplata A - 3. hæð (valfrjálst)"
+          disabled={isUploading}
+          className="border-zinc-300"
+        />
+        <p className="text-xs text-zinc-500">
+          Skildu eftir autt til að nota skráarheitið sjálfkrafa
+        </p>
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="file">Skrá *</Label>
         <Input
           id="file"
