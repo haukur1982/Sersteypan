@@ -59,41 +59,49 @@ $$;
 -- =====================================================
 
 -- Projects: rebar workers can view all projects (read-only)
+DROP POLICY IF EXISTS "Rebar workers view projects" ON public.projects;
 CREATE POLICY "Rebar workers view projects"
   ON public.projects FOR SELECT
   USING (get_user_role() = 'rebar_worker');
 
 -- Elements: rebar workers can view and update elements
 -- (update limited to status, checklist, rebar_completed_at via app logic)
+DROP POLICY IF EXISTS "Rebar workers view elements" ON public.elements;
 CREATE POLICY "Rebar workers view elements"
   ON public.elements FOR SELECT
   USING (get_user_role() = 'rebar_worker');
 
+DROP POLICY IF EXISTS "Rebar workers update elements" ON public.elements;
 CREATE POLICY "Rebar workers update elements"
   ON public.elements FOR UPDATE
   USING (get_user_role() = 'rebar_worker')
   WITH CHECK (get_user_role() = 'rebar_worker');
 
 -- Element events: rebar workers can view history and log their work
+DROP POLICY IF EXISTS "Rebar workers view element events" ON public.element_events;
 CREATE POLICY "Rebar workers view element events"
   ON public.element_events FOR SELECT
   USING (get_user_role() = 'rebar_worker');
 
+DROP POLICY IF EXISTS "Rebar workers insert element events" ON public.element_events;
 CREATE POLICY "Rebar workers insert element events"
   ON public.element_events FOR INSERT
   WITH CHECK (get_user_role() = 'rebar_worker');
 
 -- Project documents: rebar workers can view (read drawings, rebar specs)
+DROP POLICY IF EXISTS "Rebar workers view project documents" ON public.project_documents;
 CREATE POLICY "Rebar workers view project documents"
   ON public.project_documents FOR SELECT
   USING (get_user_role() = 'rebar_worker');
 
 -- Element photos: rebar workers can view
+DROP POLICY IF EXISTS "Rebar workers view element photos" ON public.element_photos;
 CREATE POLICY "Rebar workers view element photos"
   ON public.element_photos FOR SELECT
   USING (get_user_role() = 'rebar_worker');
 
 -- Element photos: rebar workers can upload (document their rebar work)
+DROP POLICY IF EXISTS "Rebar workers insert element photos" ON public.element_photos;
 CREATE POLICY "Rebar workers insert element photos"
   ON public.element_photos FOR INSERT
   WITH CHECK (get_user_role() = 'rebar_worker');
@@ -152,6 +160,7 @@ $$;
 -- =====================================================
 
 -- Element photos storage: rebar workers can upload
+DROP POLICY IF EXISTS "Rebar workers can upload element photos" ON storage.objects;
 CREATE POLICY "Rebar workers can upload element photos"
   ON storage.objects FOR INSERT
   TO authenticated
@@ -162,6 +171,7 @@ CREATE POLICY "Rebar workers can upload element photos"
   );
 
 -- Project documents storage: rebar workers can view
+DROP POLICY IF EXISTS "Rebar workers can view project documents" ON storage.objects;
 CREATE POLICY "Rebar workers can view project documents"
   ON storage.objects FOR SELECT
   TO authenticated
@@ -171,6 +181,7 @@ CREATE POLICY "Rebar workers can view project documents"
   );
 
 -- QR codes storage: rebar workers can view (for QR scanning)
+DROP POLICY IF EXISTS "Rebar workers can view QR codes" ON storage.objects;
 CREATE POLICY "Rebar workers can view QR codes"
   ON storage.objects FOR SELECT
   TO authenticated

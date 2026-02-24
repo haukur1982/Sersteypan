@@ -11,7 +11,7 @@
 -- A. REBAR BATCHES TABLE
 -- =====================================================
 
-CREATE TABLE rebar_batches (
+CREATE TABLE IF NOT EXISTS rebar_batches (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   batch_number text NOT NULL UNIQUE,
@@ -201,12 +201,14 @@ $$;
 ALTER TABLE rebar_batches ENABLE ROW LEVEL SECURITY;
 
 -- Admin + factory manager: full access
+DROP POLICY IF EXISTS "Admin and factory full access to rebar batches" ON rebar_batches;
 CREATE POLICY "Admin and factory full access to rebar batches"
   ON rebar_batches
   FOR ALL
   USING (get_user_role() IN ('admin', 'factory_manager'));
 
 -- Buyer: read-only for their company's projects
+DROP POLICY IF EXISTS "Buyers can view rebar batches for their projects" ON rebar_batches;
 CREATE POLICY "Buyers can view rebar batches for their projects"
   ON rebar_batches
   FOR SELECT
@@ -222,17 +224,25 @@ CREATE POLICY "Buyers can view rebar batches for their projects"
 -- G. INDEXES
 -- =====================================================
 
-CREATE INDEX idx_rebar_batches_project ON rebar_batches(project_id);
-CREATE INDEX idx_rebar_batches_status ON rebar_batches(status);
-CREATE INDEX idx_rebar_batches_created_at ON rebar_batches(created_at);
-CREATE INDEX idx_elements_rebar_batch ON elements(rebar_batch_id);
+CREATE INDEX IF NOT EXISTS idx_rebar_batches_project ON rebar_batches(project_id);
+CREATE INDEX IF NOT EXISTS idx_rebar_batches_status ON rebar_batches(status);
+CREATE INDEX IF NOT EXISTS idx_rebar_batches_created_at ON rebar_batches(created_at);
+CREATE INDEX IF NOT EXISTS idx_elements_rebar_batch ON elements(rebar_batch_id);
 
 -- =====================================================
 -- H. UPDATED_AT TRIGGER
 -- =====================================================
--- Reuses the existing update_updated_at_column() function
 
+CREATE OR REPLACE FUNCTION update_rebar_batches_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS set_rebar_batches_updated_at ON rebar_batches;
 CREATE TRIGGER set_rebar_batches_updated_at
   BEFORE UPDATE ON rebar_batches
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
+  EXECUTE FUNCTION update_rebar_batches_updated_at();

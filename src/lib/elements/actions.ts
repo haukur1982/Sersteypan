@@ -436,15 +436,10 @@ export async function deleteElement(id: string) {
 export async function generateQRCodesForElements(elementIds: string[]) {
   const supabase = await createClient()
 
-  // Get current user and session
+  // Get current user
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'Not authenticated' }
-  }
-
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.access_token) {
-    return { error: 'No valid session' }
   }
 
   // Check role - admin or factory_manager can generate QR codes
@@ -462,33 +457,77 @@ export async function generateQRCodesForElements(elementIds: string[]) {
     return { error: 'No elements provided' }
   }
 
-  // Validate batch size (matches Edge Function limit)
   if (elementIds.length > 50) {
     return { error: 'Maximum 50 elements per request' }
   }
 
+  // Use service role client for storage uploads (bypasses RLS)
+  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !anonKey) {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceRoleKey) {
     return { error: 'Missing Supabase configuration' }
   }
-
-  // Use user's access token for authentication (not service role key)
-  const response = await fetch(`${supabaseUrl}/functions/v1/generate-qr-codes`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session.access_token}`,
-      apikey: anonKey,
-    },
-    body: JSON.stringify({ element_ids: elementIds }),
+  const adminClient = createSupabaseClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false },
   })
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-    console.error('QR generation failed:', errorData)
-    return { error: errorData.error || 'Failed to generate QR codes' }
+  // Verify all elements exist
+  const { data: existingElements, error: fetchError } = await adminClient
+    .from('elements')
+    .select('id')
+    .in('id', elementIds)
+
+  if (fetchError) {
+    return { error: `Failed to verify elements: ${fetchError.message}` }
+  }
+
+  const existingIds = new Set((existingElements ?? []).map((e: { id: string }) => e.id))
+  const missingIds = elementIds.filter((id) => !existingIds.has(id))
+  if (missingIds.length > 0) {
+    return { error: `Elements not found: ${missingIds.slice(0, 3).join(', ')}` }
+  }
+
+  // Generate QR codes directly in Node.js (no Edge Function needed)
+  const QRCode = await import('qrcode')
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.sersteypan.is'
+  const bucket = 'qr-codes'
+
+  for (const elementId of elementIds) {
+    try {
+      const qrContent = `${appUrl}/qr/${elementId}`
+      const svgString = await QRCode.toString(qrContent, {
+        type: 'svg',
+        errorCorrectionLevel: 'H',
+        margin: 2,
+        width: 512,
+      })
+
+      const filePath = `${elementId}.svg`
+      const { error: uploadError } = await adminClient.storage
+        .from(bucket)
+        .upload(filePath, svgString, {
+          contentType: 'image/svg+xml',
+          upsert: true,
+        })
+
+      if (uploadError) {
+        console.error(`Upload failed for ${elementId}:`, uploadError.message)
+        return { error: `Upload failed for element ${elementId}` }
+      }
+
+      const { data: publicUrlData } = adminClient.storage
+        .from(bucket)
+        .getPublicUrl(filePath)
+
+      await adminClient
+        .from('elements')
+        .update({ qr_code_url: publicUrlData.publicUrl })
+        .eq('id', elementId)
+    } catch (err) {
+      console.error(`QR generation failed for ${elementId}:`, err)
+      return { error: `QR generation failed for element ${elementId}` }
+    }
   }
 
   revalidatePath('/admin/projects')

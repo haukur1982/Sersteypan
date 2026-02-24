@@ -25,6 +25,7 @@ CREATE POLICY "Anyone can view element photos"
 -- Admin + factory managers can insert photos
 DROP POLICY IF EXISTS "Factory managers and Admins can insert photos" ON element_photos;
 DROP POLICY IF EXISTS "Authenticated users can insert photos" ON element_photos;
+DROP POLICY IF EXISTS "Admin and factory can insert photos" ON element_photos;
 CREATE POLICY "Admin and factory can insert photos"
   ON element_photos FOR INSERT
   TO authenticated
@@ -32,6 +33,7 @@ CREATE POLICY "Admin and factory can insert photos"
 
 -- Admin + factory managers can update photos
 DROP POLICY IF EXISTS "Factory managers and Admins can update their photos" ON element_photos;
+DROP POLICY IF EXISTS "Admin and factory can update photos" ON element_photos;
 CREATE POLICY "Admin and factory can update photos"
   ON element_photos FOR UPDATE
   TO authenticated
@@ -39,6 +41,7 @@ CREATE POLICY "Admin and factory can update photos"
 
 -- Admin + factory managers can delete photos
 DROP POLICY IF EXISTS "Factory managers and Admins can delete their photos" ON element_photos;
+DROP POLICY IF EXISTS "Admin and factory can delete photos" ON element_photos;
 CREATE POLICY "Admin and factory can delete photos"
   ON element_photos FOR DELETE
   TO authenticated
