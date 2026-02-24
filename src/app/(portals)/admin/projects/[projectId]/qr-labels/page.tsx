@@ -23,7 +23,7 @@ export default async function QRLabelsPage({ params }: QRLabelsPageProps) {
     const { data: elements } = await getElementsForProject(projectId)
     const elementList = (elements ?? []) as ElementRow[]
 
-    // Map to the shape expected by client component
+    // Map to the shape expected by client component (enhanced with position/rebar info)
     const mappedElements = elementList.map(el => ({
         id: el.id,
         name: el.name,
@@ -33,7 +33,9 @@ export default async function QRLabelsPage({ params }: QRLabelsPageProps) {
         length_mm: el.length_mm,
         height_mm: el.height_mm,
         width_mm: el.width_mm,
-        qr_code_url: el.qr_code_url
+        qr_code_url: el.qr_code_url,
+        rebar_spec: el.rebar_spec ?? null,
+        position_description: el.position_description ?? null,
     }))
 
     return (

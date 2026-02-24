@@ -107,10 +107,14 @@ serve(async (req) => {
 
     const results: Array<{ element_id: string; qr_url: string }> = []
 
+    // QR codes encode a full URL so phone cameras open the landing page
+    const appUrl = Deno.env.get('APP_URL') || 'https://app.sersteypan.is'
+
     for (const elementId of elementIds) {
-      const svgString = await QRCode.toString(elementId, {
+      const qrContent = `${appUrl}/qr/${elementId}`
+      const svgString = await QRCode.toString(qrContent, {
         type: 'svg',
-        errorCorrectionLevel: 'M',
+        errorCorrectionLevel: 'H',
         margin: 2,
         width: 512,
       })

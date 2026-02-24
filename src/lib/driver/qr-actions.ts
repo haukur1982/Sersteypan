@@ -43,9 +43,9 @@ export async function lookupElementByQR(qrContent: string): Promise<{
   // 3. PARSE QR CONTENT
   let elementId: string
 
-  // Try to extract UUID from URL format
-  if (qrContent.includes('/element/')) {
-    const parts = qrContent.split('/element/')
+  // Try to extract UUID from URL format (/qr/{uuid} or /element/{uuid})
+  if (qrContent.includes('/qr/') || qrContent.includes('/element/')) {
+    const parts = qrContent.split(/\/(?:qr|element)\//)
     elementId = parts[parts.length - 1].split('?')[0].split('#')[0]
   } else {
     // Assume plain UUID

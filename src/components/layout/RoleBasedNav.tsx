@@ -57,7 +57,12 @@ const roleMap: Record<string, AuthUser['role']> = {
     'Buyer': 'buyer',
     'Kaupamadur': 'buyer',
     'Driver': 'driver',
-    'Bílstjóri': 'driver'
+    'Bílstjóri': 'driver',
+
+    // Rebar worker
+    'rebar_worker': 'rebar_worker',
+    'Rebar Worker': 'rebar_worker',
+    'Járnamaður': 'rebar_worker',
 }
 
 const navigation: Record<AuthUser['role'], NavItem[]> = {
@@ -77,6 +82,7 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Stjórnborð', englishName: 'Dashboard', href: '/factory', icon: LayoutDashboard },
         { name: 'Verkefni', englishName: 'Projects', href: '/factory/projects', icon: FolderKanban },
         { name: 'Framleiðslustjórn', englishName: 'Manage Production', href: '/factory/manage', icon: ClipboardList },
+        { name: 'Skanna QR', englishName: 'Scan QR', href: '/factory/scan', icon: QrCode },
         { name: 'Framleiðsla', englishName: 'Production', href: '/factory/production', icon: Factory },
         { name: 'Vinnuskráning', englishName: 'Labor Logs', href: '/factory/labor', icon: Users },
         { name: 'Steypulotur', englishName: 'Batches', href: '/factory/batches', icon: Layers },
@@ -105,7 +111,13 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Afhendingar', englishName: 'Deliveries', href: '/driver/deliveries', icon: Truck },
         { name: 'Skanna QR', englishName: 'Scan QR', href: '/driver/scan', icon: QrCode },
         { name: 'Hjálp', englishName: 'Help', href: '/driver/help', icon: HelpCircle },
-    ]
+    ],
+    rebar_worker: [
+        { name: 'Yfirlit', englishName: 'Dashboard', href: '/rebar', icon: LayoutDashboard },
+        { name: 'Verkefni', englishName: 'Projects', href: '/rebar/projects', icon: FolderKanban },
+        { name: 'Skanna QR', englishName: 'Scan QR', href: '/rebar/scan', icon: QrCode },
+        { name: 'Hjálp', englishName: 'Help', href: '/rebar/help', icon: HelpCircle },
+    ],
 }
 
 export function RoleBasedNav({ role, onItemClick }: { role: AuthUser['role'] | undefined, onItemClick?: () => void }) {
@@ -136,7 +148,7 @@ export function RoleBasedNav({ role, onItemClick }: { role: AuthUser['role'] | u
             {navigation[normalizedRole].map((item) => {
                 // Dashboard routes should only match exactly
                 // Other routes can match their children (e.g., /factory/diary matches /factory/diary/123)
-                const isDashboard = item.href === '/factory' || item.href === '/admin' || item.href === '/buyer' || item.href === '/driver'
+                const isDashboard = item.href === '/factory' || item.href === '/admin' || item.href === '/buyer' || item.href === '/driver' || item.href === '/rebar'
                 const isActive = isDashboard
                     ? pathname === item.href
                     : pathname === item.href || pathname?.startsWith(`${item.href}/`)

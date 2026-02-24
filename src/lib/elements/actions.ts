@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/types/database'
 import {
@@ -20,6 +21,24 @@ import {
 import { createNotifications } from '@/lib/notifications/queries'
 
 type ElementRow = Database['public']['Tables']['elements']['Row']
+
+export interface ChecklistItem {
+  key: string
+  label: string
+  checked: boolean
+  checked_by: string | null
+  checked_at: string | null
+}
+
+const DEFAULT_ELEMENT_CHECKLIST: ChecklistItem[] = [
+  { key: 'dimensions', label: 'Mál staðfest', checked: false, checked_by: null, checked_at: null },
+  { key: 'mold_oiled', label: 'Mót olíuborið', checked: false, checked_by: null, checked_at: null },
+  { key: 'rebar', label: 'Járnabinding staðfest', checked: false, checked_by: null, checked_at: null },
+  { key: 'plumbing', label: 'Raflagnir/pípulagnir staðsettar', checked: false, checked_by: null, checked_at: null },
+  { key: 'photos', label: 'Myndir hlaðnar upp', checked: false, checked_by: null, checked_at: null },
+  { key: 'concrete_cover', label: 'Steypuhula yfir stáli', checked: false, checked_by: null, checked_at: null },
+  { key: 'concrete_truck', label: 'Steypubíll C35 / ½ flot 70-75 á mæli', checked: false, checked_by: null, checked_at: null },
+]
 
 // Parse FormData into an object for validation
 function parseElementFormData(formData: FormData) {
@@ -109,15 +128,27 @@ export async function createElement(formData: FormData) {
   }
 
   // Insert into database
-  const { error } = await supabase
+  const { data: newElement, error } = await supabase
     .from('elements')
     .insert(elementData)
-    .select()
+    .select('id')
     .single()
 
   if (error) {
     console.error('Error creating element:', error)
     return { error: 'Villa við að búa til einingu. Reyndu aftur.' }
+  }
+
+  // Auto-generate QR code after response is sent (serverless-safe via after())
+  if (newElement?.id) {
+    const elementId = newElement.id
+    after(async () => {
+      try {
+        await generateQRCodesForElements([elementId])
+      } catch (err) {
+        console.error('Auto QR generation failed for element:', elementId, err)
+      }
+    })
   }
 
   // Revalidate the elements list page
@@ -668,6 +699,138 @@ export async function bulkUpdateElements(ids: string[], updates: Partial<Databas
     revalidatePath(`/admin/projects/${sampleElement.project_id}`)
   }
 
+  return { success: true }
+}
+
+// =====================================================
+// Element Checklist Actions
+// =====================================================
+
+/**
+ * Initialize the checklist on an element that has an empty one.
+ */
+export async function initializeElementChecklist(elementId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, is_active')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !profile.is_active) return { error: 'Account not active' }
+  if (!['admin', 'factory_manager'].includes(profile.role)) {
+    return { error: 'Insufficient permissions' }
+  }
+
+  const { error } = await supabase
+    .from('elements')
+    .update({ checklist: JSON.parse(JSON.stringify(DEFAULT_ELEMENT_CHECKLIST)) })
+    .eq('id', elementId)
+
+  if (error) {
+    console.error('Error initializing element checklist:', error)
+    return { error: error.message }
+  }
+
+  revalidatePath(`/factory/production/${elementId}`)
+  return { success: true }
+}
+
+/**
+ * Update a single checklist item on an element.
+ */
+export async function updateElementChecklistItem(
+  elementId: string,
+  key: string,
+  checked: boolean
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, is_active')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !profile.is_active) return { error: 'Account not active' }
+  if (!['admin', 'factory_manager'].includes(profile.role)) {
+    return { error: 'Insufficient permissions' }
+  }
+
+  // Fetch current element
+  const { data: element, error: fetchError } = await supabase
+    .from('elements')
+    .select('checklist, status')
+    .eq('id', elementId)
+    .single()
+
+  if (fetchError || !element) {
+    return { error: 'Eining finnst ekki' }
+  }
+
+  if (element.status === 'delivered' || element.status === 'loaded') {
+    return { error: 'Ekki er hægt að breyta gátlista á afhentu einingu' }
+  }
+
+  const checklist = (element.checklist as unknown as ChecklistItem[]) || []
+
+  // If checklist is empty, initialize it first
+  if (checklist.length === 0) {
+    const initialized = DEFAULT_ELEMENT_CHECKLIST.map((item) => {
+      if (item.key === key) {
+        return {
+          ...item,
+          checked,
+          checked_by: checked ? user.id : null,
+          checked_at: checked ? new Date().toISOString() : null,
+        }
+      }
+      return item
+    })
+
+    const { error: updateError } = await supabase
+      .from('elements')
+      .update({ checklist: JSON.parse(JSON.stringify(initialized)) })
+      .eq('id', elementId)
+
+    if (updateError) {
+      console.error('Error updating element checklist:', updateError)
+      return { error: updateError.message }
+    }
+
+    revalidatePath(`/factory/production/${elementId}`)
+    return { success: true }
+  }
+
+  // Update the specific item
+  const updatedChecklist = checklist.map((item) => {
+    if (item.key === key) {
+      return {
+        ...item,
+        checked,
+        checked_by: checked ? user.id : null,
+        checked_at: checked ? new Date().toISOString() : null,
+      }
+    }
+    return item
+  })
+
+  const { error: updateError } = await supabase
+    .from('elements')
+    .update({ checklist: JSON.parse(JSON.stringify(updatedChecklist)) })
+    .eq('id', elementId)
+
+  if (updateError) {
+    console.error('Error updating element checklist:', updateError)
+    return { error: updateError.message }
+  }
+
+  revalidatePath(`/factory/production/${elementId}`)
   return { success: true }
 }
 

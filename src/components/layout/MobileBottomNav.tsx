@@ -41,10 +41,11 @@ interface MoreItem {
     icon: LucideIcon
 }
 
-// Factory: 4 tabs + More
+// Factory: 5 tabs + More — scan is primary (high-frequency, one-tap access)
 const factoryTabs: TabItem[] = [
     { name: 'Heim', href: '/factory', icon: LayoutDashboard },
     { name: 'Verkefni', href: '/factory/projects', icon: FolderKanban },
+    { name: 'Skanna', href: '/factory/scan', icon: QrCode },
     { name: 'Framleiðsla', href: '/factory/production', icon: Factory },
     { name: 'Afhending', href: '/factory/deliveries', icon: Truck },
 ]
@@ -98,15 +99,27 @@ const adminMore: MoreItem[] = [
     { name: 'Hjálp', href: '/admin/help', icon: HelpCircle },
 ]
 
+// Rebar worker: minimal tabs — large touch targets, simple workflow
+const rebarTabs: TabItem[] = [
+    { name: 'Yfirlit', href: '/rebar', icon: LayoutDashboard },
+    { name: 'Verkefni', href: '/rebar/projects', icon: FolderKanban },
+    { name: 'Skanna', href: '/rebar/scan', icon: QrCode },
+]
+
+const rebarMore: MoreItem[] = [
+    { name: 'Hjálp', href: '/rebar/help', icon: HelpCircle },
+]
+
 const tabsByRole: Record<string, { tabs: TabItem[]; more: MoreItem[] }> = {
     factory_manager: { tabs: factoryTabs, more: factoryMore },
     driver: { tabs: driverTabs, more: driverMore },
     buyer: { tabs: buyerTabs, more: buyerMore },
     admin: { tabs: adminTabs, more: adminMore },
+    rebar_worker: { tabs: rebarTabs, more: rebarMore },
 }
 
 function isTabActive(pathname: string, href: string): boolean {
-    const isDashboard = href === '/factory' || href === '/admin' || href === '/buyer' || href === '/driver'
+    const isDashboard = href === '/factory' || href === '/admin' || href === '/buyer' || href === '/driver' || href === '/rebar'
     return isDashboard
         ? pathname === href
         : pathname === href || pathname?.startsWith(`${href}/`)
@@ -121,6 +134,7 @@ function getRoleFromPath(pathname: string): string | null {
     if (pathname.startsWith('/factory')) return 'factory_manager'
     if (pathname.startsWith('/buyer')) return 'buyer'
     if (pathname.startsWith('/driver')) return 'driver'
+    if (pathname.startsWith('/rebar')) return 'rebar_worker'
     return null
 }
 
