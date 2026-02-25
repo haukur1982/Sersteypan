@@ -2249,6 +2249,150 @@ export type Database = {
           },
         ]
       },
+      shift_groups: {
+        Row: {
+          id: string
+          name: string
+          color: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          color?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          color?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      shift_group_members: {
+        Row: {
+          id: string
+          group_id: string
+          profile_id: string | null
+          display_name: string
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          group_id: string
+          profile_id?: string | null
+          display_name: string
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          group_id?: string
+          profile_id?: string | null
+          display_name?: string
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "shift_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_group_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_patterns: {
+        Row: {
+          id: string
+          name: string
+          start_date: string
+          cycle_days: number
+          pattern: string[][]
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name?: string
+          start_date: string
+          cycle_days: number
+          pattern: string[][]
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          start_date?: string
+          cycle_days?: number
+          pattern?: string[][]
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      shift_overrides: {
+        Row: {
+          id: string
+          member_id: string
+          override_date: string
+          override_type: string
+          reason: string | null
+          approved_by: string | null
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          member_id: string
+          override_date: string
+          override_type: string
+          reason?: string | null
+          approved_by?: string | null
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          member_id?: string
+          override_date?: string
+          override_type?: string
+          reason?: string | null
+          approved_by?: string | null
+          created_by?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_overrides_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "shift_group_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_overrides_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       visual_verifications: {
         Row: {
           created_at: string
@@ -2338,6 +2482,7 @@ export type Database = {
       }
       generate_batch_number: { Args: never; Returns: string }
       generate_rebar_batch_number: { Args: never; Returns: string }
+      seed_shift_groups: { Args: Record<string, never>; Returns: undefined }
       get_user_company: { Args: never; Returns: string }
       get_user_role: { Args: never; Returns: string }
       is_delivery_for_buyer: { Args: { project_id: string }; Returns: boolean }

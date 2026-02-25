@@ -2,7 +2,9 @@ import { getServerUser } from '@/lib/auth/getServerUser'
 import { createClient } from '@/lib/supabase/server'
 import { getPriorityElements, getStuckElements, getElementCountsByProject } from '@/lib/factory/queries'
 import { getProjects } from '@/lib/projects/actions'
+import { getTodayShiftInfo } from '@/lib/shifts/queries'
 import { DailySummaryCard } from '@/components/shared/DailySummaryCard'
+import { ShiftTodayCard } from '@/components/factory/ShiftTodayCard'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -72,6 +74,7 @@ export default async function FactoryDashboard() {
         stuckElements,
         projectsResult,
         elementCounts,
+        shiftInfo,
     ] = await Promise.all([
         // All elements with status
         supabase.from('elements').select('status'),
@@ -109,6 +112,8 @@ export default async function FactoryDashboard() {
         getProjects(),
         // Element counts per project
         getElementCountsByProject(),
+        // Shift schedule info
+        getTodayShiftInfo(),
     ])
 
     // Try to fetch stock alerts (may not exist yet)
@@ -295,6 +300,17 @@ export default async function FactoryDashboard() {
                     </div>
                 </div>
             )}
+
+            {/* Shift Today Widget */}
+            <ShiftTodayCard
+                today={shiftInfo.today}
+                todayGroups={shiftInfo.todayGroups}
+                workers={shiftInfo.workers}
+                overrides={shiftInfo.overrides}
+                hasPattern={shiftInfo.hasPattern}
+                tomorrowGroups={shiftInfo.tomorrowGroups}
+                groups={shiftInfo.groups}
+            />
 
             {/* Priority Elements */}
             {priorityElements.length > 0 && (
