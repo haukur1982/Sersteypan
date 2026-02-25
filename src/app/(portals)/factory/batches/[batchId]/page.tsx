@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { ProductionChecklist } from '@/components/factory/ProductionChecklist'
 import { ConcreteSlipUpload } from '@/components/factory/ConcreteSlipUpload'
+import { QuickPhotoAction } from '@/components/factory/QuickPhotoAction'
 import { BatchCompletionButton } from './BatchCompletionButton'
 
 const statusLabels: Record<string, { label: string; className: string }> = {
@@ -80,6 +81,22 @@ export default async function BatchDetailPage({
 
     if (profileData) {
       profiles = Object.fromEntries(profileData.map((p) => [p.id, p]))
+    }
+  }
+
+  // Fetch photo counts for batch elements
+  const elementIds = (batch.elements || []).map((el) => el.id)
+  let photoCountMap: Record<string, number> = {}
+  if (elementIds.length > 0) {
+    const { data: photoCounts } = await supabase
+      .from('element_photos')
+      .select('element_id')
+      .in('element_id', elementIds)
+    if (photoCounts) {
+      photoCountMap = photoCounts.reduce<Record<string, number>>((acc, row) => {
+        acc[row.element_id] = (acc[row.element_id] || 0) + 1
+        return acc
+      }, {})
     }
   }
 
@@ -179,12 +196,14 @@ export default async function BatchDetailPage({
                   {batch.elements.map((element) => {
                     const elStatus = elementStatusLabels[element.status || 'planned'] || elementStatusLabels.planned
                     return (
-                      <Link
+                      <div
                         key={element.id}
-                        href={`/factory/production/${element.id}`}
                         className="flex items-center justify-between py-2.5 px-2 hover:bg-zinc-50 rounded-md -mx-2 transition-colors"
                       >
-                        <div className="flex items-center gap-3">
+                        <Link
+                          href={`/factory/production/${element.id}`}
+                          className="flex items-center gap-3 flex-1 min-w-0"
+                        >
                           <span className="font-medium text-sm text-zinc-900">
                             {element.name}
                             {((element as Record<string, unknown>).piece_count as number || 1) > 1 && (
@@ -197,18 +216,24 @@ export default async function BatchDetailPage({
                           {element.floor != null && (
                             <span className="text-xs text-zinc-500">Hæð {element.floor}</span>
                           )}
-                        </div>
-                        <div className="flex items-center gap-3">
+                        </Link>
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           {element.weight_kg && (
-                            <span className="text-xs text-zinc-500 tabular-nums">
+                            <span className="text-xs text-zinc-500 tabular-nums hidden sm:inline">
                               {element.weight_kg.toLocaleString('is-IS')} kg
                             </span>
                           )}
                           <Badge variant="outline" className={`text-xs ${elStatus.className}`}>
                             {elStatus.label}
                           </Badge>
+                          <QuickPhotoAction
+                            elementId={element.id}
+                            elementName={element.name}
+                            currentStatus={element.status || 'planned'}
+                            photoCount={photoCountMap[element.id] || 0}
+                          />
                         </div>
-                      </Link>
+                      </div>
                     )
                   })}
                 </div>

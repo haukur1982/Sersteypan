@@ -757,9 +757,11 @@ export type Database = {
           ready_at: string | null
           rebar_batch_id: string | null
           rebar_batch_number: string | null
+          rebar_batch_quantity: number | null
           rebar_completed_at: string | null
           rebar_done_count: number
           rebar_spec: string | null
+          batch_quantity: number | null
           cast_done_count: number
           status: string | null
           updated_at: string | null
@@ -794,9 +796,11 @@ export type Database = {
           ready_at?: string | null
           rebar_batch_id?: string | null
           rebar_batch_number?: string | null
+          rebar_batch_quantity?: number | null
           rebar_completed_at?: string | null
           rebar_done_count?: number
           rebar_spec?: string | null
+          batch_quantity?: number | null
           cast_done_count?: number
           status?: string | null
           updated_at?: string | null
@@ -831,9 +835,11 @@ export type Database = {
           ready_at?: string | null
           rebar_batch_id?: string | null
           rebar_batch_number?: string | null
+          rebar_batch_quantity?: number | null
           rebar_completed_at?: string | null
           rebar_done_count?: number
           rebar_spec?: string | null
+          batch_quantity?: number | null
           cast_done_count?: number
           status?: string | null
           updated_at?: string | null
@@ -2300,27 +2306,16 @@ export type Database = {
         Args: { p_batch_id: string; p_completed_by: string }
         Returns: Json
       }
-      create_batch_with_elements:
-      | {
+      create_batch_with_elements: {
         Args: {
-          p_concrete_grade?: string
-          p_concrete_supplier?: string
-          p_created_by: string
-          p_element_ids: string[]
-          p_notes?: string
           p_project_id: string
-        }
-        Returns: Json
-      }
-      | {
-        Args: {
+          p_element_ids: string[]
+          p_created_by: string
+          p_concrete_supplier?: string
+          p_concrete_grade?: string
+          p_notes?: string
           p_air_temperature_c?: number
-          p_concrete_grade?: string
-          p_concrete_supplier?: string
-          p_created_by: string
-          p_element_ids: string[]
-          p_notes?: string
-          p_project_id: string
+          p_element_quantities?: number[]
         }
         Returns: Json
       }
@@ -2330,6 +2325,7 @@ export type Database = {
           p_element_ids: string[]
           p_created_by: string
           p_notes?: string
+          p_element_quantities?: number[]
         }
         Returns: Json
       }

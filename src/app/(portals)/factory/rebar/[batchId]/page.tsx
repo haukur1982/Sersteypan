@@ -84,13 +84,13 @@ export default async function RebarBatchDetailPage({
   }
 
   // Fetch all drawing documents for the project
-  let projectDrawings: Array<{ id: string; name: string; file_url: string }> = []
+  let projectDrawings: Array<{ id: string; name: string; file_url: string; category: string }> = []
   if (batch.project_id) {
     const { data: drawingsData } = await supabase
       .from('project_documents')
-      .select('id, name, file_url')
+      .select('id, name, file_url, category')
       .eq('project_id', batch.project_id)
-      .eq('category', 'drawing')
+      .in('category', ['drawing', 'rebar'])
     if (drawingsData) projectDrawings = drawingsData
   }
 
@@ -269,36 +269,67 @@ export default async function RebarBatchDetailPage({
         </div >
 
         {/* Right column — sidebar */}
-        < div className="space-y-6" >
+        <div className="space-y-6">
+          {/* Project Drawings */}
+          <Card className="border-zinc-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4 text-blue-600" />
+                Teikningar ({projectDrawings.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {projectDrawings.length === 0 ? (
+                <p className="text-sm text-zinc-500 text-center py-2">
+                  Engar teikningar fundust
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {projectDrawings.map((doc) => (
+                    <a
+                      key={doc.id}
+                      href={doc.file_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 p-2 rounded-md hover:bg-zinc-50 transition-colors text-sm"
+                    >
+                      <FileText className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                      <span className="text-zinc-900 hover:underline truncate flex-1">{doc.name}</span>
+                      <Badge variant="outline" className="text-[10px] flex-shrink-0">
+                        {doc.category === 'rebar' ? 'Armering' : 'Teikning'}
+                      </Badge>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Notes */}
-          {
-            batch.notes && (
-              <Card className="border-zinc-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Athugasemdir</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-zinc-700 whitespace-pre-wrap">{batch.notes}</p>
-                </CardContent>
-              </Card>
-            )
-          }
+          {batch.notes && (
+            <Card className="border-zinc-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Athugasemdir</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-zinc-700 whitespace-pre-wrap">{batch.notes}</p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Approval info */}
-          {
-            isApproved && batch.approved_at && (
-              <Card className="border-green-200 bg-green-50/50">
-                <CardContent className="py-3">
-                  <p className="text-sm text-green-900 font-medium">Lota samþykkt</p>
-                  <p className="text-xs text-green-700 mt-0.5">
-                    {new Date(batch.approved_at).toLocaleString('is-IS')}
-                    {batch.approver && ` — ${batch.approver.full_name}`}
-                  </p>
-                </CardContent>
-              </Card>
-            )
-          }
-        </div >
+          {isApproved && batch.approved_at && (
+            <Card className="border-green-200 bg-green-50/50">
+              <CardContent className="py-3">
+                <p className="text-sm text-green-900 font-medium">Lota samþykkt</p>
+                <p className="text-xs text-green-700 mt-0.5">
+                  {new Date(batch.approved_at).toLocaleString('is-IS')}
+                  {batch.approver && ` — ${batch.approver.full_name}`}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div >
     </div >
   )

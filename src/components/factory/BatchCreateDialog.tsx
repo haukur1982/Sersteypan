@@ -19,7 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Layers, Loader2, AlertCircle, Plus, ChevronDown, ChevronRight } from 'lucide-react'
+import { Layers, Loader2, AlertCircle, Plus, ChevronDown, ChevronRight, Minus } from 'lucide-react'
 import { createBatch, getUnbatchedElements } from '@/lib/factory/batch-actions'
 
 interface UnbatchedElement {
@@ -29,6 +29,8 @@ interface UnbatchedElement {
   status: string | null
   floor: number | null
   weight_kg: number | null
+  piece_count: number
+  cast_done_count: number
 }
 
 // Tab order matching owner's mockup: Filigran → Balcony → Stairs → Columns → Other
@@ -70,6 +72,7 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
 
   const [elements, setElements] = useState<UnbatchedElement[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [quantities, setQuantities] = useState<Map<string, number>>(new Map())
   const [concreteSupplier, setConcreteSupplier] = useState('')
   const [concreteGrade, setConcreteGrade] = useState('C35 ½ flot 70-75 á mæli')
   const [airTemperature, setAirTemperature] = useState('')
@@ -158,13 +161,22 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
     }))
   }
 
+  function remainingPieces(el: UnbatchedElement) {
+    return (el.piece_count || 1) - (el.cast_done_count || 0)
+  }
+
   function toggleElement(id: string) {
+    const el = elements.find(e => e.id === id)
     setSelectedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) {
         next.delete(id)
+        setQuantities(prev => { const m = new Map(prev); m.delete(id); return m })
       } else {
         next.add(id)
+        if (el && (el.piece_count || 1) > 1) {
+          setQuantities(prev => new Map(prev).set(id, remainingPieces(el)))
+        }
       }
       return next
     })
@@ -177,8 +189,20 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
       const next = new Set(prev)
       if (allSelected) {
         typeElements.forEach((e) => next.delete(e.id))
+        setQuantities(prev => {
+          const m = new Map(prev)
+          typeElements.forEach(e => m.delete(e.id))
+          return m
+        })
       } else {
         typeElements.forEach((e) => next.add(e.id))
+        setQuantities(prev => {
+          const m = new Map(prev)
+          typeElements.forEach(e => {
+            if ((e.piece_count || 1) > 1) m.set(e.id, remainingPieces(e))
+          })
+          return m
+        })
       }
       return next
     })
@@ -194,8 +218,20 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
       const next = new Set(prev)
       if (allSelected) {
         floorElements.forEach((e) => next.delete(e.id))
+        setQuantities(prev => {
+          const m = new Map(prev)
+          floorElements.forEach(e => m.delete(e.id))
+          return m
+        })
       } else {
         floorElements.forEach((e) => next.add(e.id))
+        setQuantities(prev => {
+          const m = new Map(prev)
+          floorElements.forEach(e => {
+            if ((e.piece_count || 1) > 1) m.set(e.id, remainingPieces(e))
+          })
+          return m
+        })
       }
       return next
     })
@@ -223,6 +259,13 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
     setLoading(true)
     setError(null)
 
+    // Build element_quantities for multi-piece elements
+    const elementQuantities: Record<string, number> = {}
+    for (const id of selectedIds) {
+      const qty = quantities.get(id)
+      if (qty != null) elementQuantities[id] = qty
+    }
+
     const result = await createBatch({
       project_id: projectId,
       element_ids: Array.from(selectedIds),
@@ -230,6 +273,7 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
       concrete_grade: concreteGrade || undefined,
       air_temperature_c: airTemperature ? parseFloat(airTemperature) : undefined,
       notes: notes || undefined,
+      element_quantities: Object.keys(elementQuantities).length > 0 ? elementQuantities : undefined,
     })
 
     if (result.error) {
@@ -240,6 +284,7 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
       setLoading(false)
       // Reset
       setSelectedIds(new Set())
+      setQuantities(new Map())
       setConcreteSupplier('')
       setConcreteGrade('')
       setAirTemperature('')
@@ -254,9 +299,12 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
     }
   }
 
-  const totalWeight = elements
-    .filter((e) => selectedIds.has(e.id))
-    .reduce((sum, e) => sum + (e.weight_kg || 0), 0)
+  const selectedElements = elements.filter((e) => selectedIds.has(e.id))
+  const totalWeight = selectedElements.reduce((sum, e) => sum + (e.weight_kg || 0), 0)
+  const totalPieces = selectedElements.reduce((sum, e) => {
+    const qty = quantities.get(e.id)
+    return sum + (qty ?? remainingPieces(e))
+  }, 0)
 
   // Count selected per type
   function selectedCountForType(typeKey: string) {
@@ -351,7 +399,7 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label className="text-base font-semibold">
-              Einingar ({selectedIds.size} / {elements.length} valdar)
+              Einingar ({selectedIds.size} valdar{totalPieces !== selectedIds.size ? ` · ${totalPieces} stk` : ''})
             </Label>
           </div>
 
@@ -461,7 +509,7 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
             ) : (
               <>
                 <Layers className="h-4 w-4 mr-2" />
-                Stofna lotu ({selectedIds.size} einingar)
+                Stofna lotu ({totalPieces} stk)
               </>
             )}
           </Button>
@@ -531,20 +579,73 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
   }
 
   function renderElementRow(element: UnbatchedElement) {
+    const isSelected = selectedIds.has(element.id)
+    const pc = element.piece_count || 1
+    const remaining = remainingPieces(element)
+    const isMulti = pc > 1
+    const qty = quantities.get(element.id) ?? remaining
+
     return (
       <label
         key={element.id}
         className="flex items-center gap-3 px-3 py-2 hover:bg-zinc-50 cursor-pointer"
       >
         <Checkbox
-          checked={selectedIds.has(element.id)}
+          checked={isSelected}
           onCheckedChange={() => toggleElement(element.id)}
           disabled={loading}
         />
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex items-center gap-2">
           <span className="text-sm font-medium text-zinc-900">{element.name}</span>
+          {isMulti && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal text-zinc-500">
+              {remaining < pc ? `${remaining} af ${pc} eftir` : `×${pc}`}
+            </Badge>
+          )}
         </div>
-        {element.weight_kg != null && element.weight_kg > 0 && (
+        {isSelected && isMulti && (
+          <div className="flex items-center gap-1" onClick={e => e.preventDefault()}>
+            <button
+              type="button"
+              className="h-6 w-6 flex items-center justify-center rounded border border-zinc-200 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+              disabled={loading || qty <= 1}
+              onClick={(e) => {
+                e.preventDefault()
+                setQuantities(prev => new Map(prev).set(element.id, Math.max(1, qty - 1)))
+              }}
+            >
+              <Minus className="h-3 w-3" />
+            </button>
+            <Input
+              type="number"
+              min={1}
+              max={remaining}
+              value={qty}
+              onChange={(e) => {
+                const v = parseInt(e.target.value)
+                if (!isNaN(v) && v >= 1 && v <= remaining) {
+                  setQuantities(prev => new Map(prev).set(element.id, v))
+                }
+              }}
+              disabled={loading}
+              className="h-6 w-10 text-center text-xs px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              onClick={(e) => e.preventDefault()}
+            />
+            <button
+              type="button"
+              className="h-6 w-6 flex items-center justify-center rounded border border-zinc-200 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+              disabled={loading || qty >= remaining}
+              onClick={(e) => {
+                e.preventDefault()
+                setQuantities(prev => new Map(prev).set(element.id, Math.min(remaining, qty + 1)))
+              }}
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+            <span className="text-[10px] text-zinc-400 ml-0.5">stk</span>
+          </div>
+        )}
+        {element.weight_kg != null && element.weight_kg > 0 && !(isSelected && isMulti) && (
           <span className="text-xs text-zinc-500 tabular-nums">
             {element.weight_kg.toLocaleString('is-IS')} kg
           </span>

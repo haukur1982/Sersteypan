@@ -56,6 +56,7 @@ interface CreateBatchData {
   concrete_grade?: string
   notes?: string
   air_temperature_c?: number
+  element_quantities?: Record<string, number>
 }
 
 // =====================================================
@@ -101,6 +102,11 @@ export async function createBatch(data: CreateBatchData) {
       return { error: 'Engar einingar valdar' }
     }
 
+    // Convert element_quantities Record to parallel array matching element_ids order
+    const elementQuantities = data.element_quantities
+      ? data.element_ids.map(id => data.element_quantities![id] ?? null).filter((q): q is number => q !== null)
+      : undefined
+
     const { data: result, error: rpcError } = await supabase.rpc('create_batch_with_elements', {
       p_project_id: data.project_id,
       p_element_ids: data.element_ids,
@@ -109,6 +115,7 @@ export async function createBatch(data: CreateBatchData) {
       p_concrete_grade: data.concrete_grade || undefined,
       p_notes: data.notes || undefined,
       p_air_temperature_c: data.air_temperature_c ?? undefined,
+      p_element_quantities: elementQuantities?.length === data.element_ids.length ? elementQuantities : undefined,
     })
 
     if (rpcError) {
@@ -523,7 +530,7 @@ export async function getUnbatchedElements(projectId: string) {
 
     const { data: elements, error } = await supabase
       .from('elements')
-      .select('id, name, element_type, status, floor, weight_kg, piece_count')
+      .select('id, name, element_type, status, floor, weight_kg, piece_count, cast_done_count')
       .eq('project_id', projectId)
       .is('batch_id', null)
       .eq('status', 'rebar')

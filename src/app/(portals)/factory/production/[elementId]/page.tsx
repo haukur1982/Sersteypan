@@ -154,15 +154,18 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
         return notFound()
     }
 
-    // Fetch checklist separately — column may not exist until migration 046 is pushed
+    // Only fetch checklist for cast+ statuses — irrelevant during planned/rebar
+    const showChecklist = !['planned', 'rebar'].includes(element.status ?? '')
     let elementChecklist: import('@/lib/elements/actions').ChecklistItem[] = []
-    const { data: checklistRow } = await supabase
-        .from('elements')
-        .select('checklist')
-        .eq('id', elementId)
-        .single()
-    if (checklistRow?.checklist && Array.isArray(checklistRow.checklist)) {
-        elementChecklist = checklistRow.checklist as unknown as import('@/lib/elements/actions').ChecklistItem[]
+    if (showChecklist) {
+        const { data: checklistRow } = await supabase
+            .from('elements')
+            .select('checklist')
+            .eq('id', elementId)
+            .single()
+        if (checklistRow?.checklist && Array.isArray(checklistRow.checklist)) {
+            elementChecklist = checklistRow.checklist as unknown as import('@/lib/elements/actions').ChecklistItem[]
+        }
     }
 
     const elementDetail = { ...element, checklist: elementChecklist } as unknown as ElementDetail
@@ -302,12 +305,14 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                 </CardContent>
             </Card>
 
-            {/* Per-Element Production Checklist */}
-            <ElementProductionChecklist
-                elementId={elementDetail.id}
-                checklist={elementChecklist}
-                disabled={elementDetail.status === 'delivered' || elementDetail.status === 'loaded'}
-            />
+            {/* Per-Element Production Checklist — only shown for cast+ statuses */}
+            {showChecklist && (
+                <ElementProductionChecklist
+                    elementId={elementDetail.id}
+                    checklist={elementChecklist}
+                    disabled={elementDetail.status === 'delivered' || elementDetail.status === 'loaded'}
+                />
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column: Element Details */}

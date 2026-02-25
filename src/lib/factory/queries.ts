@@ -89,7 +89,7 @@ export async function getElementCountsByProject(): Promise<Record<string, Record
 
   const { data, error } = await supabase
     .from('elements')
-    .select('project_id, status')
+    .select('project_id, status, piece_count')
 
   if (error) {
     console.error('Error fetching element counts:', error)
@@ -101,7 +101,7 @@ export async function getElementCountsByProject(): Promise<Record<string, Record
     const pid = el.project_id
     const status = el.status || 'planned'
     if (!counts[pid]) counts[pid] = {}
-    counts[pid][status] = (counts[pid][status] || 0) + 1
+    counts[pid][status] = (counts[pid][status] || 0) + ((el as Record<string, unknown>).piece_count as number || 1)
   }
 
   return counts

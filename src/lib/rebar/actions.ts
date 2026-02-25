@@ -70,6 +70,11 @@ export async function startRebarWork(elementId: string): Promise<{
   revalidatePath('/rebar')
   revalidatePath(`/rebar/element/${elementId}`)
   revalidatePath(`/rebar/projects/${element.project_id}`)
+  revalidatePath('/factory')
+  revalidatePath('/factory/production')
+  revalidatePath(`/factory/production/${elementId}`)
+  revalidatePath('/factory/projects')
+  revalidatePath(`/factory/projects/${element.project_id}`)
 
   return { success: true }
 }
@@ -144,6 +149,11 @@ export async function markRebarComplete(elementId: string): Promise<{
   revalidatePath('/rebar')
   revalidatePath(`/rebar/element/${elementId}`)
   revalidatePath(`/rebar/projects/${element.project_id}`)
+  revalidatePath('/factory')
+  revalidatePath('/factory/production')
+  revalidatePath(`/factory/production/${elementId}`)
+  revalidatePath('/factory/projects')
+  revalidatePath(`/factory/projects/${element.project_id}`)
 
   return { success: true }
 }

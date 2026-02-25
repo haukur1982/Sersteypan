@@ -35,7 +35,7 @@ export default async function RebarBatchPdfPage({
             .from('project_documents')
             .select('id, name, file_url')
             .eq('project_id', batch.project_id)
-            .eq('category', 'drawing')
+            .in('category', ['drawing', 'rebar'])
         if (drawingsData) projectDrawings = drawingsData
     }
 

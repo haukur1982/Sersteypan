@@ -174,7 +174,7 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
                     <h2 className="text-xl font-semibold text-foreground">
-                        Einingar ({elementList.length})
+                        Einingar ({elementList.reduce((sum, e) => sum + ((e as Record<string, unknown>).piece_count as number || 1), 0)} stk)
                     </h2>
                     <div className="flex items-center gap-2">
                         <RebarBatchCreateDialog projects={[{ id: project.id, name: project.name || '' }]} />

@@ -59,6 +59,7 @@ interface CreateRebarBatchData {
   project_id: string
   element_ids: string[]
   notes?: string
+  element_quantities?: Record<string, number>
 }
 
 // =====================================================
@@ -103,11 +104,17 @@ export async function createRebarBatch(data: CreateRebarBatchData) {
       return { error: 'Engar einingar valdar' }
     }
 
+    // Convert element_quantities Record to parallel array matching element_ids order
+    const elementQuantities = data.element_quantities
+      ? data.element_ids.map(id => data.element_quantities![id] ?? null).filter((q): q is number => q !== null)
+      : undefined
+
     const { data: result, error: rpcError } = await supabase.rpc('create_rebar_batch_with_elements', {
       p_project_id: data.project_id,
       p_element_ids: data.element_ids,
       p_created_by: user.id,
       p_notes: data.notes || undefined,
+      p_element_quantities: elementQuantities?.length === data.element_ids.length ? elementQuantities : undefined,
     })
 
     if (rpcError) {
@@ -430,7 +437,7 @@ export async function getRebarUnbatchedElements(projectId: string) {
 
     const { data: elements, error } = await supabase
       .from('elements')
-      .select('id, name, element_type, status, floor, weight_kg')
+      .select('id, name, element_type, status, floor, weight_kg, piece_count, rebar_done_count')
       .eq('project_id', projectId)
       .is('rebar_batch_id', null)
       .eq('status', 'planned')
