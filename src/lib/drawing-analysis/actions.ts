@@ -304,34 +304,42 @@ export async function commitAnalysisElements(
 
     const drawingRef = analysis.document_name
 
-    if (element.quantity > 1 && element.production_notes?.match(/\d+H:/)) {
-      // Has per-floor breakdown — expand per floor
-      const floorBreakdown = parseFloorBreakdown(element.production_notes)
+    if (element.quantity > 1) {
+      // Multiple items — try floor breakdown first, then plain expansion
+      let expanded = false
 
-      if (floorBreakdown.length > 0) {
-        for (const { floor, count } of floorBreakdown) {
-          for (let i = 1; i <= count; i++) {
-            elementsToInsert.push({
-              project_id: projectId,
-              building_id: buildingId,
-              name: `${element.name}-${floor}H-${i}`,
-              element_type: systemType,
-              status: 'planned',
-              floor,
-              length_mm: element.length_mm,
-              width_mm: element.width_mm,
-              height_mm: element.height_mm,
-              weight_kg: weightKg,
-              rebar_spec: element.rebar_spec,
-              drawing_reference: drawingRef,
-              production_notes: element.production_notes,
-              priority: 0,
-              created_by: user.id,
-            })
+      if (element.production_notes?.match(/\d+H:/)) {
+        // Has per-floor breakdown — expand per floor
+        const floorBreakdown = parseFloorBreakdown(element.production_notes)
+
+        if (floorBreakdown.length > 0) {
+          for (const { floor, count } of floorBreakdown) {
+            for (let i = 1; i <= count; i++) {
+              elementsToInsert.push({
+                project_id: projectId,
+                building_id: buildingId,
+                name: `${element.name}-${floor}H-${i}`,
+                element_type: systemType,
+                status: 'planned',
+                floor,
+                length_mm: element.length_mm,
+                width_mm: element.width_mm,
+                height_mm: element.height_mm,
+                weight_kg: weightKg,
+                rebar_spec: element.rebar_spec,
+                drawing_reference: drawingRef,
+                production_notes: element.production_notes,
+                priority: 0,
+                created_by: user.id,
+              })
+            }
           }
+          expanded = true
         }
-      } else {
-        // Couldn't parse floor breakdown — create quantity items without floor suffix
+      }
+
+      if (!expanded) {
+        // No floor breakdown (or couldn't parse) — expand by quantity with suffix
         for (let i = 1; i <= element.quantity; i++) {
           elementsToInsert.push({
             project_id: projectId,
@@ -353,7 +361,7 @@ export async function commitAnalysisElements(
         }
       }
     } else {
-      // Single element (quantity 1)
+      // Single element (quantity === 1)
       elementsToInsert.push({
         project_id: projectId,
         building_id: buildingId,
