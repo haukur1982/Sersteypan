@@ -232,10 +232,7 @@ export async function commitAnalysisElements(
 
   if (existingBuildings) {
     for (const b of existingBuildings) {
-      buildingMap[b.name.toLowerCase()] = b.id
-      // Also map without "Hús " prefix
-      const stripped = b.name.toLowerCase().replace(/^hús\s+/i, '')
-      buildingMap[stripped] = b.id
+      indexBuildingName(b.name, b.id, buildingMap)
     }
   }
 
@@ -257,11 +254,8 @@ export async function commitAnalysisElements(
         continue
       }
 
-      buildingMap[bld.name.toLowerCase()] = newBuilding.id
+      indexBuildingName(bld.name, newBuilding.id, buildingMap)
       buildingMap[bld.tempId] = newBuilding.id
-      // Map without "Hús " prefix
-      const stripped = bld.name.toLowerCase().replace(/^hús\s+/i, '')
-      buildingMap[stripped] = newBuilding.id
     }
   }
 
@@ -302,11 +296,15 @@ export async function commitAnalysisElements(
       }
     }
 
-    const drawingRef = analysis.document_name
+    // Use element base name as drawing_reference — this is how framvinda
+    // groups svalir/svalagangar into contract lines. Using the PDF filename
+    // would merge different element types from the same PDF into one line
+    // and split the same element type across PDFs into separate lines.
+    const drawingRef = element.name
 
     if (element.quantity > 1) {
       // Multiple items — try floor breakdown first, then plain expansion
-      let expanded = false
+      let floorExpandedCount = 0
 
       if (element.production_notes?.match(/\d+H:/)) {
         // Has per-floor breakdown — expand per floor
@@ -332,19 +330,24 @@ export async function commitAnalysisElements(
                 priority: 0,
                 created_by: user.id,
               })
+              floorExpandedCount++
             }
           }
-          expanded = true
         }
       }
 
-      if (!expanded) {
-        // No floor breakdown (or couldn't parse) — expand by quantity with suffix
-        for (let i = 1; i <= element.quantity; i++) {
+      // Create remaining records if floor breakdown didn't cover all,
+      // or all records if no floor breakdown was found
+      const remaining = element.quantity - floorExpandedCount
+      if (remaining > 0) {
+        for (let i = 1; i <= remaining; i++) {
+          const suffix = floorExpandedCount > 0
+            ? floorExpandedCount + i  // continue numbering after floor records
+            : i
           elementsToInsert.push({
             project_id: projectId,
             building_id: buildingId,
-            name: `${element.name}-${i}`,
+            name: `${element.name}-${suffix}`,
             element_type: systemType,
             status: 'planned',
             floor: element.floor,
@@ -495,8 +498,63 @@ export async function deleteAnalysis(analysisId: string) {
 // -- Helper Functions --
 
 /**
+ * Known prefixes the AI or title blocks put before the building letter/number.
+ * Order matters: longest/most-specific first so we strip greedily.
+ *
+ * Examples from real drawings:
+ *   "Einingar hús A"  → strip "einingar hús " → "a"
+ *   "Hús B"           → strip "hús "          → "b"
+ *   "Blokk 2"         → strip "blokk "        → "2"
+ *   "Building C"      → strip "building "      → "c"
+ */
+const BUILDING_PREFIXES = [
+  /^einingar\s+hús\s+/i,
+  /^einingar\s+/i,
+  /^hús\s+/i,
+  /^blokk\s+/i,
+  /^building\s+/i,
+  /^bygging\s+/i,
+]
+
+/**
+ * Index a building name under every reasonable key so later lookups succeed.
+ *
+ * For "Hús A" we index: "hús a", "a", "hús a" (with prefix).
+ * For "Einingar hús B" we also index: "einingar hús b", "hús b", "b".
+ */
+function indexBuildingName(
+  name: string,
+  id: string,
+  map: Record<string, string>
+): void {
+  const lower = name.toLowerCase().trim()
+  map[lower] = id
+
+  // Progressively strip each prefix and index the result
+  let current = lower
+  for (const prefix of BUILDING_PREFIXES) {
+    const stripped = current.replace(prefix, '')
+    if (stripped !== current && stripped.length > 0) {
+      map[stripped] = id
+      current = stripped
+    }
+  }
+
+  // Also index the last token (typically the letter/number: "A", "B", "1")
+  const lastToken = lower.split(/\s+/).pop()
+  if (lastToken && lastToken.length <= 3) {
+    map[lastToken] = id
+  }
+}
+
+/**
  * Resolve a building name to a building ID from the map.
- * Handles variations like "A", "Hús A", "hús a", "HÚS A"
+ *
+ * Handles the full range of variations the AI might extract:
+ *   "A", "Hús A", "hús a", "HÚS A", "Einingar hús A", "Blokk A"
+ *
+ * Strategy: try direct match first, then strip known prefixes one by one,
+ * then try adding "hús " prefix, then fall back to last-token match.
  */
 function resolveBuildingId(
   building: string | null,
@@ -506,16 +564,38 @@ function resolveBuildingId(
 
   const normalized = building.toLowerCase().trim()
 
-  // Direct match
+  // 1. Direct match (covers most cases thanks to indexBuildingName)
   if (buildingMap[normalized]) return buildingMap[normalized]
 
-  // Try without "Hús " prefix
-  const stripped = normalized.replace(/^hús\s+/i, '')
-  if (buildingMap[stripped]) return buildingMap[stripped]
+  // 2. Progressively strip prefixes and try each
+  let current = normalized
+  for (const prefix of BUILDING_PREFIXES) {
+    const stripped = current.replace(prefix, '')
+    if (stripped !== current && stripped.length > 0) {
+      if (buildingMap[stripped]) return buildingMap[stripped]
+      current = stripped
+    }
+  }
 
-  // Try adding "Hús " prefix
-  const withPrefix = `hús ${stripped}`
+  // 3. Try adding "hús " prefix to what remains
+  const withPrefix = `hús ${current}`
   if (buildingMap[withPrefix]) return buildingMap[withPrefix]
+
+  // 4. Last-token match: "Einingar hús A" → try just "a"
+  const lastToken = normalized.split(/\s+/).pop()
+  if (lastToken && lastToken !== normalized && buildingMap[lastToken]) {
+    return buildingMap[lastToken]
+  }
+
+  // 5. Partial match: check if any indexed key ends with the same letter/number.
+  //    This catches cases like AI says "Hús A-blokk" and DB has "A".
+  if (lastToken && lastToken.length <= 3) {
+    for (const [key, id] of Object.entries(buildingMap)) {
+      if (key.length <= 3 && key === lastToken) {
+        return id
+      }
+    }
+  }
 
   return null
 }
