@@ -1,8 +1,3 @@
 {
-  "regions": ["dub1"],
-  "functions": {
-    "src/**/*.ts": {
-      "maxDuration": 30
-    }
-  }
+  "regions": ["dub1"]
 }
