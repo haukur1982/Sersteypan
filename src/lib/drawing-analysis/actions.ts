@@ -562,8 +562,8 @@ export async function retryAnalysis(analysisId: string) {
     return { error: 'Greining fannst ekki' }
   }
 
-  if (analysis.status !== 'processing' && analysis.status !== 'failed') {
-    return { error: 'Aðeins hægt að reyna aftur greiningar sem eru í vinnslu eða hafa mistekist' }
+  if (!['pending', 'processing', 'failed'].includes(analysis.status)) {
+    return { error: 'Aðeins hægt að reyna aftur greiningar sem eru í bið, í vinnslu eða hafa mistekist' }
   }
 
   const { error } = await supabase

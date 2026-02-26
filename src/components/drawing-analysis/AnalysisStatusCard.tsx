@@ -85,11 +85,11 @@ export function AnalysisStatusCard({
     : []
   const elementCount = elements.length
 
-  // Detect stale 'processing' — if stuck for >3 minutes, the background function was likely killed.
-  // Only calls setState inside interval callback (subscription pattern) to satisfy React lint rules.
-  // Initial check fires after 5s; re-checks every 30s.
+  // Detect stale analysis — if stuck in 'pending' or 'processing' for >3 minutes,
+  // the API call likely failed or the background function was killed.
+  // Only calls setState inside interval/timeout callbacks to satisfy React lint rules.
   useEffect(() => {
-    if (status !== 'processing') return
+    if (status !== 'processing' && status !== 'pending') return
 
     const checkStale = () => {
       const updatedMs = new Date(analysis.updated_at).getTime()
@@ -222,13 +222,13 @@ export function AnalysisStatusCard({
               </p>
             )}
 
-            {status === 'processing' && !isStaleProcessing && (
+            {(status === 'processing' || status === 'pending') && !isStaleProcessing && (
               <p className="text-sm text-blue-600 mb-2">
                 AI les teikninguna og dregur út einingar. Þetta getur tekið 30–60 sekúndur.
               </p>
             )}
 
-            {status === 'processing' && isStaleProcessing && (
+            {(status === 'processing' || status === 'pending') && isStaleProcessing && (
               <div className="flex items-center gap-2 mb-2">
                 <p className="text-sm text-amber-600">
                   Greining virðist hafa stöðvast.
