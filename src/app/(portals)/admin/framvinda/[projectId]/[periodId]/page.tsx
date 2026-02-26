@@ -5,8 +5,6 @@ import {
   getPeriodLines,
   getCumulativeBeforePeriod,
   getProjectForFramvinda,
-  getProjectElements,
-  getProjectDeliveries,
 } from '@/lib/framvinda/queries'
 import { redirect } from 'next/navigation'
 import { FramvindaEditorClient } from './FramvindaEditorClient'
@@ -38,12 +36,6 @@ export default async function FramvindaPeriodPage({ params }: PageProps) {
     period.period_number
   )
 
-  // Get elements/deliveries for auto-suggest
-  const [elements, deliveries] = await Promise.all([
-    getProjectElements(projectId),
-    getProjectDeliveries(projectId),
-  ])
-
   const companyName =
     (project.companies as { name: string; kennitala: string } | null)?.name ?? ''
 
@@ -63,8 +55,6 @@ export default async function FramvindaPeriodPage({ params }: PageProps) {
       period={period}
       periodLines={periodLines}
       cumulativeBefore={cumulativeBefore}
-      elements={elements}
-      deliveries={deliveries}
     />
   )
 }

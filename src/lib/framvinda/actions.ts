@@ -514,6 +514,83 @@ export async function createPeriod(
   return { error: '', periodId: period.id }
 }
 
+/**
+ * Re-fetch fresh element/delivery data from DB and recalculate period quantities.
+ *
+ * Called from the period editor "Stinga upp magni" button to ensure
+ * the auto-suggested quantities use the LATEST production data,
+ * not stale data from page load.
+ *
+ * Skips lines the admin has manually adjusted.
+ */
+export async function refreshPeriodQuantities(
+  periodId: string,
+  contractId: string,
+  periodStart: string,
+  periodEnd: string,
+  manuallyAdjustedLineIds: string[]
+): Promise<{
+  error: string
+  quantities?: Record<string, number>
+}> {
+  const user = await getServerUser()
+  if (!user) return { error: 'Ekki innskráður' }
+
+  const supabase = await createClient()
+
+  // Get contract lines
+  const { data: contractLines } = await supabase
+    .from('framvinda_contract_lines')
+    .select('*')
+    .eq('contract_id', contractId)
+
+  if (!contractLines || contractLines.length === 0) {
+    return { error: '', quantities: {} }
+  }
+
+  // Get project ID
+  const { data: contract } = await supabase
+    .from('framvinda_contracts')
+    .select('project_id')
+    .eq('id', contractId)
+    .single()
+
+  if (!contract) return { error: 'Samningur fannst ekki' }
+
+  // Fetch FRESH element and delivery data
+  const [elemResult, delResult] = await Promise.all([
+    supabase
+      .from('elements')
+      .select('id, name, element_type, building_id, floor, length_mm, width_mm, drawing_reference, status, cast_at, ready_at, delivered_at, piece_count')
+      .eq('project_id', contract.project_id),
+    supabase
+      .from('deliveries')
+      .select('id, status, completed_at')
+      .eq('project_id', contract.project_id),
+  ])
+
+  const elements = elemResult.data ?? []
+  const deliveries = delResult.data ?? []
+  const manualSet = new Set(manuallyAdjustedLineIds)
+
+  // Calculate fresh quantities for each non-manual line
+  const quantities: Record<string, number> = {}
+  for (const cl of contractLines) {
+    if (manualSet.has(cl.id)) continue // Skip manually adjusted
+
+    const suggested = suggestQuantityForLine(
+      cl,
+      elements,
+      deliveries,
+      periodStart,
+      periodEnd
+    )
+    quantities[cl.id] = Math.round(suggested * 10000) / 10000
+  }
+
+  return { error: '', quantities }
+}
+
 export async function savePeriodLines(
   periodId: string,
   visitala: number,

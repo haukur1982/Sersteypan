@@ -7,6 +7,7 @@
 
 import {
   validateDrawingAnalysisResponse,
+  extractedElementSchema,
   type DrawingAnalysisResponse,
   type ExtractedElement,
 } from '@/lib/schemas/drawing-analysis'
@@ -77,21 +78,39 @@ export function parseDrawingAnalysisResponse(
     }
   }
 
-  // 4. Salvage partial data if validation fails
+  // 4. Salvage partial data if validation fails — validate each element individually
+  //    to prevent garbage data from entering the commit pipeline.
   const rawData = parsed as Record<string, unknown>
-  const elements = Array.isArray(rawData?.elements) ? rawData.elements : []
+  const rawElements = Array.isArray(rawData?.elements) ? rawData.elements : []
+  const validElements: ExtractedElement[] = []
+  const elementWarnings: string[] = []
+
+  for (let i = 0; i < rawElements.length; i++) {
+    const result = extractedElementSchema.safeParse(rawElements[i])
+    if (result.success) {
+      validElements.push(result.data)
+    } else {
+      const name =
+        typeof rawElements[i]?.name === 'string' ? rawElements[i].name : `#${i}`
+      elementWarnings.push(
+        `Element "${name}" skipped: ${result.error.issues.map((iss) => iss.message).join(', ')}`
+      )
+    }
+  }
+
+  const existingWarnings = Array.isArray(rawData?.warnings)
+    ? (rawData.warnings as string[])
+    : []
 
   return {
     success: true,
     data: {
-      elements: elements as ExtractedElement[],
+      elements: validElements,
       page_description:
         typeof rawData?.page_description === 'string'
           ? rawData.page_description
           : 'Greining lokið en sum gögn voru ófullnægjandi.',
-      warnings: Array.isArray(rawData?.warnings)
-        ? (rawData.warnings as string[])
-        : [],
+      warnings: [...existingWarnings, ...elementWarnings],
     },
     validated: false,
     validationIssues: validation.error.issues

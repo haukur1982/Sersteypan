@@ -7,9 +7,9 @@ import {
   finalizePeriod,
   reopenPeriod,
   deletePeriod,
+  refreshPeriodQuantities,
 } from '@/lib/framvinda/actions'
 import {
-  suggestQuantityForLine,
   calculateVisitala,
   formatISK,
   formatNumber,
@@ -57,26 +57,6 @@ interface Props {
   period: FramvindaPeriod
   periodLines: FramvindaPeriodLine[]
   cumulativeBefore: Record<string, number>
-  elements: Array<{
-    id: string
-    name: string | null
-    element_type: string | null
-    building_id: string | null
-    floor: number | null
-    length_mm: number | null
-    width_mm: number | null
-    drawing_reference: string | null
-    status: string | null
-    cast_at: string | null
-    ready_at: string | null
-    delivered_at: string | null
-    piece_count: number | null
-  }>
-  deliveries: Array<{
-    id: string
-    status: string | null
-    completed_at: string | null
-  }>
 }
 
 export function FramvindaEditorClient({
@@ -88,8 +68,6 @@ export function FramvindaEditorClient({
   period,
   periodLines,
   cumulativeBefore,
-  elements,
-  deliveries,
 }: Props) {
   const router = useRouter()
   const isDraft = period.status === 'draft'
@@ -147,31 +125,50 @@ export function FramvindaEditorClient({
     []
   )
 
-  // Auto-suggest: fill in quantities from element data
-  // Skips lines that have been manually adjusted by the admin
-  const handleAutoSuggest = useCallback(() => {
-    const updates: Record<string, PeriodLineState> = { ...lineStates }
-    for (const cl of contractLines) {
-      // Skip lines the admin has manually adjusted
-      if (updates[cl.id]?.isManuallyAdjusted) continue
+  const [refreshing, setRefreshing] = useState(false)
 
-      const suggested = suggestQuantityForLine(
-        cl,
-        elements,
-        deliveries,
+  // Auto-suggest: fetch FRESH element data from server and recalculate quantities.
+  // Uses a server action to ensure we're working with the latest production data,
+  // not potentially stale data from page load.
+  // Skips lines that have been manually adjusted by the admin.
+  const handleAutoSuggest = useCallback(async () => {
+    setRefreshing(true)
+    setError('')
+    try {
+      const manualIds = Object.entries(lineStates)
+        .filter(([, s]) => s.isManuallyAdjusted)
+        .map(([contractLineId]) => contractLineId)
+
+      const result = await refreshPeriodQuantities(
+        period.id,
+        contract.id,
         period.period_start,
-        period.period_end
+        period.period_end,
+        manualIds
       )
-      if (updates[cl.id]) {
-        updates[cl.id] = {
-          ...updates[cl.id],
-          quantityThisPeriod: Math.round(suggested * 10000) / 10000,
-          isManuallyAdjusted: false,
-        }
+
+      if (result.error) {
+        setError(result.error)
+        return
       }
+
+      if (result.quantities) {
+        const updates: Record<string, PeriodLineState> = { ...lineStates }
+        for (const [contractLineId, qty] of Object.entries(result.quantities)) {
+          if (updates[contractLineId]) {
+            updates[contractLineId] = {
+              ...updates[contractLineId],
+              quantityThisPeriod: qty,
+              isManuallyAdjusted: false,
+            }
+          }
+        }
+        setLineStates(updates)
+      }
+    } finally {
+      setRefreshing(false)
     }
-    setLineStates(updates)
-  }, [contractLines, elements, deliveries, period, lineStates])
+  }, [contract.id, period, lineStates])
 
   // Compute derived values
   const computedData = useMemo(() => {
@@ -392,10 +389,14 @@ export function FramvindaEditorClient({
                   variant="outline"
                   size="sm"
                   onClick={handleAutoSuggest}
-                  disabled={elements.length === 0}
-                  title="Sækir sjálfvirkt magn byggt á dagsetningum tímabilsins"
+                  disabled={refreshing}
+                  title="Sækir nýjasta magn úr framleiðslugögnum"
                 >
-                  <Wand2 className="mr-1 h-3.5 w-3.5 text-blue-600" />
+                  {refreshing ? (
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="mr-1 h-3.5 w-3.5 text-blue-600" />
+                  )}
                   Stinga upp magni (Úr kerfi)
                 </Button>
                 <Button

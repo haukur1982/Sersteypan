@@ -278,7 +278,29 @@ export async function commitAnalysisElements(
     created_by: string
   }> = []
 
+  const skippedElements: string[] = []
+
   for (const element of selectedElements) {
+    // Commit-time validation: skip elements with missing critical data
+    // This is a safety net — the AI parser and review step should catch most issues,
+    // but this prevents garbage from reaching the database if anything slips through.
+    if (!element.name || element.name.trim().length === 0) {
+      skippedElements.push(`Element #${selectedElements.indexOf(element)}: missing name`)
+      continue
+    }
+    if (typeof element.quantity !== 'number' || element.quantity < 1 || !isFinite(element.quantity)) {
+      skippedElements.push(`${element.name}: invalid quantity (${element.quantity})`)
+      continue
+    }
+    if (element.length_mm !== null && (element.length_mm <= 0 || element.length_mm > 50000)) {
+      skippedElements.push(`${element.name}: invalid length (${element.length_mm}mm)`)
+      continue
+    }
+    if (element.width_mm !== null && (element.width_mm <= 0 || element.width_mm > 50000)) {
+      skippedElements.push(`${element.name}: invalid width (${element.width_mm}mm)`)
+      continue
+    }
+
     const systemType = mapElementType(element.element_type)
     const buildingId = resolveBuildingId(element.building, buildingMap)
 
@@ -385,6 +407,13 @@ export async function commitAnalysisElements(
     }
   }
 
+  // All elements failed validation?
+  if (elementsToInsert.length === 0) {
+    return {
+      error: `Engar gildar einingar eftir staðfestingu. ${skippedElements.length} einingar hafnað: ${skippedElements.join('; ')}`,
+    }
+  }
+
   // Batch insert — Supabase supports up to 500 in one insert
   if (elementsToInsert.length > 500) {
     // Split into chunks of 500
@@ -439,6 +468,9 @@ export async function commitAnalysisElements(
   return {
     success: true,
     elementsCreated: elementsToInsert.length,
+    ...(skippedElements.length > 0 && {
+      warnings: skippedElements,
+    }),
   }
 }
 
