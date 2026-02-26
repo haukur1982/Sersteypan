@@ -31,6 +31,7 @@ import {
   UserCheck,
   UserX,
   BarChart3,
+  Users,
 } from 'lucide-react'
 import { createOverride, deleteOverride } from '@/lib/shifts/actions'
 import {
@@ -218,12 +219,42 @@ export function ShiftCalendarClient({
       {/* Week Calendar View */}
       {activeView === 'week' && (
         <>
+          {/* Week headcount summary */}
+          {(() => {
+            const weekHeadcounts = weekSchedule.map((day) => {
+              const dayGroupNames = day.groups.map((g) => g.name)
+              const dayWorkers = allMembers.filter((m) => dayGroupNames.includes(m.group_name))
+              const dayOvr = overridesByDate.get(day.date) || []
+              const absentCount = dayOvr.filter((o) => o.override_type === 'absent').length
+              const extraCount = dayOvr.filter((o) => o.override_type === 'extra_full' || o.override_type === 'extra_half').length
+              return dayWorkers.length - absentCount + extraCount
+            })
+            const minHC = Math.min(...weekHeadcounts)
+            const maxHC = Math.max(...weekHeadcounts)
+            const totalWorkers = allMembers.length
+
+            return (
+              <div className="flex items-center gap-4 px-1 text-sm text-zinc-600">
+                <div className="flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-zinc-400" />
+                  <span>
+                    Þessa viku: <strong className="text-zinc-900">{minHC === maxHC ? minHC : `${minHC}–${maxHC}`}</strong> manns á dag
+                  </span>
+                </div>
+                <span className="text-zinc-300">|</span>
+                <span className="text-zinc-500">
+                  {totalWorkers} starfsmenn samtals í {groups.length} hópum
+                </span>
+              </div>
+            )
+          })()}
+
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
             {weekSchedule.map((day) => {
               const isToday = isSameDay(day.date, today)
               const dayOverrides = overridesByDate.get(day.date) || []
 
-              // Get workers for this day's groups
+              // Get workers for this day's groups, organized by group
               const dayGroupNames = day.groups.map((g) => g.name)
               const dayWorkers = allMembers.filter((m) => dayGroupNames.includes(m.group_name))
 
@@ -238,6 +269,9 @@ export function ShiftCalendarClient({
               const extraOverrides = dayOverrides.filter(
                 (o) => o.override_type === 'extra_full' || o.override_type === 'extra_half'
               )
+
+              // Effective headcount
+              const effectiveCount = dayWorkers.filter((w) => !absentIds.has(w.id)).length + extraOverrides.length
 
               return (
                 <Card
@@ -258,53 +292,58 @@ export function ShiftCalendarClient({
                       <span className={`text-xs font-medium ${isToday ? 'text-primary' : 'text-zinc-500'}`}>
                         {formatDateShortIS(day.date)}
                       </span>
-                      {isToday && (
-                        <Badge variant="secondary" className="bg-primary/20 text-primary text-[10px] px-1.5">
-                          Í dag
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {isToday && (
+                          <Badge variant="secondary" className="bg-primary/20 text-primary text-[10px] px-1.5">
+                            Í dag
+                          </Badge>
+                        )}
+                        {day.groups.length > 0 && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 text-zinc-500 border-zinc-300">
+                            {effectiveCount}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   <CardContent className="p-3 space-y-2">
-                    {/* Group badges */}
-                    <div className="flex flex-wrap gap-1">
-                      {day.groups.map((g) => {
-                        const group = groups.find((gr) => gr.name === g.name)
-                        const colors = GROUP_COLORS[group?.color || 'blue'] || GROUP_COLORS.blue
-                        return (
-                          <Badge
-                            key={g.name}
-                            variant="secondary"
-                            className={`${colors.bg} ${colors.text} text-xs font-bold`}
-                          >
-                            {g.name}{g.isHalf ? '½' : ''}
-                          </Badge>
-                        )
-                      })}
-                      {day.groups.length === 0 && (
-                        <span className="text-xs text-zinc-400 italic">Frí</span>
-                      )}
-                    </div>
+                    {/* Groups + their workers */}
+                    {day.groups.length === 0 ? (
+                      <span className="text-xs text-zinc-400 italic">Frí</span>
+                    ) : (
+                      <div className="space-y-2">
+                        {day.groups.map((g) => {
+                          const group = groups.find((gr) => gr.name === g.name)
+                          const colors = GROUP_COLORS[group?.color || 'blue'] || GROUP_COLORS.blue
+                          const groupWorkers = dayWorkers.filter((w) => w.group_name === g.name)
 
-                    {/* Worker list */}
-                    {dayWorkers.length > 0 && (
-                      <div className="space-y-0.5">
-                        {dayWorkers.map((w) => {
-                          const isAbsent = absentIds.has(w.id)
                           return (
-                            <div
-                              key={w.id}
-                              className={`flex items-center gap-1 text-xs ${
-                                isAbsent ? 'line-through opacity-50' : ''
-                              }`}
-                            >
-                              {isAbsent ? (
-                                <UserX className="w-3 h-3 text-red-400 flex-shrink-0" />
-                              ) : (
-                                <UserCheck className="w-3 h-3 text-green-500 flex-shrink-0" />
-                              )}
-                              <span className="truncate">{w.display_name}</span>
+                            <div key={g.name}>
+                              <Badge
+                                variant="secondary"
+                                className={`${colors.bg} ${colors.text} text-xs font-bold mb-1`}
+                              >
+                                {g.name}{g.isHalf ? ' ½' : ''}
+                              </Badge>
+                              <div className="space-y-0.5 ml-1">
+                                {groupWorkers.map((w) => {
+                                  const isAbsent = absentIds.has(w.id)
+                                  return (
+                                    <div
+                                      key={w.id}
+                                      className={`flex items-center gap-1.5 ${
+                                        isAbsent ? 'line-through opacity-40' : ''
+                                      }`}
+                                    >
+                                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isAbsent ? 'bg-red-400' : colors.dot}`} />
+                                      <span className={`text-sm truncate ${isAbsent ? 'text-zinc-400' : 'text-zinc-800'}`}>
+                                        {w.display_name}
+                                      </span>
+                                    </div>
+                                  )
+                                })}
+                              </div>
                             </div>
                           )
                         })}
@@ -312,49 +351,57 @@ export function ShiftCalendarClient({
                     )}
 
                     {/* Extra workers from overrides */}
-                    {extraOverrides.map((o) => {
-                      const member = o.shift_group_members as { display_name: string } | null
-                      const typeInfo = OVERRIDE_TYPE_LABELS[o.override_type]
-                      return (
-                        <div key={o.id} className="flex items-center gap-1 text-xs">
-                          <Badge variant="secondary" className={`${typeInfo.color} text-[10px] px-1`}>
-                            {typeInfo.shortLabel}
-                          </Badge>
-                          <span className="truncate">{member?.display_name || '?'}</span>
-                          <button
-                            onClick={() => handleDeleteOverride(o.id)}
-                            className="ml-auto text-zinc-300 hover:text-red-500 flex-shrink-0"
-                            disabled={isPending}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      )
-                    })}
+                    {extraOverrides.length > 0 && (
+                      <div className="pt-1 border-t border-zinc-100">
+                        {extraOverrides.map((o) => {
+                          const member = o.shift_group_members as { display_name: string } | null
+                          const typeInfo = OVERRIDE_TYPE_LABELS[o.override_type]
+                          return (
+                            <div key={o.id} className="flex items-center gap-1.5 text-sm">
+                              <Badge variant="secondary" className={`${typeInfo.color} text-[10px] px-1`}>
+                                {typeInfo.shortLabel}
+                              </Badge>
+                              <span className="truncate text-zinc-700">{member?.display_name || '?'}</span>
+                              <button
+                                onClick={() => handleDeleteOverride(o.id)}
+                                className="ml-auto text-zinc-300 hover:text-red-500 flex-shrink-0"
+                                disabled={isPending}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
 
-                    {/* Absent overrides listed */}
-                    {dayOverrides
-                      .filter((o) => o.override_type === 'absent' || o.override_type === 'half_day')
-                      .map((o) => {
-                        const typeInfo = OVERRIDE_TYPE_LABELS[o.override_type]
-                        return (
-                          <div key={o.id} className="flex items-center gap-1 text-xs">
-                            <Badge variant="secondary" className={`${typeInfo.color} text-[10px] px-1`}>
-                              {typeInfo.shortLabel}
-                            </Badge>
-                            <span className="truncate text-zinc-500">
-                              {(o.shift_group_members as { display_name: string } | null)?.display_name || '?'}
-                            </span>
-                            <button
-                              onClick={() => handleDeleteOverride(o.id)}
-                              className="ml-auto text-zinc-300 hover:text-red-500 flex-shrink-0"
-                              disabled={isPending}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        )
-                      })}
+                    {/* Absent/half-day overrides */}
+                    {dayOverrides.filter((o) => o.override_type === 'absent' || o.override_type === 'half_day').length > 0 && (
+                      <div className={`${extraOverrides.length === 0 ? 'pt-1 border-t border-zinc-100' : ''}`}>
+                        {dayOverrides
+                          .filter((o) => o.override_type === 'absent' || o.override_type === 'half_day')
+                          .map((o) => {
+                            const typeInfo = OVERRIDE_TYPE_LABELS[o.override_type]
+                            return (
+                              <div key={o.id} className="flex items-center gap-1.5 text-sm">
+                                <Badge variant="secondary" className={`${typeInfo.color} text-[10px] px-1`}>
+                                  {typeInfo.shortLabel}
+                                </Badge>
+                                <span className="truncate text-zinc-400">
+                                  {(o.shift_group_members as { display_name: string } | null)?.display_name || '?'}
+                                </span>
+                                <button
+                                  onClick={() => handleDeleteOverride(o.id)}
+                                  className="ml-auto text-zinc-300 hover:text-red-500 flex-shrink-0"
+                                  disabled={isPending}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )
+                          })}
+                      </div>
+                    )}
 
                     {/* Add override button */}
                     <button
@@ -362,6 +409,7 @@ export function ShiftCalendarClient({
                       className="w-full text-xs text-zinc-400 hover:text-primary hover:bg-primary/5 rounded py-1 transition-colors flex items-center justify-center gap-1"
                     >
                       <Plus className="w-3 h-3" />
+                      <span>Undanþága</span>
                     </button>
                   </CardContent>
                 </Card>
@@ -372,13 +420,15 @@ export function ShiftCalendarClient({
           {/* Legend */}
           <div className="flex flex-wrap gap-3 text-xs text-zinc-500 pt-2">
             {Object.entries(OVERRIDE_TYPE_LABELS).map(([key, info]) => (
-              <div key={key} className="flex items-center gap-1">
+              <div key={key} className="flex items-center gap-1.5">
                 <Badge variant="secondary" className={`${info.color} text-[10px] px-1`}>
                   {info.shortLabel}
                 </Badge>
                 <span>{info.label}</span>
               </div>
             ))}
+            <span className="text-zinc-300">|</span>
+            <span>Smelltu á <Plus className="w-3 h-3 inline" /> til að skrá auka vakt, fjarvist eða hálfan dag</span>
           </div>
         </>
       )}

@@ -15,9 +15,13 @@ import {
   Save,
   Eye,
 } from 'lucide-react'
+import { Info } from 'lucide-react'
 import { addGroupMember, removeGroupMember, saveShiftPattern, addShiftGroup } from '@/lib/shifts/actions'
 import { GROUP_COLORS, getScheduledGroupsForDate, formatDateShortIS } from '@/lib/shifts/utils'
 import type { ShiftGroupWithMembers } from '@/lib/shifts/queries'
+
+const WEEKDAY_NAMES_SHORT = ['sun.', 'mán.', 'þri.', 'mið.', 'fim.', 'fös.', 'lau.']
+const WEEKDAY_NAMES_FULL = ['sunnudagur', 'mánudagur', 'þriðjudagur', 'miðvikudagur', 'fimmtudagur', 'föstudagur', 'laugardagur']
 
 interface ShiftSetupClientProps {
   initialGroups: ShiftGroupWithMembers[]
@@ -172,6 +176,22 @@ export function ShiftSetupClient({ initialGroups, initialPattern }: ShiftSetupCl
     })
   }
 
+  // ─── Weekday helpers for pattern grid ────────────────────────────────────
+
+  function getWeekdayForPatternDay(dayIndex: number): { name: string; fullName: string; isMonday: boolean; weekNum: number } | null {
+    if (!startDate) return null
+    const start = new Date(startDate + 'T00:00:00')
+    const d = new Date(start)
+    d.setDate(d.getDate() + dayIndex)
+    const dayOfWeek = d.getDay()
+    return {
+      name: WEEKDAY_NAMES_SHORT[dayOfWeek],
+      fullName: WEEKDAY_NAMES_FULL[dayOfWeek],
+      isMonday: dayOfWeek === 1,
+      weekNum: Math.floor(dayIndex / 7) + 1,
+    }
+  }
+
   // ─── Pattern Preview ─────────────────────────────────────────────────────
 
   function getPreviewDays(): { date: string; label: string; groups: { name: string; isHalf: boolean }[] }[] {
@@ -293,9 +313,12 @@ export function ShiftSetupClient({ initialGroups, initialPattern }: ShiftSetupCl
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Vaktamynstur</CardTitle>
+          <p className="text-sm text-zinc-500 mt-1">
+            Smelltu á hóp til að kveikja/slökkva á honum þann dag. Mynstrið endurtekur sig sjálfkrafa.
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-4 items-end">
             <div>
               <Label className="text-sm font-medium">Upphafsdagsetning</Label>
               <Input
@@ -304,7 +327,7 @@ export function ShiftSetupClient({ initialGroups, initialPattern }: ShiftSetupCl
                 onChange={(e) => setStartDate(e.target.value)}
                 className="w-[180px] mt-1"
               />
-              <p className="text-xs text-zinc-500 mt-1">Dagur sem mynstur byrjar á</p>
+              <p className="text-xs text-zinc-500 mt-1">Fyrsti dagur mynstursins</p>
             </div>
             <div>
               <Label className="text-sm font-medium">Dagar í lotu</Label>
@@ -316,9 +339,21 @@ export function ShiftSetupClient({ initialGroups, initialPattern }: ShiftSetupCl
                 min={1}
                 max={60}
               />
-              <p className="text-xs text-zinc-500 mt-1">Endurtekningin</p>
+              <p className="text-xs text-zinc-500 mt-1">
+                {cycleDays % 7 === 0 ? `${cycleDays / 7} ${cycleDays / 7 === 1 ? 'vika' : 'vikur'}` : `${cycleDays} dagar`}
+              </p>
             </div>
           </div>
+
+          {startDate && (
+            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+              <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>
+                Mynstrið byrjar {formatDateShortIS(startDate)} og endurtekur sig á{' '}
+                {cycleDays % 7 === 0 ? `${cycleDays / 7} vikna` : `${cycleDays} daga`} fresti.
+              </span>
+            </div>
+          )}
 
           {/* Pattern grid editor */}
           {groups.length > 0 && (
@@ -326,60 +361,102 @@ export function ShiftSetupClient({ initialGroups, initialPattern }: ShiftSetupCl
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr>
-                    <th className="text-left p-2 border-b font-medium text-zinc-600 w-16">Dagur</th>
+                    <th className="text-left p-2 border-b font-medium text-zinc-600 w-32">Dagur</th>
                     {groups.map((g) => {
                       const colors = GROUP_COLORS[g.color] || GROUP_COLORS.blue
                       return (
                         <th key={g.id} className="p-2 border-b text-center">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded ${colors.bg} ${colors.text} font-bold`}>
-                            {g.name}
-                          </span>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded ${colors.bg} ${colors.text} font-bold`}>
+                              {g.name}
+                            </span>
+                            <span className="text-[10px] text-zinc-400 font-normal">
+                              {g.members.length} manns
+                            </span>
+                          </div>
                         </th>
                       )
                     })}
                   </tr>
                 </thead>
                 <tbody>
-                  {pattern.map((day, dayIdx) => (
-                    <tr key={dayIdx} className="hover:bg-zinc-50">
-                      <td className="p-2 border-b font-mono text-zinc-500">{dayIdx + 1}</td>
-                      {groups.map((g) => {
-                        const isOn = day.some((e) => e.replace(/-$/, '') === g.name)
-                        const isHalf = day.some((e) => e === g.name + '-')
-                        const colors = GROUP_COLORS[g.color] || GROUP_COLORS.blue
+                  {pattern.map((day, dayIdx) => {
+                    const weekday = getWeekdayForPatternDay(dayIdx)
+                    const showWeekSeparator = weekday && weekday.isMonday && dayIdx > 0
 
-                        return (
-                          <td key={g.id} className="p-2 border-b text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => toggleGroupInDay(dayIdx, g.name)}
-                                className={`w-8 h-8 rounded-md border-2 transition-all font-bold text-xs ${
-                                  isOn
-                                    ? `${colors.bg} ${colors.border} ${colors.text}`
-                                    : 'border-zinc-200 text-zinc-300 hover:border-zinc-400'
+                    return (
+                      <tr
+                        key={dayIdx}
+                        className={`hover:bg-zinc-50 ${showWeekSeparator ? 'border-t-2 border-t-zinc-300' : ''}`}
+                      >
+                        <td className={`p-2 border-b ${showWeekSeparator ? 'pt-3' : ''}`}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-zinc-400 w-5 text-right text-xs">{dayIdx + 1}</span>
+                            {weekday ? (
+                              <span
+                                className={`text-sm ${
+                                  weekday.fullName === 'laugardagur' || weekday.fullName === 'sunnudagur'
+                                    ? 'text-zinc-400'
+                                    : 'text-zinc-700 font-medium'
                                 }`}
+                                title={weekday.fullName}
                               >
-                                {isOn ? g.name : ''}
-                              </button>
-                              {isOn && (
+                                {weekday.name}
+                              </span>
+                            ) : (
+                              <span className="text-zinc-400 text-sm">—</span>
+                            )}
+                            {showWeekSeparator && (
+                              <Badge variant="secondary" className="bg-zinc-100 text-zinc-500 text-[10px] px-1.5 py-0">
+                                Vika {weekday.weekNum}
+                              </Badge>
+                            )}
+                            {weekday && dayIdx === 0 && (
+                              <Badge variant="secondary" className="bg-zinc-100 text-zinc-500 text-[10px] px-1.5 py-0">
+                                Vika 1
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
+                        {groups.map((g) => {
+                          const isOn = day.some((e) => e.replace(/-$/, '') === g.name)
+                          const isHalf = day.some((e) => e === g.name + '-')
+                          const colors = GROUP_COLORS[g.color] || GROUP_COLORS.blue
+                          const isWeekend = weekday && (weekday.fullName === 'laugardagur' || weekday.fullName === 'sunnudagur')
+
+                          return (
+                            <td key={g.id} className={`p-2 border-b text-center ${isWeekend ? 'bg-zinc-50/50' : ''} ${showWeekSeparator ? 'pt-3' : ''}`}>
+                              <div className="flex items-center justify-center gap-1">
                                 <button
-                                  onClick={() => toggleHalfDay(dayIdx, g.name)}
-                                  className={`text-xs px-1.5 py-0.5 rounded transition-all ${
-                                    isHalf
-                                      ? 'bg-yellow-200 text-yellow-800 font-bold'
-                                      : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100'
+                                  onClick={() => toggleGroupInDay(dayIdx, g.name)}
+                                  className={`w-8 h-8 rounded-md border-2 transition-all font-bold text-xs ${
+                                    isOn
+                                      ? `${colors.bg} ${colors.border} ${colors.text}`
+                                      : 'border-zinc-200 text-zinc-300 hover:border-zinc-400'
                                   }`}
-                                  title={isHalf ? 'Hálfur dagur (smella til að taka af)' : 'Smella fyrir hálfan dag'}
                                 >
-                                  ½
+                                  {isOn ? g.name : ''}
                                 </button>
-                              )}
-                            </div>
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  ))}
+                                {isOn && (
+                                  <button
+                                    onClick={() => toggleHalfDay(dayIdx, g.name)}
+                                    className={`text-xs px-1.5 py-0.5 rounded transition-all ${
+                                      isHalf
+                                        ? 'bg-yellow-200 text-yellow-800 font-bold'
+                                        : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100'
+                                    }`}
+                                    title={isHalf ? 'Hálfur dagur (smella til að taka af)' : 'Smella fyrir hálfan dag'}
+                                  >
+                                    ½
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
