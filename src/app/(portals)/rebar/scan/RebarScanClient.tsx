@@ -256,7 +256,7 @@ export function RebarScanClient() {
                 onClick={handleViewDetail}
                 className="w-full h-16 text-xl font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
               >
-                Opna gátlista
+                Skoða einingu
               </Button>
             )}
 

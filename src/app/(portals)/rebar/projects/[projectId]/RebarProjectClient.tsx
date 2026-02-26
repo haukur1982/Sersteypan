@@ -31,7 +31,6 @@ interface Element {
   rebar_completed_at: string | null
   position_description: string | null
   drawing_reference: string | null
-  checklist: unknown
   qr_code_url: string | null
   piece_count?: number | null
   rebar_done_count?: number | null

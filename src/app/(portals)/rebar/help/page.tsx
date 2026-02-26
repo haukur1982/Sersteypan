@@ -46,11 +46,11 @@ export default function RebarHelpPage() {
           <div className="flex items-start gap-4">
             <CheckSquare className="w-8 h-8 text-green-600 shrink-0 mt-1" />
             <div>
-              <h3 className="font-bold text-lg text-zinc-900">Gátlisti og ljúka</h3>
+              <h3 className="font-bold text-lg text-zinc-900">Ljúka járnabindingu</h3>
               <p className="text-zinc-600 mt-1">
-                Á upplýsingasíðu einingarinnar geturðu hakað við gátlistann.
-                Þegar þú ert búinn, ýttu á græna hnappinn &quot;Járnabinding lokið&quot;
-                neðst á síðunni.
+                Þegar járnabinding er lokið, ýttu á græna hnappinn &quot;Járnabinding lokið&quot;
+                neðst á upplýsingasíðu einingarinnar. Ef einingin hefur fleiri en eitt stk
+                geturðu skráð hvert stk lokið fyrir sig.
               </p>
             </div>
           </div>

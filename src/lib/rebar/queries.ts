@@ -69,7 +69,6 @@ export async function getRebarElements(projectId: string) {
       rebar_completed_at,
       position_description,
       drawing_reference,
-      checklist,
       qr_code_url,
       piece_count,
       rebar_done_count,
