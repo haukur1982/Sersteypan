@@ -151,7 +151,7 @@ export default async function ProjectPage({
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
                     <h2 className="text-xl font-semibold text-zinc-900">
-                        Einingar ({elementList.length}) (Elements)
+                        Einingar ({elementList.reduce((sum, el) => sum + (el.piece_count || 1), 0)}) (Elements)
                     </h2>
                     <div className="flex gap-2">
                         <Button asChild className="bg-purple-600 hover:bg-purple-700">

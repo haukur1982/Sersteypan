@@ -132,6 +132,7 @@ interface Props {
     cast_at: string | null
     ready_at: string | null
     delivered_at: string | null
+    piece_count: number | null
   }>
   deliveries: Array<{
     id: string

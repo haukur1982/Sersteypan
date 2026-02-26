@@ -447,6 +447,7 @@ export async function createPeriod(
       cast_at: string | null
       ready_at: string | null
       delivered_at: string | null
+      piece_count: number | null
     }> = []
     let deliveries: Array<{
       id: string
@@ -458,7 +459,7 @@ export async function createPeriod(
       const [elemResult, delResult] = await Promise.all([
         supabase
           .from('elements')
-          .select('id, name, element_type, building_id, floor, length_mm, width_mm, drawing_reference, status, cast_at, ready_at, delivered_at')
+          .select('id, name, element_type, building_id, floor, length_mm, width_mm, drawing_reference, status, cast_at, ready_at, delivered_at, piece_count')
           .eq('project_id', contract.project_id),
         supabase
           .from('deliveries')

@@ -180,7 +180,7 @@ export async function getProductionMetrics(dateRange: DateRange) {
 
   const { data: elements } = await supabase
     .from('elements')
-    .select('id, ready_at, element_type, created_at')
+    .select('id, ready_at, element_type, created_at, piece_count')
     .gte('created_at', dateRange.from)
     .lte('created_at', dateRange.to)
 
@@ -196,7 +196,8 @@ export async function getProductionMetrics(dateRange: DateRange) {
   const typeCounts = new Map<string, number>()
   for (const e of allElements) {
     const t = e.element_type || 'other'
-    typeCounts.set(t, (typeCounts.get(t) || 0) + 1)
+    const pc = (e as Record<string, unknown>).piece_count as number || 1
+    typeCounts.set(t, (typeCounts.get(t) || 0) + pc)
   }
 
   const elementTypes: ElementTypeCount[] = Array.from(typeCounts.entries())
@@ -382,7 +383,7 @@ export async function getProjectProgress() {
       .order('name'),
     supabase
       .from('elements')
-      .select('id, project_id, status'),
+      .select('id, project_id, status, piece_count'),
   ])
 
   const projects = projectsResult.data || []
@@ -398,14 +399,15 @@ export async function getProjectProgress() {
 
   const rows: ProjectProgressRow[] = projects.map(p => {
     const els = byProject.get(p.id) || []
-    const total = els.length
+    const total = els.reduce((sum, e) => sum + ((e as Record<string, unknown>).piece_count as number || 1), 0)
     const statusCounts: Record<string, number> = {}
     let delivered = 0
 
     for (const e of els) {
       const s = e.status || 'planned'
-      statusCounts[s] = (statusCounts[s] || 0) + 1
-      if (s === 'delivered') delivered++
+      const pc = (e as Record<string, unknown>).piece_count as number || 1
+      statusCounts[s] = (statusCounts[s] || 0) + pc
+      if (s === 'delivered') delivered += pc
     }
 
     return {
@@ -429,7 +431,7 @@ export async function getOverviewStats(dateRange: DateRange) {
 
   const { data: elements } = await supabase
     .from('elements')
-    .select('id, status, weight_kg')
+    .select('id, status, weight_kg, piece_count')
     .gte('created_at', dateRange.from)
     .lte('created_at', dateRange.to)
 
@@ -442,10 +444,11 @@ export async function getOverviewStats(dateRange: DateRange) {
 
   for (const e of all) {
     const s = e.status || 'planned'
-    statusCounts.set(s, (statusCounts.get(s) || 0) + 1)
+    const pc = (e as Record<string, unknown>).piece_count as number || 1
+    statusCounts.set(s, (statusCounts.get(s) || 0) + pc)
     if (e.weight_kg && e.weight_kg > 0) {
-      totalWeight += e.weight_kg
-      weightCount++
+      totalWeight += e.weight_kg * pc
+      weightCount += pc
     }
   }
 
@@ -458,7 +461,7 @@ export async function getOverviewStats(dateRange: DateRange) {
 
   return {
     totalWeightKg: Math.round(totalWeight),
-    totalElements: all.length,
+    totalElements: all.reduce((sum, e) => sum + ((e as Record<string, unknown>).piece_count as number || 1), 0),
     avgWeightKg: weightCount > 0 ? Math.round(totalWeight / weightCount) : 0,
     statusBreakdown,
   } satisfies OverviewStats

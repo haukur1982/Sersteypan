@@ -256,7 +256,7 @@ export async function getProjectElements(projectId: string) {
   const { data } = await supabase
     .from('elements')
     .select(
-      'id, name, element_type, building_id, floor, length_mm, width_mm, drawing_reference, status, cast_at, ready_at, delivered_at'
+      'id, name, element_type, building_id, floor, length_mm, width_mm, drawing_reference, status, cast_at, ready_at, delivered_at, piece_count'
     )
     .eq('project_id', projectId)
     .order('element_type')

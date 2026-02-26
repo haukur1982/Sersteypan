@@ -30,6 +30,7 @@ interface ElementData {
   cast_at: string | null
   ready_at: string | null
   delivered_at: string | null
+  piece_count: number | null
 }
 
 interface DeliveryData {
@@ -47,6 +48,11 @@ function isInPeriod(
   if (!dateStr) return false
   const date = dateStr.slice(0, 10) // ISO date part
   return date >= periodStart && date <= periodEnd
+}
+
+/** Sum piece_count for an array of elements (defaults to 1 per element if null) */
+function sumPieceCount(elements: ElementData[]): number {
+  return elements.reduce((sum, e) => sum + (e.piece_count || 1), 0)
 }
 
 /** Suggest quantity for a single contract line based on element data */
@@ -88,14 +94,14 @@ function suggestFiligranQuantity(
   )
 
   if (line.pricing_unit === 'm2') {
-    // Sum area of matching elements
+    // Sum area of matching elements (multiply by piece_count for multi-piece elements)
     return matching.reduce(
-      (sum, e) => sum + calculateAreaM2(e.length_mm, e.width_mm),
+      (sum, e) => sum + calculateAreaM2(e.length_mm, e.width_mm) * (e.piece_count || 1),
       0
     )
   }
 
-  return matching.length
+  return sumPieceCount(matching)
 }
 
 function suggestByDrawingReference(
@@ -108,26 +114,26 @@ function suggestByDrawingReference(
 
   const pattern = line.drawing_reference_pattern.toLowerCase()
 
-  // Match elements by drawing reference and cast date in period
+  // Match elements by drawing reference (or name fallback) and cast date in period
   const matching = elements.filter((e) => {
-    if (!e.drawing_reference) return false
-    const ref = e.drawing_reference.toLowerCase()
+    const ref = (e.drawing_reference?.trim() || e.name || '').toLowerCase()
+    if (!ref) return false
     return ref === pattern || ref.startsWith(pattern + '-') || ref.startsWith(pattern + ' ')
   }).filter((e) => isInPeriod(e.cast_at, periodStart, periodEnd))
 
   if (line.is_extra) {
     // Extra lines use same count as parent (same elements, different price)
-    return matching.length
+    return sumPieceCount(matching)
   }
 
   if (line.pricing_unit === 'm2') {
     return matching.reduce(
-      (sum, e) => sum + calculateAreaM2(e.length_mm, e.width_mm),
+      (sum, e) => sum + calculateAreaM2(e.length_mm, e.width_mm) * (e.piece_count || 1),
       0
     )
   }
 
-  return matching.length
+  return sumPieceCount(matching)
 }
 
 function suggestStigarQuantity(
@@ -141,7 +147,7 @@ function suggestStigarQuantity(
       e.element_type === 'staircase' &&
       isInPeriod(e.ready_at, periodStart, periodEnd)
   )
-  return matching.length
+  return sumPieceCount(matching)
 }
 
 function suggestFlutningurQuantity(
@@ -207,7 +213,7 @@ export function suggestContractLines(
     const building = buildingMap.get(buildingId)
     const floor = parseInt(floorStr, 10)
     const totalM2 = groupElements.reduce(
-      (sum, e) => sum + calculateAreaM2(e.length_mm, e.width_mm),
+      (sum, e) => sum + calculateAreaM2(e.length_mm, e.width_mm) * (e.piece_count || 1),
       0
     )
 
@@ -233,13 +239,13 @@ export function suggestContractLines(
   const balconyGroups = groupByDrawingReference(balconyElements)
 
   for (const [ref, groupElements] of balconyGroups) {
-    const count = groupElements.length
-    const avgArea =
-      groupElements.reduce(
-        (sum, e) => sum + calculateAreaM2(e.length_mm, e.width_mm),
-        0
-      ) / (count || 1)
-    const totalM2 = avgArea * count
+    const count = sumPieceCount(groupElements)
+    const totalArea = groupElements.reduce(
+      (sum, e) => sum + calculateAreaM2(e.length_mm, e.width_mm) * (e.piece_count || 1),
+      0
+    )
+    const avgArea = count > 0 ? totalArea / count : 0
+    const totalM2 = totalArea
 
     lines.push({
       category: 'svalir',
@@ -261,14 +267,15 @@ export function suggestContractLines(
   const staircaseElements = elements.filter(
     (e) => e.element_type === 'staircase'
   )
-  if (staircaseElements.length > 0) {
+  const staircaseCount = sumPieceCount(staircaseElements)
+  if (staircaseCount > 0) {
     lines.push({
       category: 'stigar',
       label: 'Stigar',
       pricing_unit: 'stk',
-      contract_count: staircaseElements.length,
+      contract_count: staircaseCount,
       unit_area_m2: null,
-      total_quantity: staircaseElements.length,
+      total_quantity: staircaseCount,
       building_id: null,
       floor: null,
       element_type_key: 'staircase',
@@ -285,13 +292,13 @@ export function suggestContractLines(
   const sgGroups = groupByDrawingReference(svalagangurElements)
 
   for (const [ref, groupElements] of sgGroups) {
-    const count = groupElements.length
-    const avgArea =
-      groupElements.reduce(
-        (sum, e) => sum + calculateAreaM2(e.length_mm, e.width_mm),
-        0
-      ) / (count || 1)
-    const totalM2 = avgArea * count
+    const count = sumPieceCount(groupElements)
+    const totalArea = groupElements.reduce(
+      (sum, e) => sum + calculateAreaM2(e.length_mm, e.width_mm) * (e.piece_count || 1),
+      0
+    )
+    const avgArea = count > 0 ? totalArea / count : 0
+    const totalM2 = totalArea
 
     lines.push({
       category: 'svalagangar',
