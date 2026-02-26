@@ -16,24 +16,26 @@ import type {
 export async function getProjectsWithFramvindaStatus(): Promise<ProjectWithFramvindaStatus[]> {
   const supabase = await createClient()
 
-  // Get all active projects with company names
-  const { data: projects, error: projectsError } = await supabase
-    .from('projects')
-    .select('id, name, address, companies(name)')
-    .order('name')
+  // Fetch all three independent queries in parallel
+  const [projectsResult, contractsResult, periodsResult] = await Promise.all([
+    supabase
+      .from('projects')
+      .select('id, name, address, companies(name)')
+      .order('name'),
+    supabase
+      .from('framvinda_contracts')
+      .select('id, project_id'),
+    supabase
+      .from('framvinda_periods')
+      .select('contract_id, period_number, status')
+      .order('period_number', { ascending: false }),
+  ])
 
-  if (projectsError || !projects) return []
+  const projects = projectsResult.data
+  if (projectsResult.error || !projects) return []
 
-  // Get all contracts
-  const { data: contracts } = await supabase
-    .from('framvinda_contracts')
-    .select('id, project_id')
-
-  // Get period counts per contract
-  const { data: periods } = await supabase
-    .from('framvinda_periods')
-    .select('contract_id, period_number, status')
-    .order('period_number', { ascending: false })
+  const contracts = contractsResult.data
+  const periods = periodsResult.data
 
   const contractMap = new Map(
     (contracts ?? []).map((c) => [c.project_id, c.id])
@@ -341,7 +343,7 @@ export async function getBuyerProjectsWithFramvinda(companyId: string) {
 
   const contractMap = new Map(contracts.map((c) => [c.project_id, c]))
 
-  // Get finalized periods for these contracts
+  // Get finalized periods for these contracts (can't parallelize — needs contractIds)
   const contractIds = contracts.map((c) => c.id)
   const { data: periods } = await supabase
     .from('framvinda_periods')
