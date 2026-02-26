@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { createNotifications } from '@/lib/notifications/queries'
+import { createNotificationsFiltered } from '@/lib/notifications/queries'
 import { z } from 'zod'
 
 const profileUpdateSchema = z.object({
@@ -194,7 +194,7 @@ export async function sendMessage(formData: FormData) {
         const projectName = project?.name || 'Verkefni'
         const preview = message.trim().length > 60 ? message.trim().slice(0, 60) + '...' : message.trim()
 
-        await createNotifications(
+        await createNotificationsFiltered(
           staff.map((s) => ({
             userId: s.id,
             type: 'new_message',

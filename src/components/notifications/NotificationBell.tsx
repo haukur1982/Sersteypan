@@ -30,30 +30,15 @@ interface NotificationBellProps {
   notifications: NotificationItem[]
 }
 
-export function NotificationBell({ notifications: initialNotifications }: NotificationBellProps) {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications)
+export function NotificationBell({ notifications }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
-
-  // Sync when parent passes new notifications
-  if (initialNotifications !== notifications && initialNotifications.length > 0) {
-    // Only update if the data actually changed (new fetch)
-    const initialIds = initialNotifications.map(n => n.id).join(',')
-    const currentIds = notifications.map(n => n.id).join(',')
-    if (initialIds !== currentIds) {
-      setNotifications(initialNotifications)
-    }
-  }
 
   const unreadCount = notifications.filter(n => !n.is_read).length
 
   const markAsRead = async (notificationId: string) => {
-    setNotifications(prev =>
-      prev.map(n =>
-        n.id === notificationId ? { ...n, is_read: true } : n
-      )
-    )
-
+    // Optimistic update is handled by the realtime subscription in
+    // NotificationProvider — the UPDATE event will sync back.
     try {
       await fetch('/api/notifications', {
         method: 'POST',
@@ -66,10 +51,6 @@ export function NotificationBell({ notifications: initialNotifications }: Notifi
   }
 
   const markAllAsRead = async () => {
-    setNotifications(prev =>
-      prev.map(n => ({ ...n, is_read: true }))
-    )
-
     try {
       await fetch('/api/notifications', {
         method: 'POST',

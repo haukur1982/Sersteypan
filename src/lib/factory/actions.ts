@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Database } from '@/types/database'
-import { createNotifications } from '@/lib/notifications/queries'
+import { createNotificationsFiltered } from '@/lib/notifications/queries'
 import {
   type PaginationParams,
   type PaginatedResult,
@@ -304,7 +304,7 @@ export async function bulkUpdateElementStatus(
       }
 
       if (notifyTargets.length > 0) {
-        await createNotifications(notifyTargets)
+        await createNotificationsFiltered(notifyTargets)
       }
     } catch (notifyErr) {
       console.error('Failed to create bulk notifications:', notifyErr)

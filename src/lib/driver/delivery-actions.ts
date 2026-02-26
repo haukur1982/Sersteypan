@@ -8,7 +8,7 @@ import {
   validateDeliveryComplete,
   formatZodError
 } from '@/lib/schemas'
-import { createNotifications } from '@/lib/notifications/queries'
+import { createNotificationsFiltered } from '@/lib/notifications/queries'
 
 // UUID validation regex (kept for simple ID validation in other functions)
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -604,7 +604,7 @@ export async function completeDelivery(
       }
 
       if (notifyTargets.length > 0) {
-        await createNotifications(notifyTargets)
+        await createNotificationsFiltered(notifyTargets)
       }
     } catch (notifyErr) {
       console.error('Failed to create delivery notifications:', notifyErr)

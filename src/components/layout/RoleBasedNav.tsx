@@ -97,6 +97,7 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Lager', englishName: 'Stock', href: '/factory/stock', icon: Package },
         { name: 'Viðgerðir', englishName: 'Fix in Factory', href: '/factory/fix-in-factory', icon: Wrench },
         { name: 'Skilaboð', englishName: 'Messages', href: '/factory/messages', icon: MessageSquare },
+        { name: 'Stillingar', englishName: 'Settings', href: '/factory/settings', icon: Settings },
         { name: 'Hjálp', englishName: 'Help', href: '/factory/help', icon: HelpCircle },
     ],
     buyer: [
@@ -106,18 +107,21 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Framvinda', englishName: 'Progress Billing', href: '/buyer/framvinda', icon: TrendingUp },
         { name: 'Skilaboð', englishName: 'Messages', href: '/buyer/messages', icon: MessageSquare },
         { name: 'Prófíll', englishName: 'Profile', href: '/buyer/profile', icon: UserCircle },
+        { name: 'Stillingar', englishName: 'Settings', href: '/buyer/settings', icon: Settings },
         { name: 'Hjálp', englishName: 'Help', href: '/buyer/help', icon: HelpCircle },
     ],
     driver: [
         { name: 'Stjórnborð', englishName: 'Dashboard', href: '/driver', icon: LayoutDashboard },
         { name: 'Afhendingar', englishName: 'Deliveries', href: '/driver/deliveries', icon: Truck },
         { name: 'Skanna QR', englishName: 'Scan QR', href: '/driver/scan', icon: QrCode },
+        { name: 'Stillingar', englishName: 'Settings', href: '/driver/settings', icon: Settings },
         { name: 'Hjálp', englishName: 'Help', href: '/driver/help', icon: HelpCircle },
     ],
     rebar_worker: [
         { name: 'Yfirlit', englishName: 'Dashboard', href: '/rebar', icon: LayoutDashboard },
         { name: 'Verkefni', englishName: 'Projects', href: '/rebar/projects', icon: FolderKanban },
         { name: 'Skanna QR', englishName: 'Scan QR', href: '/rebar/scan', icon: QrCode },
+        { name: 'Stillingar', englishName: 'Settings', href: '/rebar/settings', icon: Settings },
         { name: 'Hjálp', englishName: 'Help', href: '/rebar/help', icon: HelpCircle },
     ],
 }

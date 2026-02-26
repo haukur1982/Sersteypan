@@ -1,13 +1,15 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { RoleBasedNav } from './RoleBasedNav'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useNotifications } from '@/lib/providers/NotificationProvider'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Menu, LogOut } from 'lucide-react'
+import { Menu, LogOut, Settings } from 'lucide-react'
 import { logout } from '@/lib/auth/actions'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import type { AuthUser } from '@/lib/hooks/useAuth'
@@ -19,49 +21,24 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { NotificationBell, type NotificationItem } from '@/components/notifications/NotificationBell'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 
-/**
- * Hook to fetch notifications client-side
- * This prevents blocking server-side rendering
- */
-function useNotifications(userId: string | undefined) {
-    const [notifications, setNotifications] = useState<NotificationItem[]>([])
-    const [loading, setLoading] = useState(true)
-
-    useEffect(() => {
-        if (!userId) {
-            setLoading(false)
-            return
-        }
-
-        const fetchNotifications = async () => {
-            try {
-                const response = await fetch('/api/notifications')
-                if (response.ok) {
-                    const data = await response.json()
-                    setNotifications(data.notifications || [])
-                }
-            } catch (error) {
-                console.error('Failed to fetch notifications:', error)
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        fetchNotifications()
-
-        // Refresh notifications every 30 seconds
-        const interval = setInterval(fetchNotifications, 30000)
-        return () => clearInterval(interval)
-    }, [userId])
-
-    return { notifications, loading }
+/** Derive the settings path from the current portal URL */
+function getSettingsPath(pathname: string): string | null {
+    if (pathname.startsWith('/admin')) return '/admin/settings/notifications'
+    if (pathname.startsWith('/factory')) return '/factory/settings'
+    if (pathname.startsWith('/buyer')) return '/buyer/settings'
+    if (pathname.startsWith('/driver')) return '/driver/settings'
+    if (pathname.startsWith('/rebar')) return '/rebar/settings'
+    return null
 }
 
 // UserNav component for the bottom user menu
 function UserNav({ user }: { user: AuthUser | null }) {
+    const pathname = usePathname()
     if (!user) return null
+
+    const settingsPath = getSettingsPath(pathname)
 
     return (
         <DropdownMenu>
@@ -87,6 +64,14 @@ function UserNav({ user }: { user: AuthUser | null }) {
                     </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {settingsPath && (
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                        <Link href={settingsPath} className="flex items-center w-full">
+                            <Settings className="mr-2 h-4 w-4" />
+                            <span>Stillingar</span>
+                        </Link>
+                    </DropdownMenuItem>
+                )}
                 <DropdownMenuItem asChild className="text-red-600 focus:text-red-600 cursor-pointer p-0">
                     <form action={logout} className="w-full">
                         <button type="submit" className="flex items-center w-full px-2 py-1.5 text-sm">
@@ -146,8 +131,8 @@ export function Sidebar({ className, user: initialUser }: SidebarProps) {
     // Never show loading skeleton - use path-based role for immediate nav
     const loading = false
 
-    // Fetch notifications client-side (doesn't block server render)
-    const { notifications } = useNotifications(user?.id)
+    // Realtime notifications from shared provider (replaces 30s polling)
+    const { notifications } = useNotifications()
 
     return (
         <aside className={cn("hidden md:flex flex-col sticky top-0 h-screen w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground", className)}>

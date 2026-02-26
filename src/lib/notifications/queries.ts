@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { isNotificationTypeEnabled } from '@/lib/notifications/preferences'
 
 export interface NotificationRow {
   id: string
@@ -143,6 +144,63 @@ export async function createNotifications(
 
   if (error) {
     console.error('Error creating notifications:', error)
+  }
+}
+
+/**
+ * Create notifications respecting user preferences.
+ *
+ * Fetches each target user's profile to check their notification
+ * preferences. Users who have disabled a notification type won't
+ * receive it. Falls back to sending all if profiles can't be fetched.
+ */
+export async function createNotificationsFiltered(
+  notifications: Array<{
+    userId: string
+    type: string
+    title: string
+    body?: string
+    link?: string
+  }>
+): Promise<void> {
+  if (notifications.length === 0) return
+
+  try {
+    const supabase = await createClient()
+
+    // Fetch preferences for all target users in one query
+    const userIds = [...new Set(notifications.map((n) => n.userId))]
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, role, preferences')
+      .in('id', userIds)
+
+    if (!profiles || profiles.length === 0) {
+      // Fallback: send all if profiles can't be fetched
+      await createNotifications(notifications)
+      return
+    }
+
+    const profileMap = new Map(profiles.map((p) => [p.id, p]))
+
+    // Filter out notifications where the user has disabled the type
+    const filtered = notifications.filter((n) => {
+      const profile = profileMap.get(n.userId)
+      if (!profile) return true // send if profile not found (safety net)
+      const storedPrefs = (
+        (profile.preferences as Record<string, unknown>)?.notifications ?? undefined
+      ) as Record<string, boolean> | undefined
+      type Role = 'admin' | 'factory_manager' | 'buyer' | 'driver' | 'rebar_worker'
+      return isNotificationTypeEnabled(profile.role as Role, storedPrefs, n.type)
+    })
+
+    if (filtered.length > 0) {
+      await createNotifications(filtered)
+    }
+  } catch (error) {
+    // On any error, fall back to sending all (don't lose notifications)
+    console.error('Error filtering notifications by preference, sending all:', error)
+    await createNotifications(notifications)
   }
 }
 

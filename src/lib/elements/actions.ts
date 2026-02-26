@@ -18,7 +18,7 @@ import {
   formatZodError,
   parseNumber
 } from '@/lib/schemas'
-import { createNotifications } from '@/lib/notifications/queries'
+import { createNotificationsFiltered } from '@/lib/notifications/queries'
 
 type ElementRow = Database['public']['Tables']['elements']['Row']
 
@@ -652,7 +652,7 @@ export async function updateElementStatus(id: string, newStatus: string, notes?:
     }
 
     if (notifyTargets.length > 0) {
-      await createNotifications(notifyTargets)
+      await createNotificationsFiltered(notifyTargets)
     }
   } catch (notifyErr) {
     // Don't fail the status update if notifications fail

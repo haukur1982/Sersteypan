@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { MobileSidebar } from './Sidebar'
+import { useNotifications } from '@/lib/providers/NotificationProvider'
 import type { AuthUser } from '@/lib/hooks/useAuth'
-import { NotificationBell, type NotificationItem } from '@/components/notifications/NotificationBell'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 /**
  * Map URL paths to Icelandic page titles.
@@ -24,6 +24,7 @@ const pageTitles: Record<string, Record<string, string>> = {
         '/factory/stock': 'Lager',
         '/factory/fix-in-factory': 'Viðgerðir',
         '/factory/messages': 'Skilaboð',
+        '/factory/settings': 'Stillingar',
         '/factory/help': 'Hjálp',
     },
     admin: {
@@ -41,6 +42,7 @@ const pageTitles: Record<string, Record<string, string>> = {
         '/buyer/projects': 'Verkefni',
         '/buyer/deliveries': 'Afhendingar',
         '/buyer/messages': 'Skilaboð',
+        '/buyer/settings': 'Stillingar',
         '/buyer/profile': 'Prófíll',
         '/buyer/help': 'Hjálp',
     },
@@ -48,6 +50,7 @@ const pageTitles: Record<string, Record<string, string>> = {
         '/driver': 'Stjórnborð',
         '/driver/deliveries': 'Afhendingar',
         '/driver/scan': 'Skanna QR',
+        '/driver/settings': 'Stillingar',
         '/driver/help': 'Hjálp',
     },
 }
@@ -71,39 +74,10 @@ function getPageTitle(pathname: string, role: string | undefined): string {
     return 'Sérsteypan'
 }
 
-/**
- * Hook to fetch notifications client-side
- */
-function useNotifications(userId: string | undefined) {
-    const [notifications, setNotifications] = useState<NotificationItem[]>([])
-
-    useEffect(() => {
-        if (!userId) return
-
-        const fetchNotifications = async () => {
-            try {
-                const response = await fetch('/api/notifications')
-                if (response.ok) {
-                    const data = await response.json()
-                    setNotifications(data.notifications || [])
-                }
-            } catch (error) {
-                console.error('Failed to fetch notifications:', error)
-            }
-        }
-
-        fetchNotifications()
-
-        const interval = setInterval(fetchNotifications, 30000)
-        return () => clearInterval(interval)
-    }, [userId])
-
-    return notifications
-}
-
 export function Header({ user }: { user?: AuthUser | null }) {
     const pathname = usePathname()
-    const notifications = useNotifications(user?.id)
+    // Realtime notifications from shared provider (replaces 30s polling)
+    const { notifications } = useNotifications()
     const title = getPageTitle(pathname, user?.role)
 
     return (

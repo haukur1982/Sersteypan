@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 export interface UserPreferences {
   features?: Record<string, boolean>
   visual_pilot?: boolean
+  notifications?: Record<string, boolean>
   [key: string]: unknown
 }
 
