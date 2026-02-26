@@ -1,3 +1,6 @@
+// Daily summary aggregates data + calls Claude — allow extra time
+export const maxDuration = 60
+
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import Anthropic from '@anthropic-ai/sdk'
