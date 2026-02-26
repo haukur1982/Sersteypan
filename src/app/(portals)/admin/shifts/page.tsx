@@ -49,7 +49,7 @@ export default async function ShiftsPage({ searchParams }: PageProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/factory">
+            <Link href="/admin">
               <ArrowLeft className="w-4 h-4" />
             </Link>
           </Button>
@@ -63,7 +63,7 @@ export default async function ShiftsPage({ searchParams }: PageProps) {
           </div>
         </div>
         <Button variant="outline" size="sm" asChild>
-          <Link href="/factory/shifts/setup">
+          <Link href="/admin/shifts/setup">
             <Settings className="w-4 h-4 mr-2" />
             Uppsetning
           </Link>
@@ -74,7 +74,7 @@ export default async function ShiftsPage({ searchParams }: PageProps) {
         <div className="text-center py-16">
           <p className="text-zinc-500 mb-4">Ekkert vaktamynstur uppsett ennþá.</p>
           <Button asChild>
-            <Link href="/factory/shifts/setup">Setja upp vaktaplan</Link>
+            <Link href="/admin/shifts/setup">Setja upp vaktaplan</Link>
           </Button>
         </div>
       ) : (

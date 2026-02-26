@@ -50,6 +50,7 @@ function makeContractLine(overrides: Partial<FramvindaContractLine> = {}): Framv
     revision_id: null,
     sort_order: 0,
     created_at: '2026-01-01',
+    updated_at: '2026-01-01',
     ...overrides,
   }
 }

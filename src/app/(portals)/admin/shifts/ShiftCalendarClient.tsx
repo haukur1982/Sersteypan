@@ -118,16 +118,16 @@ export function ShiftCalendarClient({
     const d = new Date(weekStart + 'T00:00:00')
     d.setDate(d.getDate() + offset * 7)
     const newWeek = d.toISOString().split('T')[0]
-    router.push(`/factory/shifts?week=${newWeek}&view=${activeView}`)
+    router.push(`/admin/shifts?week=${newWeek}&view=${activeView}`)
   }
 
   function goToToday() {
-    router.push(`/factory/shifts?view=${activeView}`)
+    router.push(`/admin/shifts?view=${activeView}`)
   }
 
   function switchView(v: string) {
     setActiveView(v)
-    router.push(`/factory/shifts?week=${weekStart}&view=${v}`)
+    router.push(`/admin/shifts?week=${weekStart}&view=${v}`)
   }
 
   // ─── Override Actions ──────────────────────────────────────────────────

@@ -77,6 +77,7 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Skýrslur', englishName: 'Reports', href: '/admin/reports', icon: BarChart3 },
         { name: 'Stillingar', englishName: 'Settings', href: '/admin/settings/element-types', icon: Settings },
         { name: '3D Lab (Exp)', englishName: '3D Research', href: '/admin/lab/3d', icon: FlaskConical },
+        { name: 'Vaktaplan', englishName: 'Shift Schedule', href: '/admin/shifts', icon: CalendarClock },
         { name: 'Hjálp', englishName: 'Help', href: '/admin/help', icon: HelpCircle },
     ],
     factory_manager: [
@@ -89,7 +90,6 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Steypulotur', englishName: 'Batches', href: '/factory/batches', icon: Layers },
         { name: 'Járnalotur', englishName: 'Rebar Batches', href: '/factory/rebar', icon: Construction },
         { name: 'Áætlun', englishName: 'Schedule', href: '/factory/schedule', icon: CalendarDays },
-        { name: 'Vaktaplan', englishName: 'Shift Schedule', href: '/factory/shifts', icon: CalendarClock },
         { name: 'Afhendingar', englishName: 'Deliveries', href: '/factory/deliveries', icon: Truck },
         { name: 'Teikningar', englishName: 'Drawings', href: '/factory/drawings', icon: FileText },
         { name: 'Dagbók', englishName: 'Diary', href: '/factory/diary', icon: BookOpen },

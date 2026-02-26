@@ -15,7 +15,7 @@ export default async function ShiftSetupPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-3 mb-2">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/factory/shifts">
+          <Link href="/admin/shifts">
             <ArrowLeft className="w-4 h-4" />
           </Link>
         </Button>

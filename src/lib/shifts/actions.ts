@@ -40,7 +40,7 @@ export async function addShiftGroup(
     return { error: error.message }
   }
 
-  revalidatePath('/factory/shifts')
+  revalidatePath('/admin/shifts')
   return { error: '' }
 }
 
@@ -52,7 +52,7 @@ export async function deleteShiftGroup(groupId: string): Promise<{ error: string
   const { error } = await supabase.from('shift_groups').delete().eq('id', groupId)
   if (error) return { error: error.message }
 
-  revalidatePath('/factory/shifts')
+  revalidatePath('/admin/shifts')
   return { error: '' }
 }
 
@@ -79,7 +79,7 @@ export async function addGroupMember(
 
   if (error) return { error: error.message }
 
-  revalidatePath('/factory/shifts')
+  revalidatePath('/admin/shifts')
   return { error: '' }
 }
 
@@ -95,7 +95,7 @@ export async function removeGroupMember(memberId: string): Promise<{ error: stri
 
   if (error) return { error: error.message }
 
-  revalidatePath('/factory/shifts')
+  revalidatePath('/admin/shifts')
   return { error: '' }
 }
 
@@ -130,8 +130,8 @@ export async function saveShiftPattern(
 
   if (error) return { error: error.message }
 
-  revalidatePath('/factory/shifts')
-  revalidatePath('/factory')
+  revalidatePath('/admin/shifts')
+  revalidatePath('/admin')
   return { error: '' }
 }
 
@@ -165,8 +165,8 @@ export async function createOverride(
     return { error: error.message }
   }
 
-  revalidatePath('/factory/shifts')
-  revalidatePath('/factory')
+  revalidatePath('/admin/shifts')
+  revalidatePath('/admin')
   return { error: '' }
 }
 
@@ -178,7 +178,7 @@ export async function deleteOverride(overrideId: string): Promise<{ error: strin
   const { error } = await supabase.from('shift_overrides').delete().eq('id', overrideId)
   if (error) return { error: error.message }
 
-  revalidatePath('/factory/shifts')
-  revalidatePath('/factory')
+  revalidatePath('/admin/shifts')
+  revalidatePath('/admin')
   return { error: '' }
 }

@@ -40,7 +40,7 @@ export function ShiftTodayCard({
         </div>
         <p className="text-sm text-zinc-500 mb-4">Ekkert vaktamynstur uppsett ennþá.</p>
         <Link
-          href="/factory/shifts/setup"
+          href="/admin/shifts/setup"
           className="text-sm text-primary hover:underline flex items-center gap-1"
         >
           Setja upp vaktaplan <ArrowRight className="w-4 h-4" />
@@ -160,7 +160,7 @@ export function ShiftTodayCard({
           })}
         </div>
         <Link
-          href="/factory/shifts"
+          href="/admin/shifts"
           className="text-sm text-primary hover:underline flex items-center gap-1"
         >
           Sjá vaktaplan <ArrowRight className="w-4 h-4" />
