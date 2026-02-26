@@ -468,6 +468,99 @@ export async function getOverviewStats(dateRange: DateRange) {
 }
 
 // ============================================================
+// Velocity stats (lightweight dashboard summary)
+// ============================================================
+
+export interface VelocityStats {
+  completedThisWeek: number
+  completedLastWeek: number
+  avgCycleTimeDays: number
+  avgCuringHours: number
+  curingCount: number
+}
+
+/**
+ * Lightweight velocity summary for the admin dashboard.
+ * Returns this week vs last week throughput, plus avg cycle time and curing stats.
+ */
+export async function getVelocityStats(): Promise<VelocityStats> {
+  const supabase = await createClient()
+
+  const now = new Date()
+  const startOfThisWeek = getWeekStart(now)
+  const startOfLastWeek = new Date(startOfThisWeek)
+  startOfLastWeek.setDate(startOfLastWeek.getDate() - 7)
+
+  // 30 days ago for averages
+  const thirtyDaysAgo = new Date(now)
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+  const [thisWeekResult, lastWeekResult, recentReadyResult, curingCountResult] = await Promise.all([
+    // Elements completed (reached ready) this week
+    supabase
+      .from('elements')
+      .select('id', { count: 'exact', head: true })
+      .gte('ready_at', startOfThisWeek.toISOString()),
+
+    // Elements completed last week
+    supabase
+      .from('elements')
+      .select('id', { count: 'exact', head: true })
+      .gte('ready_at', startOfLastWeek.toISOString())
+      .lt('ready_at', startOfThisWeek.toISOString()),
+
+    // Recent ready elements for average calculations (last 30 days)
+    supabase
+      .from('elements')
+      .select('created_at, curing_completed_at, ready_at')
+      .not('ready_at', 'is', null)
+      .gte('ready_at', thirtyDaysAgo.toISOString()),
+
+    // Current curing count
+    supabase
+      .from('elements')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'curing'),
+  ])
+
+  // Calculate averages from recent ready elements
+  const recentElements = recentReadyResult.data || []
+
+  const cycleTimes: number[] = []
+  const curingTimes: number[] = []
+
+  for (const e of recentElements) {
+    // Total cycle time: created → ready (in days)
+    const totalHours = hoursBetween(e.created_at, e.ready_at)
+    if (totalHours !== null && totalHours > 0) {
+      cycleTimes.push(totalHours / 24)
+    }
+
+    // Curing time: curing_completed_at → ready_at (in hours)
+    const curingHrs = hoursBetween(e.curing_completed_at, e.ready_at)
+    if (curingHrs !== null && curingHrs > 0) {
+      curingTimes.push(curingHrs)
+    }
+  }
+
+  const avgCycleTimeDays = cycleTimes.length > 0
+    ? Math.round((cycleTimes.reduce((a, b) => a + b, 0) / cycleTimes.length) * 10) / 10
+    : 0
+
+  const avgCuringHours = curingTimes.length > 0
+    ? Math.round((curingTimes.reduce((a, b) => a + b, 0) / curingTimes.length) * 10) / 10
+    : 0
+
+  return {
+    completedThisWeek: thisWeekResult.count || 0,
+    completedLastWeek: lastWeekResult.count || 0,
+    avgCycleTimeDays,
+    avgCuringHours,
+    curingCount: curingCountResult.count || 0,
+  }
+}
+
+// ============================================================
 // Master fetch function
 // ============================================================
 

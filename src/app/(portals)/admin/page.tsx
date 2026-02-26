@@ -19,7 +19,9 @@ import { TrendCard } from '@/components/admin/TrendCard'
 import { StatusDonutChart } from '@/components/admin/StatusDonutChart'
 import { DailySummaryCard } from '@/components/shared/DailySummaryCard'
 import { ShiftTodayCard } from '@/components/factory/ShiftTodayCard'
+import { ProductionVelocityCard } from '@/components/admin/ProductionVelocityCard'
 import { getTodayShiftInfo } from '@/lib/shifts/queries'
+import { getVelocityStats } from '@/lib/admin/reportQueries'
 
 const statusConfig: Record<string, { label: string; color: string; chartColor: string }> = {
   planned: { label: 'Skipulögð', color: 'bg-zinc-100 text-zinc-700', chartColor: '#a1a1aa' },
@@ -64,6 +66,7 @@ export default async function AdminDashboard() {
     deliveriesThisWeekResult,
     deliveriesLastWeekResult,
     shiftInfo,
+    velocityStats,
   ] = await Promise.all([
     supabase.from('companies').select('id', { count: 'exact', head: true }),
     supabase.from('projects').select('id', { count: 'exact', head: true }),
@@ -91,6 +94,8 @@ export default async function AdminDashboard() {
     supabase.from('deliveries').select('id', { count: 'exact', head: true }).gte('created_at', lastWeekISO).lt('created_at', thisWeekISO),
     // Shift schedule info
     getTodayShiftInfo(),
+    // Production velocity stats
+    getVelocityStats(),
   ])
 
   const companiesCount = companiesResult.count || 0
@@ -157,6 +162,9 @@ export default async function AdminDashboard() {
         tomorrowGroups={shiftInfo.tomorrowGroups}
         groups={shiftInfo.groups}
       />
+
+      {/* Production Velocity */}
+      <ProductionVelocityCard stats={velocityStats} />
 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

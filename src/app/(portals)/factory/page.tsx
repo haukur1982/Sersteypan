@@ -1,8 +1,9 @@
 import { getServerUser } from '@/lib/auth/getServerUser'
 import { createClient } from '@/lib/supabase/server'
-import { getPriorityElements, getStuckElements, getElementCountsByProject } from '@/lib/factory/queries'
+import { getPriorityElements, getStuckElements, getElementCountsByProject, getCuringQueue } from '@/lib/factory/queries'
 import { getProjects } from '@/lib/projects/actions'
 import { DailySummaryCard } from '@/components/shared/DailySummaryCard'
+import { CuringQueueCard } from '@/components/factory/CuringQueueCard'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -72,6 +73,7 @@ export default async function FactoryDashboard() {
         stuckElements,
         projectsResult,
         elementCounts,
+        curingQueue,
     ] = await Promise.all([
         // All elements with status
         supabase.from('elements').select('status'),
@@ -109,6 +111,8 @@ export default async function FactoryDashboard() {
         getProjects(),
         // Element counts per project
         getElementCountsByProject(),
+        // Curing queue with elapsed time
+        getCuringQueue(),
     ])
 
     // Try to fetch stock alerts (may not exist yet)
@@ -239,6 +243,9 @@ export default async function FactoryDashboard() {
                     </Card>
                 </Link>
             </div>
+
+            {/* Curing Queue */}
+            <CuringQueueCard elements={curingQueue} />
 
             {/* Active Projects — Quick Access */}
             {activeProjects.length > 0 && (

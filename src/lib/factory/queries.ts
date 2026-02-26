@@ -312,6 +312,53 @@ export async function getStuckElements() {
 }
 
 /**
+ * Default target curing time in hours.
+ * Standard for heated factory precast elements.
+ * Can be made configurable per element type later.
+ */
+export const DEFAULT_CURING_HOURS = 24
+
+/**
+ * Get elements currently in curing status with elapsed time calculations.
+ * Used for the factory dashboard "Curing Queue" section.
+ * Returns elements sorted oldest-first (most likely to be ready).
+ */
+export async function getCuringQueue() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('elements')
+    .select(`
+      id, name, element_type, weight_kg, curing_completed_at,
+      project:projects(id, name)
+    `)
+    .eq('status', 'curing')
+    .not('curing_completed_at', 'is', null)
+    .order('curing_completed_at', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching curing queue:', error)
+    return []
+  }
+
+  const now = Date.now()
+
+  return (data || []).map((el) => {
+    const startedAt = new Date(el.curing_completed_at!).getTime()
+    const elapsedHours = Math.round(((now - startedAt) / (1000 * 60 * 60)) * 10) / 10
+    const progressPercent = Math.round((elapsedHours / DEFAULT_CURING_HOURS) * 100)
+    const project = Array.isArray(el.project) ? el.project[0] : el.project
+
+    return {
+      ...el,
+      project: project as { id: string; name: string } | null,
+      elapsedHours,
+      progressPercent,
+    }
+  })
+}
+
+/**
  * Get unread message count for factory managers
  */
 export async function getUnreadMessageCount() {
