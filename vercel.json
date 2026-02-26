@@ -1,5 +1,5 @@
 {
-  "regions": ["cdg1"],
+  "regions": ["dub1"],
   "functions": {
     "src/**/*.ts": {
       "maxDuration": 30
