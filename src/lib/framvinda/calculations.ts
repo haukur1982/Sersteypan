@@ -85,11 +85,12 @@ function suggestFiligranQuantity(
   periodEnd: string
 ): number {
   // Match filigran elements on specific building + floor
+  // Normalize nulls to match contract setup grouping (null building → null, null floor → 0)
   const matching = elements.filter(
     (e) =>
       e.element_type === 'filigran' &&
-      e.building_id === line.building_id &&
-      e.floor === line.floor &&
+      (e.building_id ?? null) === (line.building_id ?? null) &&
+      (e.floor ?? 0) === (line.floor ?? 0) &&
       isInPeriod(e.cast_at, periodStart, periodEnd)
   )
 
