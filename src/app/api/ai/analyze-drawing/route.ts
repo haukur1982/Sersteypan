@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
         pdfBase64,
         systemPrompt: SYSTEM_PROMPT,
         userPrompt,
-        maxTokens: 16000,
+        maxTokens: 32000,
       })
 
       // Parse and validate the response

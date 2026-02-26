@@ -266,7 +266,7 @@ export const apiRateLimiter = createHybridRateLimiter({
  */
 export const expensiveRateLimiter = createHybridRateLimiter({
   prefix: 'rl:expensive',
-  maxRequests: 5,
+  maxRequests: 20,
   windowMs: 5 * 60 * 1000, // 5 minutes
 })
 

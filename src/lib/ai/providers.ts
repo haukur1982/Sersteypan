@@ -164,7 +164,9 @@ class GeminiProvider implements AIDrawingAnalysisProvider {
         },
       ],
       generationConfig: {
-        maxOutputTokens: params.maxTokens || 16000,
+        maxOutputTokens: params.maxTokens || 32000,
+        temperature: 0,
+        responseMimeType: 'application/json',
       },
     })
 
