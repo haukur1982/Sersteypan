@@ -1,6 +1,7 @@
 // AI vision analysis can take 15-30s depending on PDF complexity
 export const maxDuration = 60
 
+import { after } from 'next/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
@@ -174,129 +175,113 @@ export async function POST(request: NextRequest) {
   }
 
   // 10. Update analysis status to processing
-  await supabase
+  const serviceClient = getStorageClient()
+  await serviceClient
     .from('drawing_analyses')
     .update({ status: 'processing' })
     .eq('id', analysisId)
 
-  // 11. Send PDF to AI provider
-  try {
-    const pdfBase64 = Buffer.from(pdfBuffer).toString('base64')
+  // 11. Schedule AI work to run AFTER the response is sent.
+  //     The client gets an instant response; Supabase Realtime updates the UI
+  //     when the analysis completes or fails in the background.
+  after(async () => {
+    try {
+      const pdfBase64 = Buffer.from(pdfBuffer).toString('base64')
 
-    const buildingList =
-      buildings && buildings.length > 0
-        ? buildings.map((b) => b.name).join(', ')
-        : 'Engar byggingar skilgreindar enn (no buildings defined yet)'
+      const buildingList =
+        buildings && buildings.length > 0
+          ? buildings.map((b) => b.name).join(', ')
+          : 'Engar byggingar skilgreindar enn (no buildings defined yet)'
 
-    const userPrompt = buildUserPrompt({
-      projectName: project?.name || 'Unknown',
-      documentName: doc.name,
-      buildingList,
-    })
+      const userPrompt = buildUserPrompt({
+        projectName: project?.name || 'Unknown',
+        documentName: doc.name,
+        buildingList,
+      })
 
-    const aiResult = await provider.analyzeDrawing({
-      pdfBase64,
-      systemPrompt: SYSTEM_PROMPT,
-      userPrompt,
-      maxTokens: 16000,
-    })
+      const aiResult = await provider.analyzeDrawing({
+        pdfBase64,
+        systemPrompt: SYSTEM_PROMPT,
+        userPrompt,
+        maxTokens: 16000,
+      })
 
-    // 12. Parse and validate the response
-    const parseResult = parseDrawingAnalysisResponse(aiResult.responseText)
+      // Parse and validate the response
+      const parseResult = parseDrawingAnalysisResponse(aiResult.responseText)
 
-    if (!parseResult.success) {
-      console.error('Failed to parse AI response:', parseResult.error)
-      console.error('Raw response:', parseResult.rawText)
+      if (!parseResult.success) {
+        console.error('Failed to parse AI response:', parseResult.error)
+        console.error('Raw response:', parseResult.rawText)
 
-      await supabase
+        await serviceClient
+          .from('drawing_analyses')
+          .update({
+            status: 'failed',
+            error_message:
+              'AI skilaði ógild JSON svari. Reyndu aftur eða hlaðið upp öðru skjali.',
+            ai_confidence_notes: parseResult.rawText,
+          })
+          .eq('id', analysisId)
+        return
+      }
+
+      if (parseResult.validated) {
+        // Full validation passed
+        const analysisResult = parseResult.data
+
+        await serviceClient
+          .from('drawing_analyses')
+          .update({
+            status: 'completed',
+            extracted_elements: analysisResult.elements,
+            ai_summary: analysisResult.page_description,
+            ai_model: aiResult.model,
+            ai_confidence_notes:
+              analysisResult.warnings.length > 0
+                ? analysisResult.warnings.join('\n')
+                : null,
+            pages_analyzed: 1,
+            page_count: 1,
+          })
+          .eq('id', analysisId)
+      } else {
+        // Partial data salvaged
+        const { elements, page_description } = parseResult.data
+
+        await serviceClient
+          .from('drawing_analyses')
+          .update({
+            status: 'completed',
+            extracted_elements: elements,
+            ai_summary: page_description,
+            ai_model: aiResult.model,
+            ai_confidence_notes:
+              'Svör AI stóðust ekki fulla staðfestingu. Skoðaðu gögn vandlega.',
+            pages_analyzed: 1,
+          })
+          .eq('id', analysisId)
+      }
+    } catch (err) {
+      console.error('Background AI analysis failed:', err)
+
+      const errorMessage =
+        err instanceof Error ? err.message : 'Unknown error during AI analysis'
+
+      await serviceClient
         .from('drawing_analyses')
         .update({
           status: 'failed',
-          error_message:
-            'AI skilaði ógild JSON svari. Reyndu aftur eða hlaðið upp öðru skjali.',
-          ai_confidence_notes: parseResult.rawText,
+          error_message: `Greining mistókst: ${errorMessage}`,
         })
         .eq('id', analysisId)
-
-      return NextResponse.json(
-        { error: 'AI returned invalid JSON response' },
-        { status: 500 }
-      )
     }
+  })
 
-    if (parseResult.validated) {
-      // 13a. Full validation passed
-      const analysisResult = parseResult.data
-
-      await supabase
-        .from('drawing_analyses')
-        .update({
-          status: 'completed',
-          extracted_elements: analysisResult.elements,
-          ai_summary: analysisResult.page_description,
-          ai_model: aiResult.model,
-          ai_confidence_notes: analysisResult.warnings.length > 0
-            ? analysisResult.warnings.join('\n')
-            : null,
-          pages_analyzed: 1,
-          page_count: 1,
-        })
-        .eq('id', analysisId)
-
-      return NextResponse.json({
-        analysisId,
-        status: 'completed',
-        elementsFound: analysisResult.elements.length,
-        drawingReference: analysisResult.drawing_reference,
-        drawingType: analysisResult.drawing_type,
-        building: analysisResult.building,
-        warnings: analysisResult.warnings,
-        provider: aiResult.provider,
-        model: aiResult.model,
-      })
-    } else {
-      // 13b. Partial data salvaged
-      const { elements, page_description } = parseResult.data
-
-      await supabase
-        .from('drawing_analyses')
-        .update({
-          status: 'completed',
-          extracted_elements: elements,
-          ai_summary: page_description,
-          ai_model: aiResult.model,
-          ai_confidence_notes:
-            'Svör AI stóðust ekki fulla staðfestingu. Skoðaðu gögn vandlega.',
-          pages_analyzed: 1,
-        })
-        .eq('id', analysisId)
-
-      return NextResponse.json({
-        analysisId,
-        status: 'completed',
-        elementsFound: elements.length,
-        warning: 'AI response had validation issues — review data carefully',
-        provider: aiResult.provider,
-        model: aiResult.model,
-      })
-    }
-  } catch (err) {
-    console.error('Error during AI drawing analysis:', err)
-
-    const errorMessage =
-      err instanceof Error ? err.message : 'Unknown error during AI analysis'
-
-    await supabase
-      .from('drawing_analyses')
-      .update({
-        status: 'failed',
-        error_message: `Greining mistókst: ${errorMessage}`,
-      })
-      .eq('id', analysisId)
-
-    return NextResponse.json(
-      { error: 'AI analysis failed', details: errorMessage },
-      { status: 500 }
-    )
-  }
+  // 12. Return immediately — client sees instant response
+  //     Supabase Realtime subscription in AnalysisListClient handles live updates
+  return NextResponse.json({
+    status: 'processing',
+    analysisId,
+    message: 'AI greining í gangi. Niðurstöður birtast sjálfkrafa.',
+  })
 }

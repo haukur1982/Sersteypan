@@ -527,6 +527,68 @@ export async function deleteAnalysis(analysisId: string) {
   return { success: true }
 }
 
+/**
+ * Retry a stale or failed analysis.
+ * Resets the status back to 'pending' so the client can re-trigger the API.
+ * Only works for 'processing' (stale) or 'failed' analyses.
+ */
+export async function retryAnalysis(analysisId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Ekki innskráð/ur' }
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || profile.role !== 'admin') {
+    return { error: 'Aðeins stjórnandi' }
+  }
+
+  const { data: analysis } = await supabase
+    .from('drawing_analyses')
+    .select('status, project_id, document_id')
+    .eq('id', analysisId)
+    .single()
+
+  if (!analysis) {
+    return { error: 'Greining fannst ekki' }
+  }
+
+  if (analysis.status !== 'processing' && analysis.status !== 'failed') {
+    return { error: 'Aðeins hægt að reyna aftur greiningar sem eru í vinnslu eða hafa mistekist' }
+  }
+
+  const { error } = await supabase
+    .from('drawing_analyses')
+    .update({
+      status: 'pending',
+      error_message: null,
+      ai_confidence_notes: null,
+    })
+    .eq('id', analysisId)
+
+  if (error) {
+    console.error('Error resetting analysis:', error)
+    return { error: 'Villa við að endurstilla greiningu' }
+  }
+
+  revalidatePath(`/admin/projects/${analysis.project_id}/analyze-drawings`)
+
+  return {
+    success: true,
+    documentId: analysis.document_id,
+    projectId: analysis.project_id,
+  }
+}
+
 // -- Helper Functions --
 
 /**

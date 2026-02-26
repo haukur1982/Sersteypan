@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,8 +13,9 @@ import {
   Eye,
   CheckCheck,
   Trash2,
+  RefreshCw,
 } from 'lucide-react'
-import { deleteAnalysis } from '@/lib/drawing-analysis/actions'
+import { deleteAnalysis, retryAnalysis } from '@/lib/drawing-analysis/actions'
 
 type AnalysisData = {
   id: string
@@ -73,6 +74,8 @@ export function AnalysisStatusCard({
   projectId: string
 }) {
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isRetrying, setIsRetrying] = useState(false)
+  const [isStaleProcessing, setIsStaleProcessing] = useState(false)
 
   const status = analysis.status
   const statusInfo = statusConfig[status] || statusConfig.pending
@@ -81,6 +84,25 @@ export function AnalysisStatusCard({
     ? analysis.extracted_elements
     : []
   const elementCount = elements.length
+
+  // Detect stale 'processing' — if stuck for >3 minutes, the background function was likely killed.
+  // Only calls setState inside interval callback (subscription pattern) to satisfy React lint rules.
+  // Initial check fires after 5s; re-checks every 30s.
+  useEffect(() => {
+    if (status !== 'processing') return
+
+    const checkStale = () => {
+      const updatedMs = new Date(analysis.updated_at).getTime()
+      setIsStaleProcessing(updatedMs < Date.now() - 3 * 60 * 1000)
+    }
+
+    const timeout = setTimeout(checkStale, 5_000)
+    const interval = setInterval(checkStale, 30_000)
+    return () => {
+      clearTimeout(timeout)
+      clearInterval(interval)
+    }
+  }, [status, analysis.updated_at])
 
   async function handleDelete() {
     if (!confirm('Ertu viss um að þú viljir eyða þessari greiningu?')) return
@@ -91,6 +113,34 @@ export function AnalysisStatusCard({
       setIsDeleting(false)
     }
     // Page will revalidate after deletion
+  }
+
+  async function handleRetry() {
+    setIsRetrying(true)
+    const result = await retryAnalysis(analysis.id)
+    if (result.error) {
+      alert(result.error)
+      setIsRetrying(false)
+      return
+    }
+
+    // Re-trigger the AI analysis API
+    if (result.documentId && result.projectId) {
+      try {
+        await fetch('/api/ai/analyze-drawing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentId: result.documentId,
+            projectId: result.projectId,
+            analysisId: analysis.id,
+          }),
+        })
+      } catch (err) {
+        console.error('Error re-triggering analysis:', err)
+      }
+    }
+    setIsRetrying(false)
   }
 
   return (
@@ -143,9 +193,27 @@ export function AnalysisStatusCard({
             )}
 
             {analysis.error_message && (
-              <p className="text-sm text-red-600 mb-2">
-                {analysis.error_message}
-              </p>
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-sm text-red-600">
+                  {analysis.error_message}
+                </p>
+                {status === 'failed' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRetry}
+                    disabled={isRetrying}
+                    className="text-red-700 border-red-300 hover:bg-red-50 flex-shrink-0"
+                  >
+                    {isRetrying ? (
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-1 h-3 w-3" />
+                    )}
+                    Reyna aftur
+                  </Button>
+                )}
+              </div>
             )}
 
             {status === 'pending' && (
@@ -154,10 +222,32 @@ export function AnalysisStatusCard({
               </p>
             )}
 
-            {status === 'processing' && (
+            {status === 'processing' && !isStaleProcessing && (
               <p className="text-sm text-blue-600 mb-2">
                 AI les teikninguna og dregur út einingar. Þetta getur tekið 30–60 sekúndur.
               </p>
+            )}
+
+            {status === 'processing' && isStaleProcessing && (
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-sm text-amber-600">
+                  Greining virðist hafa stöðvast.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRetry}
+                  disabled={isRetrying}
+                  className="text-amber-700 border-amber-300 hover:bg-amber-50"
+                >
+                  {isRetrying ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-1 h-3 w-3" />
+                  )}
+                  Reyna aftur
+                </Button>
+              </div>
             )}
 
             <p className="text-xs text-zinc-400">
