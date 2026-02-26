@@ -1,5 +1,6 @@
-// AI vision analysis can take 15-30s depending on PDF complexity
-export const maxDuration = 60
+// AI vision analysis of complex engineering drawings can take 60-120s+
+// Vercel Pro allows up to 300s (5 minutes)
+export const maxDuration = 300
 
 import { after } from 'next/server'
 import { NextRequest, NextResponse } from 'next/server'
