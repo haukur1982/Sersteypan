@@ -162,12 +162,12 @@ export async function getBatch(batchId: string): Promise<{ data: BatchRecord | n
       return { data: null, error: error.message }
     }
 
-    // Fetch elements in this batch
+    // Fetch elements in this batch (including dimensions for m³ calculation)
     const { data: elements } = await supabase
       .from('elements')
-      .select('id, name, element_type, status, floor, weight_kg, piece_count')
+      .select('id, name, element_type, status, floor, weight_kg, piece_count, batch_quantity, length_mm, width_mm, height_mm')
       .eq('batch_id', batchId)
-      .order('name')
+      .order('name_sort_key')
 
     const record: BatchRecord = {
       ...batch,
@@ -214,7 +214,7 @@ export async function getBatchesForProject(projectId: string): Promise<{
           .from('elements')
           .select('id, name, element_type, status, floor, weight_kg, piece_count')
           .eq('batch_id', batch.id)
-          .order('name')
+          .order('name_sort_key')
 
         return {
           ...batch,
@@ -279,7 +279,7 @@ export async function getAllBatches(statusFilter?: BatchStatus): Promise<{
         .from('elements')
         .select('id, name, element_type, status, floor, weight_kg, piece_count, batch_id')
         .in('batch_id', batchIds)
-        .order('name')
+        .order('name_sort_key')
 
       allElements = elements || []
     }
@@ -392,21 +392,39 @@ export async function updateChecklistItem(
 }
 
 /**
- * Complete a batch. Requires ALL checklist items to be checked.
+ * Complete a batch.
  *
- * 1. Verify checklist is complete
+ * By default requires ALL checklist items to be checked.
+ * When `skipChecklist` is true (admin only), the checklist validation
+ * is bypassed and an audit note is appended to the batch.
+ *
+ * 1. Optionally verify checklist is complete
  * 2. Update batch status → 'completed'
  * 3. Advance all batch elements to 'cast' status
  */
-export async function completeBatch(batchId: string) {
+export async function completeBatch(batchId: string, skipChecklist = false) {
   try {
     const { supabase, user } = await requireFactoryAuth()
+
+    // If skipping checklist, verify admin role
+    if (skipChecklist) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile || profile.role !== 'admin') {
+        return { error: 'Aðeins stjórnendur geta sleppt gátlista' }
+      }
+    }
 
     // Atomic RPC: validates checklist, updates batch status, advances elements
     // All in a single PostgreSQL transaction — no partial completion possible
     const { data: result, error: rpcError } = await supabase.rpc('complete_batch', {
       p_batch_id: batchId,
       p_completed_by: user.id,
+      p_skip_checklist: skipChecklist,
     })
 
     if (rpcError) {
@@ -534,7 +552,7 @@ export async function getUnbatchedElements(projectId: string) {
       .eq('project_id', projectId)
       .is('batch_id', null)
       .eq('status', 'rebar')
-      .order('name')
+      .order('name_sort_key')
 
     if (error) {
       console.error('Error fetching unbatched elements:', error)

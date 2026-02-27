@@ -58,7 +58,7 @@ export default async function ManageProductionPage({
       `)
       .eq('project_id', defaultProjectId)
       .order('floor', { ascending: true })
-      .order('name', { ascending: true })
+      .order('name_sort_key', { ascending: true })
 
     elements = (elementData || []) as typeof elements
   }

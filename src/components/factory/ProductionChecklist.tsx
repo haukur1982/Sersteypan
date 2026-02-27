@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -20,6 +19,8 @@ interface ProductionChecklistProps {
   disabled?: boolean
   /** Map of user IDs to profile names for display */
   profiles?: Record<string, CheckerProfile>
+  /** Called after a checklist item is toggled (for parent state sync) */
+  onChecklistChange?: (items: ChecklistItem[]) => void
 }
 
 export function ProductionChecklist({
@@ -27,8 +28,8 @@ export function ProductionChecklist({
   checklist,
   disabled = false,
   profiles = {},
+  onChecklistChange,
 }: ProductionChecklistProps) {
-  const router = useRouter()
   const [items, setItems] = useState<ChecklistItem[]>(checklist)
   const [loadingKey, setLoadingKey] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -42,39 +43,30 @@ export function ProductionChecklist({
     setLoadingKey(key)
     setError(null)
 
-    // Optimistic update
-    setItems((prev) =>
-      prev.map((item) =>
-        item.key === key
-          ? {
-              ...item,
-              checked,
-              checked_at: checked ? new Date().toISOString() : null,
-            }
-          : item
-      )
+    // Optimistic update — update local state and notify parent immediately
+    const optimisticItems = items.map((item) =>
+      item.key === key
+        ? {
+            ...item,
+            checked,
+            checked_at: checked ? new Date().toISOString() : null,
+          }
+        : item
     )
+    setItems(optimisticItems)
+    onChecklistChange?.(optimisticItems)
 
     const result = await updateChecklistItem(batchId, key, checked)
 
     if (result.error) {
       setError(result.error)
-      // Revert optimistic update
-      setItems((prev) =>
-        prev.map((item) =>
-          item.key === key
-            ? {
-                ...item,
-                checked: !checked,
-                checked_at: item.checked_at,
-              }
-            : item
-        )
-      )
-    } else {
-      // Refresh server page so BatchCompletionButton gets updated checklist props
-      router.refresh()
+      // Revert optimistic update and notify parent of revert
+      const reverted = items // original items before optimistic update
+      setItems(reverted)
+      onChecklistChange?.(reverted)
     }
+    // No router.refresh() needed — revalidatePath in the server action
+    // already tells Next.js to re-fetch stale server data automatically.
 
     setLoadingKey(null)
   }

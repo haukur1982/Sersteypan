@@ -748,6 +748,7 @@ export type Database = {
           length_mm: number | null
           loaded_at: string | null
           name: string
+          name_sort_key: string | null
           piece_count: number
           position_description: string | null
           priority: number | null

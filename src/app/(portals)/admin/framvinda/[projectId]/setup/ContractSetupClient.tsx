@@ -31,6 +31,8 @@ import {
   Wand2,
   Loader2,
   Save,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react'
 
 interface EditableLine {
@@ -207,6 +209,63 @@ export function ContractSetupClient({
     const suggested = suggestContractLines(elements, buildings, completedDeliveries)
     setLines(suggested.map((s) => suggestedToEditable(s)))
   }, [elements, buildings, deliveries])
+
+  // ── Feature 3: Row reordering within category ──────────────
+  const moveLineInCategory = useCallback(
+    (tempId: string, direction: 'up' | 'down') => {
+      setLines((prev) => {
+        const idx = prev.findIndex((l) => l.tempId === tempId)
+        if (idx === -1) return prev
+        const line = prev[idx]
+        const catIndices = prev
+          .map((l, i) => (l.category === line.category ? i : -1))
+          .filter((i) => i !== -1)
+        const posInCat = catIndices.indexOf(idx)
+        if (direction === 'up' && posInCat === 0) return prev
+        if (direction === 'down' && posInCat === catIndices.length - 1)
+          return prev
+        const swapIdx =
+          direction === 'up'
+            ? catIndices[posInCat - 1]
+            : catIndices[posInCat + 1]
+        const newLines = [...prev]
+        ;[newLines[idx], newLines[swapIdx]] = [newLines[swapIdx], newLines[idx]]
+        return newLines
+      })
+    },
+    []
+  )
+
+  // ── Feature 4: Default prices per category ─────────────────
+  const [defaultPrices, setDefaultPrices] = useState<
+    Partial<Record<FramvindaCategory, string>>
+  >({})
+
+  /** Update default price and auto-fill empty unit_price fields */
+  const applyDefaultPrice = useCallback(
+    (cat: FramvindaCategory, price: string) => {
+      setDefaultPrices((prev) => ({ ...prev, [cat]: price }))
+      if (!price) return
+      setLines((prev) =>
+        prev.map((l) =>
+          l.category === cat && !l.unit_price ? { ...l, unit_price: price } : l
+        )
+      )
+    },
+    []
+  )
+
+  /** Force-fill ALL lines in category (even those with existing prices) */
+  const applyDefaultToAll = useCallback(
+    (cat: FramvindaCategory) => {
+      const price = defaultPrices[cat]
+      if (!price) return
+      setLines((prev) =>
+        prev.map((l) => (l.category === cat ? { ...l, unit_price: price } : l))
+      )
+    },
+    [defaultPrices]
+  )
 
   async function handleSave() {
     setSaveError('')
@@ -418,10 +477,38 @@ export function ContractSetupClient({
                   </div>
                 </div>
 
+                {/* Default price per category (Feature 4) */}
+                {catLines.length > 0 && (
+                  <div className="flex items-center gap-2 mb-2 px-2">
+                    <span className="text-xs text-zinc-500 whitespace-nowrap">
+                      Sjálfgefið verð:
+                    </span>
+                    <Input
+                      value={defaultPrices[cat] ?? ''}
+                      onChange={(e) => applyDefaultPrice(cat, e.target.value)}
+                      placeholder={`kr/${PRICING_UNIT_LABELS[catLines[0]?.pricing_unit ?? 'm2']}`}
+                      type="number"
+                      className="h-7 w-32 text-sm"
+                      disabled={isFrozen}
+                    />
+                    {defaultPrices[cat] && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => applyDefaultToAll(cat)}
+                        disabled={isFrozen}
+                      >
+                        Setja á allar
+                      </Button>
+                    )}
+                  </div>
+                )}
+
                 {catLines.length > 0 ? (
                   <div className="space-y-2">
                     {/* Table header */}
-                    <div className="grid grid-cols-14 gap-1.5 px-2 text-xs text-zinc-500 font-medium" style={{ gridTemplateColumns: '2.5fr 1.2fr 0.6fr 0.8fr 1.2fr 1.2fr 1.5fr 1fr 0.5fr' }}>
+                    <div className="grid grid-cols-14 gap-1.5 px-2 text-xs text-zinc-500 font-medium" style={{ gridTemplateColumns: '2.5fr 1.2fr 0.6fr 0.8fr 1.2fr 1.2fr 1.5fr 1fr 1.1fr' }}>
                       <div>Heiti</div>
                       <div>Bygg.</div>
                       <div>Hæð</div>
@@ -430,14 +517,14 @@ export function ContractSetupClient({
                       <div>Magn</div>
                       <div>Verð</div>
                       <div className="text-right">Samtals</div>
-                      <div></div>
+                      <div className="text-center">Raða</div>
                     </div>
 
                     {catLines.map((line) => (
                       <div
                         key={line.tempId}
                         className="grid gap-1.5 items-center bg-zinc-50 rounded-md px-2 py-1.5"
-                        style={{ gridTemplateColumns: '2.5fr 1.2fr 0.6fr 0.8fr 1.2fr 1.2fr 1.5fr 1fr 0.5fr' }}
+                        style={{ gridTemplateColumns: '2.5fr 1.2fr 0.6fr 0.8fr 1.2fr 1.2fr 1.5fr 1fr 1.1fr' }}
                       >
                         <div>
                           <Input
@@ -543,12 +630,31 @@ export function ContractSetupClient({
                             ? formatISK(calcLineTotal(line))
                             : '—'}
                         </div>
-                        <div className="text-right">
+                        <div className="flex items-center justify-end gap-0.5">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-zinc-400 hover:text-red-600"
+                            className="h-6 w-6 text-zinc-400 hover:text-zinc-700"
+                            onClick={() => moveLineInCategory(line.tempId, 'up')}
+                            disabled={isFrozen}
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-zinc-400 hover:text-zinc-700"
+                            onClick={() => moveLineInCategory(line.tempId, 'down')}
+                            disabled={isFrozen}
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-zinc-400 hover:text-red-600"
                             onClick={() => removeLine(line.tempId)}
+                            disabled={isFrozen}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>

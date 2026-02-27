@@ -16,7 +16,7 @@ export default async function LaborRegistrationPage() {
             projects!inner(id, name)
         `)
         .in('status', ['planned', 'rebar', 'cast']) // allow slightly after the fact logging
-        .order('name')
+        .order('name_sort_key')
 
     // 2. Fetch available workers (all users with factory related roles for now)
     const { data: workers } = await supabase

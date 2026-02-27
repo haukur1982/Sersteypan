@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { createElementPhoto } from '@/lib/elements/actions'
 import { Button } from '@/components/ui/button'
 import { Upload, X, ImageIcon, Loader2 } from 'lucide-react'
 import Image from 'next/image'
@@ -100,18 +101,13 @@ export function PhotoUploadForm({
         data: { publicUrl }
       } = supabase.storage.from('element-photos').getPublicUrl(filePath)
 
-      // Create database record
-      const { error: dbError } = await supabase.from('element_photos').insert({
-        element_id: elementId,
-        stage: stage,
-        photo_url: publicUrl,
-        taken_by: user.id
-      })
+      // Create database record via server action (bypasses RLS)
+      const dbResult = await createElementPhoto(elementId, stage, publicUrl)
 
-      if (dbError) {
+      if (dbResult.error) {
         // If DB insert fails, try to delete the uploaded file
         await supabase.storage.from('element-photos').remove([filePath])
-        throw dbError
+        throw new Error(dbResult.error)
       }
 
       // Update progress to 100%

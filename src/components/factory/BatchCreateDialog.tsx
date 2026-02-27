@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { naturalCompare } from '@/lib/utils/naturalSort'
 import { useRouter } from 'next/navigation'
 import {
   Dialog,
@@ -89,9 +90,9 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
         const { data, error: fetchError } = await getUnbatchedElements(projectId)
         if (cancelled) return
 
-        // F2: Natural alphanumeric sort by name (e.g. F(A)-1-2 after F(A)-1-1)
+        // Natural alphanumeric sort by name (e.g. F(A)-1-2 after F(A)-1-1)
         const sortedData = (data || []).sort((a, b) =>
-          a.name.localeCompare(b.name, 'en', { numeric: true, sensitivity: 'base' })
+          naturalCompare(a.name, b.name)
         )
 
         setElements(sortedData)

@@ -175,7 +175,7 @@ export async function getElementsForProject(projectId: string) {
     .select('*')
     .eq('project_id', projectId)
     .order('priority', { ascending: false })
-    .order('name', { ascending: true })
+    .order('name_sort_key', { ascending: true })
 
   if (error) {
     console.error('Error fetching elements:', error)
@@ -239,7 +239,7 @@ export async function getElementsForProjectPaginated(
     .select('*')
     .eq('project_id', projectId)
     .order('priority', { ascending: false })
-    .order('name', { ascending: true })
+    .order('name_sort_key', { ascending: true })
     .range(from, to)
 
   // Apply same filters
@@ -531,6 +531,72 @@ export async function generateQRCodesForElements(elementIds: string[]) {
   }
 
   revalidatePath('/admin/projects')
+  return { success: true }
+}
+
+// =====================================================
+// Element Photo Actions
+// =====================================================
+
+/**
+ * Create a photo record for an element.
+ *
+ * The browser client can upload files to Supabase Storage (the bucket
+ * has permissive policies), but the `element_photos` table requires a
+ * server-side insert to satisfy RLS. This action bridges that gap.
+ */
+export async function createElementPhoto(
+  elementId: string,
+  stage: string,
+  photoUrl: string
+) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  // Validate user has appropriate role (admin, factory, driver can upload photos)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, is_active')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !profile.is_active) {
+    return { error: 'Account not active' }
+  }
+
+  if (!['admin', 'factory_manager', 'driver'].includes(profile.role)) {
+    return { error: 'Insufficient permissions' }
+  }
+
+  // Validate element exists
+  const { data: element } = await supabase
+    .from('elements')
+    .select('id, project_id')
+    .eq('id', elementId)
+    .single()
+
+  if (!element) {
+    return { error: 'Element not found' }
+  }
+
+  // Insert photo record (server-side bypasses browser RLS restrictions)
+  const { error: dbError } = await supabase.from('element_photos').insert({
+    element_id: elementId,
+    stage,
+    photo_url: photoUrl,
+    taken_by: user.id,
+  })
+
+  if (dbError) {
+    console.error('Error creating element photo:', dbError)
+    return { error: dbError.message }
+  }
+
+  revalidatePath(`/factory/production/${elementId}`)
   return { success: true }
 }
 

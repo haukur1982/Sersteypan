@@ -77,7 +77,7 @@ export async function getRebarElements(projectId: string) {
     `)
     .eq('project_id', projectId)
     .in('status', ['planned', 'rebar'])
-    .order('name')
+    .order('name_sort_key')
 
   if (error) {
     console.error('Error fetching rebar elements:', error)

@@ -56,6 +56,58 @@ export function calculateWeightKg(
 }
 
 /**
+ * Calculate volume in m³ from dimensions in mm.
+ *
+ * Used for concrete truck load planning: 1 truck ≈ 9 m³.
+ *
+ * @param lengthMm - Length in millimeters
+ * @param widthMm - Width in millimeters
+ * @param heightMm - Height/thickness in millimeters
+ * @returns Volume in m³, rounded to 3 decimal places
+ */
+export function calculateVolumeM3(
+  lengthMm: number,
+  widthMm: number,
+  heightMm: number
+): number {
+  return Math.round(
+    (lengthMm / 1000) * (widthMm / 1000) * (heightMm / 1000) * 1000
+  ) / 1000
+}
+
+/**
+ * Estimate volume for an element, using default thickness if height is missing.
+ * Returns null if insufficient data.
+ */
+export function estimateVolume(
+  lengthMm: number | null,
+  widthMm: number | null,
+  heightMm: number | null,
+  elementType?: string
+): { volumeM3: number; source: 'calculated' | 'estimated' } | null {
+  if (!lengthMm || !widthMm) return null
+
+  if (heightMm) {
+    return {
+      volumeM3: calculateVolumeM3(lengthMm, widthMm, heightMm),
+      source: 'calculated',
+    }
+  }
+
+  if (elementType) {
+    const defaultThickness = DEFAULT_THICKNESSES[elementType]
+    if (defaultThickness) {
+      return {
+        volumeM3: calculateVolumeM3(lengthMm, widthMm, defaultThickness),
+        source: 'estimated',
+      }
+    }
+  }
+
+  return null
+}
+
+/**
  * Calculate area in m² from dimensions in mm.
  *
  * @param lengthMm - Length in millimeters
