@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Layers, Loader2, AlertCircle, Plus, ChevronDown, ChevronRight, Minus } from 'lucide-react'
 import { createBatch, getUnbatchedElements } from '@/lib/factory/batch-actions'
+import { calculateVolumeM3 } from '@/lib/drawing-analysis/weight'
 
 interface UnbatchedElement {
   id: string
@@ -32,6 +33,9 @@ interface UnbatchedElement {
   weight_kg: number | null
   piece_count: number
   cast_done_count: number
+  length_mm: number | null
+  width_mm: number | null
+  height_mm: number | null
 }
 
 // Tab order matching owner's mockup: Filigran → Balcony → Stairs → Columns → Other
@@ -302,6 +306,13 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
 
   const selectedElements = elements.filter((e) => selectedIds.has(e.id))
   const totalWeight = selectedElements.reduce((sum, e) => sum + (e.weight_kg || 0), 0)
+  const totalVolumeM3 = selectedElements.reduce((sum, e) => {
+    if (e.length_mm && e.width_mm && e.height_mm) {
+      const qty = quantities.get(e.id) ?? remainingPieces(e)
+      return sum + calculateVolumeM3(e.length_mm, e.width_mm, e.height_mm) * qty
+    }
+    return sum
+  }, 0)
   const totalPieces = selectedElements.reduce((sum, e) => {
     const qty = quantities.get(e.id)
     return sum + (qty ?? remainingPieces(e))
@@ -483,9 +494,17 @@ export function BatchCreateDialog({ projectId, trigger }: BatchCreateDialogProps
           )}
 
           {selectedIds.size > 0 && (
-            <p className="text-sm text-zinc-600">
-              Heildarþyngd: <span className="font-medium">{totalWeight.toLocaleString('is-IS')} kg</span>
-            </p>
+            <div className="space-y-0.5">
+              <p className="text-sm text-zinc-600">
+                Heildarþyngd: <span className="font-medium">{totalWeight.toLocaleString('is-IS')} kg</span>
+              </p>
+              {totalVolumeM3 > 0 && (
+                <p className="text-sm text-zinc-600">
+                  Heildar-m³: <span className="font-medium">{totalVolumeM3.toFixed(2)} m³</span>
+                  <span className="text-zinc-400 ml-1">({Math.ceil(totalVolumeM3 / 9)} ferðir)</span>
+                </p>
+              )}
+            </div>
           )}
         </div>
 

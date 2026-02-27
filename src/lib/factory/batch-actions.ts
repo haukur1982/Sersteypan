@@ -548,7 +548,7 @@ export async function getUnbatchedElements(projectId: string) {
 
     const { data: elements, error } = await supabase
       .from('elements')
-      .select('id, name, element_type, status, floor, weight_kg, piece_count, cast_done_count')
+      .select('id, name, element_type, status, floor, weight_kg, piece_count, cast_done_count, length_mm, width_mm, height_mm')
       .eq('project_id', projectId)
       .is('batch_id', null)
       .eq('status', 'rebar')
