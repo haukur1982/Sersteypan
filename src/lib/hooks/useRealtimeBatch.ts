@@ -25,10 +25,8 @@ export function useRealtimeBatch<T extends { id: string }>(
   const [batch, setBatch] = useState<T>(initialBatch)
   const [isConnected, setIsConnected] = useState(false)
 
-  // Sync when server re-renders provide new initial data
-  useEffect(() => {
-    setBatch(initialBatch)
-  }, [initialBatch])
+  // No sync effect needed: useState captures the initial server value,
+  // and the realtime subscription below handles all subsequent updates.
 
   useEffect(() => {
     if (!enabled) return
