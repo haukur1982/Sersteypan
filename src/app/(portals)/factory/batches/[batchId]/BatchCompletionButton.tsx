@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -27,7 +26,6 @@ export function BatchCompletionButton({
   elementCount = 0,
   allowSkip = false,
 }: BatchCompletionButtonProps) {
-  const router = useRouter()
   const { checklist } = useBatchChecklist()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,9 +48,11 @@ export function BatchCompletionButton({
       setShowConfirm(false)
       setShowSkipConfirm(false)
     } else {
+      setLoading(false)
       setShowConfirm(false)
       setShowSkipConfirm(false)
-      router.refresh()
+      // revalidatePath() in completeBatch() already refreshes page data
+      // useRealtimeBatch in BatchStatusBadge handles the badge color update
     }
   }
 
