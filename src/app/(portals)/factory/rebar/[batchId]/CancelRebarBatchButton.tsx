@@ -30,7 +30,7 @@ export function CancelRebarBatchButton({ batchId }: CancelRebarBatchButtonProps)
                     description: 'Hætt hefur verið við járnalotuna og einingar losaðar.',
                 })
                 router.push('/factory/rebar') // Navigate back to main rebar view
-                router.refresh()
+                // revalidatePath() in cancelRebarBatch() already handles data refresh
             }
         })
     }

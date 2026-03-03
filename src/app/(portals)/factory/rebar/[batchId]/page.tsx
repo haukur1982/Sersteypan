@@ -9,9 +9,7 @@ import {
   ArrowLeft,
   Layers,
   Calendar,
-  AlertTriangle,
 } from 'lucide-react'
-import { RebarQcChecklist } from './RebarQcChecklist'
 import { RebarBatchApprovalButton } from './RebarBatchApprovalButton'
 import { FileText, Printer } from 'lucide-react'
 import { CancelRebarBatchButton } from './CancelRebarBatchButton'
@@ -64,26 +62,8 @@ export default async function RebarBatchDetailPage({
   const isEditable = !isApproved && !isCancelled
   const statusInfo = statusLabels[batch.status] || statusLabels.preparing
 
-  // Fetch profiles for checklist display
-  const supabase = await createClient()
-  const checkerIds = batch.checklist
-    .filter((item) => item.checked_by)
-    .map((item) => item.checked_by!)
-  const uniqueCheckerIds = [...new Set(checkerIds)]
-
-  let profiles: Record<string, { id: string; full_name: string }> = {}
-  if (uniqueCheckerIds.length > 0) {
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('id, full_name')
-      .in('id', uniqueCheckerIds)
-
-    if (profileData) {
-      profiles = Object.fromEntries(profileData.map((p) => [p.id, p]))
-    }
-  }
-
   // Fetch all drawing documents for the project
+  const supabase = await createClient()
   let projectDrawings: Array<{ id: string; name: string; file_url: string; category: string }> = []
   if (batch.project_id) {
     const { data: drawingsData } = await supabase
@@ -140,7 +120,6 @@ export default async function RebarBatchDetailPage({
               <CancelRebarBatchButton batchId={batch.id} />
               <RebarBatchApprovalButton
                 batchId={batch.id}
-                checklist={batch.checklist}
                 elementCount={batch.elements?.length || 0}
               />
             </>
@@ -148,32 +127,9 @@ export default async function RebarBatchDetailPage({
         </div>
       </div>
 
-      {/* Checklist enforcement warning */}
-      {isEditable && !batch.checklist.every((item) => item.checked) && (
-        <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-red-900">
-              Framleiðslustjóri verður að staðfesta alla liði í gátlista áður en samþykkt er
-            </p>
-            <p className="text-xs text-red-700 mt-1">
-              Farðu yfir gátlistann hér að neðan og hakaðu við alla liði til að geta samþykkt lotuna.
-            </p>
-          </div>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column — main content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* QC Checklist */}
-          <RebarQcChecklist
-            batchId={batch.id}
-            checklist={batch.checklist}
-            disabled={!isEditable}
-            profiles={profiles}
-          />
-
           {/* Elements in batch */}
           <Card className="border-zinc-200">
             <CardHeader>

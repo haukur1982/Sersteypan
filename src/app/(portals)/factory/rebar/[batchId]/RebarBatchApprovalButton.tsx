@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -13,25 +12,18 @@ import {
 } from '@/components/ui/dialog'
 import { CheckCircle, Loader2, AlertTriangle } from 'lucide-react'
 import { approveRebarBatch } from '@/lib/factory/rebar-batch-actions'
-import type { RebarChecklistItem } from '@/lib/factory/rebar-batch-actions'
 
 interface RebarBatchApprovalButtonProps {
   batchId: string
-  checklist: RebarChecklistItem[]
   elementCount?: number
 }
 
-export function RebarBatchApprovalButton({ batchId, checklist, elementCount = 0 }: RebarBatchApprovalButtonProps) {
-  const router = useRouter()
+export function RebarBatchApprovalButton({ batchId, elementCount = 0 }: RebarBatchApprovalButtonProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const allChecked = checklist.every((item) => item.checked)
-
   async function handleApprove() {
-    if (!allChecked) return
-
     setLoading(true)
     setError(null)
 
@@ -42,8 +34,9 @@ export function RebarBatchApprovalButton({ batchId, checklist, elementCount = 0 
       setLoading(false)
       setShowConfirm(false)
     } else {
+      setLoading(false)
       setShowConfirm(false)
-      router.refresh()
+      // revalidatePath() in approveRebarBatch() already refreshes page data
     }
   }
 
@@ -51,17 +44,9 @@ export function RebarBatchApprovalButton({ batchId, checklist, elementCount = 0 
     <>
       <div className="flex flex-col items-end gap-1">
         <Button
-          onClick={() => {
-            if (allChecked) {
-              setShowConfirm(true)
-            }
-          }}
-          disabled={!allChecked || loading}
-          className={
-            allChecked
-              ? 'bg-green-600 hover:bg-green-700'
-              : 'bg-zinc-300 text-zinc-500 cursor-not-allowed'
-          }
+          onClick={() => setShowConfirm(true)}
+          disabled={loading}
+          className="bg-green-600 hover:bg-green-700"
         >
           {loading ? (
             <>
@@ -75,11 +60,6 @@ export function RebarBatchApprovalButton({ batchId, checklist, elementCount = 0 
             </>
           )}
         </Button>
-        {!allChecked && (
-          <p className="text-xs text-zinc-500">
-            Öll atriði í gátlista verða að vera hakuð
-          </p>
-        )}
         {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
 
@@ -98,7 +78,7 @@ export function RebarBatchApprovalButton({ batchId, checklist, elementCount = 0 
           </DialogHeader>
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
             <p className="text-sm text-amber-800">
-              Gakktu úr skugga um að allar járnagrindur séu tilbúnar og gátlisti rétt útfylltur áður en þú heldur áfram.
+              Gakktu úr skugga um að allar járnagrindur séu tilbúnar áður en þú heldur áfram.
             </p>
           </div>
           <DialogFooter>

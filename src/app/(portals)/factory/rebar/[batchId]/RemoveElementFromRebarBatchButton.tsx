@@ -1,7 +1,6 @@
 'use client'
 
 import { useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { removeElementFromRebarBatch } from '@/lib/factory/rebar-batch-actions'
 import { Button } from '@/components/ui/button'
@@ -14,7 +13,6 @@ interface RemoveElementFromRebarBatchButtonProps {
 }
 
 export function RemoveElementFromRebarBatchButton({ batchId, elementId, elementName }: RemoveElementFromRebarBatchButtonProps) {
-    const router = useRouter()
     const [isPending, startTransition] = useTransition()
 
     const handleRemove = (e: React.MouseEvent) => {
@@ -34,7 +32,7 @@ export function RemoveElementFromRebarBatchButton({ batchId, elementId, elementN
                 toast.success('Eining fjarlægð', {
                     description: `${elementName} var fjarlægð úr járnalotunni.`,
                 })
-                router.refresh()
+                // revalidatePath() in removeElementFromRebarBatch() already handles data refresh
             }
         })
     }
