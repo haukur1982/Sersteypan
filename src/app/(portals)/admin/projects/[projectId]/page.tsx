@@ -27,6 +27,7 @@ import {
     HelpCircle,
     Map,
     Sparkles,
+    Grid3X3,
 } from 'lucide-react'
 import { DocumentUploadTabs } from '@/components/documents/DocumentUploadTabs'
 import { DocumentListWithFilter } from '@/components/documents/DocumentListWithFilter'
@@ -104,6 +105,12 @@ export default async function ProjectPage({
                     <Button variant="outline" asChild disabled={elementIds.length === 0}>
                         <Link href={`/admin/projects/${projectId}/qr-labels`}>
                             🖨️ Prenta QR Merki
+                        </Link>
+                    </Button>
+                    <Button variant="outline" asChild>
+                        <Link href={`/admin/projects/${projectId}/panelization`}>
+                            <Grid3X3 className="mr-2 h-4 w-4" />
+                            Plötusnið
                         </Link>
                     </Button>
                     <Button variant="outline" asChild>

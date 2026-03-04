@@ -1500,6 +1500,237 @@ export type Database = {
         }
         Relationships: []
       }
+      panelization_layouts: {
+        Row: {
+          id: string
+          project_id: string
+          building_id: string | null
+          mode: string
+          name: string
+          floor: number | null
+          surface_length_mm: number
+          surface_height_mm: number
+          thickness_mm: number
+          name_prefix: string
+          max_panel_width_mm: number
+          preferred_panel_width_mm: number
+          min_panel_width_mm: number
+          max_panel_weight_kg: number
+          joint_width_mm: number
+          concrete_density_kg_m3: number
+          strip_direction: string | null
+          max_transport_width_mm: number
+          max_transport_height_mm: number
+          max_table_length_mm: number
+          max_table_width_mm: number
+          status: string
+          elements_created: number | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          building_id?: string | null
+          mode: string
+          name: string
+          floor?: number | null
+          surface_length_mm: number
+          surface_height_mm: number
+          thickness_mm: number
+          name_prefix?: string
+          max_panel_width_mm?: number
+          preferred_panel_width_mm?: number
+          min_panel_width_mm?: number
+          max_panel_weight_kg?: number
+          joint_width_mm?: number
+          concrete_density_kg_m3?: number
+          strip_direction?: string | null
+          max_transport_width_mm?: number
+          max_transport_height_mm?: number
+          max_table_length_mm?: number
+          max_table_width_mm?: number
+          status?: string
+          elements_created?: number | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          building_id?: string | null
+          mode?: string
+          name?: string
+          floor?: number | null
+          surface_length_mm?: number
+          surface_height_mm?: number
+          thickness_mm?: number
+          name_prefix?: string
+          max_panel_width_mm?: number
+          preferred_panel_width_mm?: number
+          min_panel_width_mm?: number
+          max_panel_weight_kg?: number
+          joint_width_mm?: number
+          concrete_density_kg_m3?: number
+          strip_direction?: string | null
+          max_transport_width_mm?: number
+          max_transport_height_mm?: number
+          max_table_length_mm?: number
+          max_table_width_mm?: number
+          status?: string
+          elements_created?: number | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "panelization_layouts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "panelization_layouts_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "panelization_layouts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      panelization_openings: {
+        Row: {
+          id: string
+          layout_id: string
+          opening_type: string
+          offset_x_mm: number
+          offset_y_mm: number
+          width_mm: number
+          height_mm: number
+          label: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          layout_id: string
+          opening_type: string
+          offset_x_mm: number
+          offset_y_mm: number
+          width_mm: number
+          height_mm: number
+          label?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          layout_id?: string
+          opening_type?: string
+          offset_x_mm?: number
+          offset_y_mm?: number
+          width_mm?: number
+          height_mm?: number
+          label?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "panelization_openings_layout_id_fkey"
+            columns: ["layout_id"]
+            isOneToOne: false
+            referencedRelation: "panelization_layouts"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      panelization_panels: {
+        Row: {
+          id: string
+          layout_id: string
+          panel_index: number
+          name: string
+          offset_x_mm: number
+          offset_y_mm: number
+          width_mm: number
+          height_mm: number
+          thickness_mm: number
+          weight_kg: number
+          area_m2: number
+          volume_m3: number
+          element_id: string | null
+          exceeds_weight: boolean
+          exceeds_transport: boolean
+          exceeds_table: boolean
+          is_manually_adjusted: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          layout_id: string
+          panel_index: number
+          name: string
+          offset_x_mm?: number
+          offset_y_mm?: number
+          width_mm: number
+          height_mm: number
+          thickness_mm: number
+          weight_kg: number
+          area_m2: number
+          volume_m3: number
+          element_id?: string | null
+          exceeds_weight?: boolean
+          exceeds_transport?: boolean
+          exceeds_table?: boolean
+          is_manually_adjusted?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          layout_id?: string
+          panel_index?: number
+          name?: string
+          offset_x_mm?: number
+          offset_y_mm?: number
+          width_mm?: number
+          height_mm?: number
+          thickness_mm?: number
+          weight_kg?: number
+          area_m2?: number
+          volume_m3?: number
+          element_id?: string | null
+          exceeds_weight?: boolean
+          exceeds_transport?: boolean
+          exceeds_table?: boolean
+          is_manually_adjusted?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "panelization_panels_layout_id_fkey"
+            columns: ["layout_id"]
+            isOneToOne: false
+            referencedRelation: "panelization_layouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "panelization_panels_element_id_fkey"
+            columns: ["element_id"]
+            isOneToOne: false
+            referencedRelation: "elements"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       priority_requests: {
         Row: {
           created_at: string | null
