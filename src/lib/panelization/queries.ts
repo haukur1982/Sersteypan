@@ -12,19 +12,24 @@ type OpeningRow = Database['public']['Tables']['panelization_openings']['Row']
  * Joins project name for display.
  */
 export async function getAllLayouts() {
-  const supabase = await createClient()
+  try {
+    const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('panelization_layouts')
-    .select('*, profiles:created_by(full_name), projects:project_id(name)')
-    .order('created_at', { ascending: false })
+    const { data, error } = await supabase
+      .from('panelization_layouts')
+      .select('*, profiles:created_by(full_name), project:projects(name)')
+      .order('created_at', { ascending: false })
 
-  if (error) {
-    console.error('getAllLayouts error:', error)
-    return { data: [] as (LayoutRow & { profiles: { full_name: string } | null; projects: { name: string } | null })[], error: error.message }
+    if (error) {
+      console.error('getAllLayouts error:', error)
+      return { data: [] as (LayoutRow & { profiles: { full_name: string } | null; project: { name: string } | null })[], error: error.message }
+    }
+
+    return { data: data ?? [], error: null }
+  } catch (err) {
+    console.error('getAllLayouts unexpected error:', err)
+    return { data: [] as (LayoutRow & { profiles: { full_name: string } | null; project: { name: string } | null })[], error: 'Unexpected error' }
   }
-
-  return { data: data ?? [], error: null }
 }
 
 /**

@@ -14,7 +14,7 @@ export default async function PanelizationHubPage() {
   for (const layout of layouts) {
     const pid = layout.project_id
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const proj = (layout as any).projects as { name: string } | null
+    const proj = (layout as any).project as { name: string } | null
     const projectName = proj?.name ?? 'Óþekkt verkefni'
     if (!byProject.has(pid)) {
       byProject.set(pid, { projectName, projectId: pid, items: [] })
