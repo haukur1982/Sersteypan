@@ -100,7 +100,7 @@ export default async function ProjectPage({
                     <h1 className="text-3xl font-bold tracking-tight text-zinc-900">{project.name}</h1>
                     <p className="text-zinc-600 mt-1">{project.companies?.name}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 justify-end">
                     <ProjectActionButtons projectId={projectId} elementIds={elementIds} />
                     <Button variant="outline" asChild disabled={elementIds.length === 0}>
                         <Link href={`/admin/projects/${projectId}/qr-labels`}>
