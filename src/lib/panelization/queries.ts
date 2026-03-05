@@ -8,6 +8,26 @@ type OpeningRow = Database['public']['Tables']['panelization_openings']['Row']
 // ── Queries ──────────────────────────────────────────────────
 
 /**
+ * Get all panelization layouts across all projects (admin hub page).
+ * Joins project name for display.
+ */
+export async function getAllLayouts() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('panelization_layouts')
+    .select('*, profiles:created_by(full_name), projects:project_id(name)')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('getAllLayouts error:', error)
+    return { data: [] as (LayoutRow & { profiles: { full_name: string } | null; projects: { name: string } | null })[], error: error.message }
+  }
+
+  return { data: data ?? [], error: null }
+}
+
+/**
  * Get all panelization layouts for a project.
  */
 export async function getLayoutsForProject(projectId: string) {

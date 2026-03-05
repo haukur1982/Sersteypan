@@ -25,6 +25,7 @@ import {
     HelpCircle,
     TrendingUp,
     Construction,
+    Grid3X3,
     type LucideIcon
 } from 'lucide-react'
 import Link from 'next/link'
@@ -71,6 +72,7 @@ const navigation: Record<AuthUser['role'], NavItem[]> = {
         { name: 'Stjórnborð', englishName: 'Dashboard', href: '/admin', icon: LayoutDashboard },
         { name: 'Fyrirtæki', englishName: 'Companies', href: '/admin/companies', icon: Building },
         { name: 'Verkefni', englishName: 'Projects', href: '/admin/projects', icon: FolderKanban },
+        { name: 'Plötusnið', englishName: 'Panelization', href: '/admin/panelization', icon: Grid3X3 },
         { name: 'Notendur', englishName: 'Users', href: '/admin/users', icon: Users },
         { name: 'Skilaboð', englishName: 'Messages', href: '/admin/messages', icon: MessageSquare },
         { name: 'Framvinda', englishName: 'Progress Billing', href: '/admin/framvinda', icon: TrendingUp },
