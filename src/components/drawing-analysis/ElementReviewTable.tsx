@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Loader2,
   ChevronDown,
+  Grid3X3,
 } from 'lucide-react'
 import { ConfidenceBadge, type DisplayConfidenceLevel } from './ConfidenceBadge'
 import { EditableCell } from './EditableCell'
@@ -24,6 +25,7 @@ import type { ExtractedElement } from '@/lib/schemas/drawing-analysis'
 import { mapElementType } from '@/lib/schemas/drawing-analysis'
 import { estimateWeight, getWeightConfidenceOverride } from '@/lib/drawing-analysis/weight'
 import { commitAnalysisElements, updateExtractedElement } from '@/lib/drawing-analysis/actions'
+import { createPanelizationFromAnalysis } from '@/lib/panelization/actions'
 
 type Building = { id: string; name: string; floors: number | null }
 
@@ -82,6 +84,7 @@ export function ElementReviewTable({
     new Set(initialElements.map((_, i) => i))
   )
   const [isCommitting, setIsCommitting] = useState(false)
+  const [isCreatingPanelization, setIsCreatingPanelization] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Detect unique building names from AI extraction
@@ -132,6 +135,20 @@ export function ElementReviewTable({
     for (const idx of selected) {
       const el = elements[idx]
       if (el) count += el.quantity || 1
+    }
+    return count
+  }, [selected, elements])
+
+  // Count selected wall/filigran elements that have dimensions (panelizable)
+  const panelizableCount = useMemo(() => {
+    let count = 0
+    for (const idx of selected) {
+      const el = elements[idx]
+      if (!el) continue
+      const sysType = mapElementType(el.element_type)
+      if ((sysType === 'wall' || sysType === 'filigran') && el.length_mm && el.width_mm) {
+        count++
+      }
     }
     return count
   }, [selected, elements])
@@ -205,6 +222,52 @@ export function ElementReviewTable({
     }
   }
 
+  async function handleCreatePanelization() {
+    if (panelizableCount === 0) {
+      setError('Engar veggja- eða filigraneiningar með mál eru valdar.')
+      return
+    }
+
+    // Get indices of selected wall/filigran elements with dimensions
+    const panelizableIndices: number[] = []
+    for (const idx of selected) {
+      const el = elements[idx]
+      if (!el) continue
+      const sysType = mapElementType(el.element_type)
+      if ((sysType === 'wall' || sysType === 'filigran') && el.length_mm && el.width_mm) {
+        panelizableIndices.push(idx)
+      }
+    }
+
+    const confirmMsg = `Búa til plötusnið úr ${panelizableIndices.length} einingum?\n\nHvert plötusnið fær sjálfkrafa reiknuð skiptimynstur sem hægt er að laga í ritlinum.`
+    if (!confirm(confirmMsg)) return
+
+    setIsCreatingPanelization(true)
+    setError(null)
+
+    try {
+      const result = await createPanelizationFromAnalysis(
+        analysisId,
+        projectId,
+        panelizableIndices
+      )
+
+      if (result.error) {
+        setError(result.error)
+        setIsCreatingPanelization(false)
+        return
+      }
+
+      // Success — redirect to panelization page
+      router.push(`/admin/projects/${projectId}/panelization`)
+      router.refresh()
+    } catch (err) {
+      console.error('Panelization creation error:', err)
+      setError('Óvænt villa við að búa til plötusnið. Reyndu aftur.')
+      setIsCreatingPanelization(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Summary bar */}
@@ -238,9 +301,29 @@ export function ElementReviewTable({
                 ? 'Afvelja allt'
                 : 'Velja allt'}
             </Button>
+            {panelizableCount > 0 && (
+              <Button
+                variant="outline"
+                onClick={handleCreatePanelization}
+                disabled={isCreatingPanelization || isCommitting}
+                className="border-blue-200 text-blue-700 hover:bg-blue-50"
+              >
+                {isCreatingPanelization ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Búa til plötusnið...
+                  </>
+                ) : (
+                  <>
+                    <Grid3X3 className="mr-2 h-4 w-4" />
+                    Búa til plötusnið ({panelizableCount})
+                  </>
+                )}
+              </Button>
+            )}
             <Button
               onClick={handleCommit}
-              disabled={isCommitting || selected.size === 0}
+              disabled={isCommitting || isCreatingPanelization || selected.size === 0}
               className="bg-green-600 hover:bg-green-700"
             >
               {isCommitting ? (

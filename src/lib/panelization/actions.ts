@@ -5,8 +5,11 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { panelizationCreateSchema, panelizationOpeningSchema } from '@/lib/schemas/panelization'
 import { calculateWallPanels, calculateFiligranPanels } from './algorithm'
+import { DEFAULT_WALL_THICKNESS_MM, DEFAULT_FILIGRAN_THICKNESS_MM } from './types'
 import type { PanelizationConstraints, OpeningDefinition } from './types'
 import type { Database } from '@/types/database'
+import type { ExtractedElement } from '@/lib/schemas/drawing-analysis'
+import { mapElementType } from '@/lib/schemas/drawing-analysis'
 
 type LayoutRow = Database['public']['Tables']['panelization_layouts']['Row']
 type PanelRow = Database['public']['Tables']['panelization_panels']['Row']
@@ -432,6 +435,120 @@ export async function commitPanelizationToElements(layoutId: string) {
   revalidatePath(`/admin/projects/${layout.project_id}/panelization/${layoutId}`)
 
   return { error: null, elementsCreated: elementsToInsert.length }
+}
+
+/**
+ * Create panelization layouts from AI drawing analysis results.
+ *
+ * Takes selected wall/filigran elements from an analysis and creates
+ * one panelization layout per element with auto-calculated panels.
+ * This connects the AI drawing analysis pipeline to the panelization tool.
+ */
+export async function createPanelizationFromAnalysis(
+  analysisId: string,
+  projectId: string,
+  selectedIndices: number[]
+): Promise<{ error: string | null; layoutIds?: string[]; count?: number }> {
+  const { supabase, user, error: authError } = await getAdminUser()
+  if (authError || !user) return { error: authError ?? 'Óþekkt villa' }
+
+  // Fetch the analysis to get extracted elements
+  const { data: analysis } = await supabase
+    .from('drawing_analyses')
+    .select('extracted_elements')
+    .eq('id', analysisId)
+    .single()
+
+  if (!analysis) return { error: 'Greining fannst ekki' }
+
+  const allElements = (analysis.extracted_elements as ExtractedElement[]) ?? []
+
+  // Fetch existing buildings for name → id matching
+  const { data: existingBuildings } = await supabase
+    .from('buildings')
+    .select('id, name')
+    .eq('project_id', projectId)
+
+  // Build a fuzzy lookup map: lowercase name → building_id
+  const buildingMap = new Map<string, string>()
+  for (const b of existingBuildings ?? []) {
+    buildingMap.set(b.name.toLowerCase(), b.id)
+    // Also index without "Hús " prefix for matching "A" → "Hús A"
+    const stripped = b.name.toLowerCase().replace(/^hús\s+/i, '')
+    if (stripped !== b.name.toLowerCase()) {
+      buildingMap.set(stripped, b.id)
+    }
+  }
+
+  const layoutIds: string[] = []
+
+  for (const idx of selectedIndices) {
+    const el = allElements[idx]
+    if (!el) continue
+
+    const systemType = mapElementType(el.element_type)
+    if (systemType !== 'wall' && systemType !== 'filigran') continue
+
+    const isWall = systemType === 'wall'
+
+    // Map extracted dimensions to panelization surface
+    // Drawing analysis: length_mm = longest span, width_mm = second span, height_mm = thickness
+    const surfaceLengthMm = el.length_mm
+    const surfaceHeightMm = el.width_mm
+    const thicknessMm = el.height_mm ?? (isWall ? DEFAULT_WALL_THICKNESS_MM : DEFAULT_FILIGRAN_THICKNESS_MM)
+
+    // Skip elements without sufficient dimensions
+    if (!surfaceLengthMm || !surfaceHeightMm) continue
+
+    // Match building name to existing building_id
+    let buildingId: string | null = null
+    if (el.building) {
+      const lower = el.building.toLowerCase()
+      buildingId = buildingMap.get(lower)
+        ?? buildingMap.get(lower.replace(/^hús\s+/i, ''))
+        ?? null
+    }
+
+    const namePrefix = isWall ? 'V' : 'F'
+    const floor = el.floor ?? 1
+
+    // Insert the panelization layout
+    const { data: layout, error: insertError } = await supabase
+      .from('panelization_layouts')
+      .insert({
+        project_id: projectId,
+        building_id: buildingId,
+        mode: isWall ? 'wall' : 'filigran',
+        name: el.name || `${isWall ? 'Veggur' : 'Gólfplata'} ${idx + 1}`,
+        floor,
+        surface_length_mm: surfaceLengthMm,
+        surface_height_mm: surfaceHeightMm,
+        thickness_mm: thicknessMm,
+        name_prefix: namePrefix,
+        strip_direction: isWall ? null : 'length',
+        created_by: user.id,
+      })
+      .select()
+      .single()
+
+    if (insertError || !layout) {
+      console.error('Error creating layout from analysis:', insertError)
+      continue
+    }
+
+    // Auto-calculate initial panels (no openings from drawing analysis yet)
+    await recalculateAndSavePanels(supabase, layout, [])
+
+    layoutIds.push(layout.id)
+  }
+
+  if (layoutIds.length === 0) {
+    return { error: 'Engar einingar með nægileg mál fundust til að búa til plötusnið' }
+  }
+
+  revalidatePath(`/admin/projects/${projectId}/panelization`)
+
+  return { error: null, layoutIds, count: layoutIds.length }
 }
 
 /**
