@@ -43,7 +43,7 @@ const constraintDimensionMm = z
 
 export const panelizationCreateSchema = z.object({
   project_id: uuidSchema,
-  building_id: uuidSchema.optional().or(z.literal('')).transform(v => v || undefined),
+  building_id: uuidSchema.optional().or(z.literal('')).or(z.literal('none')).transform(v => (v && v !== 'none') ? v : undefined),
   mode: panelizationModeSchema,
   name: safeStringSchema(1, 200),
   floor: z.coerce.number().int().min(0).max(99).optional().default(1),

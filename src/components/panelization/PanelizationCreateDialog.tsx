@@ -137,7 +137,7 @@ export function PanelizationCreateDialog({
                   <SelectValue placeholder="Veldu byggingu" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Engin bygging</SelectItem>
+                  <SelectItem value="none">Engin bygging</SelectItem>
                   {buildings.map((b) => (
                     <SelectItem key={b.id} value={b.id}>
                       {b.name}
