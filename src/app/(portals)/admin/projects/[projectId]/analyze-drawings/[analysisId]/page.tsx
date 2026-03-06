@@ -11,8 +11,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, AlertTriangle, Sparkles, CheckCheck } from 'lucide-react'
 import { ElementReviewTable } from '@/components/drawing-analysis/ElementReviewTable'
+import { SurfaceReviewTable } from '@/components/drawing-analysis/SurfaceReviewTable'
 import { SplitReviewLayout } from '@/components/drawing-analysis/SplitReviewLayout'
 import type { ExtractedElement } from '@/lib/schemas/drawing-analysis'
+import type { ExtractedSurface } from '@/lib/schemas/surface-analysis'
 
 export default async function ReviewAnalysisPage({
   params,
@@ -39,7 +41,13 @@ export default async function ReviewAnalysisPage({
 
   const project = projectResult.data
   const analysis = analysisResult.data
-  const elements = (analysis.extracted_elements as ExtractedElement[]) || []
+  const isSurfaceMode = analysis.analysis_mode === 'surfaces'
+  const elements = isSurfaceMode
+    ? []
+    : (analysis.extracted_elements as ExtractedElement[]) || []
+  const surfaces = isSurfaceMode
+    ? (analysis.extracted_elements as unknown as ExtractedSurface[]) || []
+    : []
   const isCommitted = analysis.status === 'committed'
 
   // Parse warnings from confidence notes
@@ -115,8 +123,25 @@ export default async function ReviewAnalysisPage({
         </Card>
       )}
 
-      {/* Element Review Table */}
-      {elements.length > 0 ? (
+      {/* Review Table — surface or element mode */}
+      {isSurfaceMode ? (
+        surfaces.length > 0 ? (
+          <SurfaceReviewTable
+            analysisId={analysisId}
+            projectId={projectId}
+            surfaces={surfaces}
+            isCommitted={isCommitted}
+          />
+        ) : (
+          <Card className="border-zinc-200">
+            <CardContent className="pt-8 pb-8 text-center">
+              <p className="text-zinc-500">
+                Engir fletir fundust í þessari teikningu.
+              </p>
+            </CardContent>
+          </Card>
+        )
+      ) : elements.length > 0 ? (
         <ElementReviewTable
           analysisId={analysisId}
           projectId={projectId}
@@ -151,7 +176,7 @@ export default async function ReviewAnalysisPage({
               </Link>
             </Button>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
-              Yfirferð greiningar
+              {isSurfaceMode ? 'Plötugreining' : 'Yfirferð greiningar'}
             </h1>
             {isCommitted ? (
               <Badge className="bg-purple-100 text-purple-800 border-0">

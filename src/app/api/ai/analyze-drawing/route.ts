@@ -8,8 +8,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { expensiveRateLimiter, getClientIP } from '@/lib/utils/rateLimit'
 import { SYSTEM_PROMPT, buildUserPrompt } from '@/lib/ai/drawing-prompt'
+import { SURFACE_ANALYSIS_PROMPT, buildSurfaceUserPrompt } from '@/lib/ai/surface-prompt'
 import { parseDrawingAnalysisResponse } from '@/lib/ai/parse-response'
+import { parseSurfaceAnalysisResponse } from '@/lib/ai/parse-surface-response'
 import { getDrawingAnalysisProvider } from '@/lib/ai/providers'
+import type { Json } from '@/types/database'
 
 /**
  * POST /api/ai/analyze-drawing
@@ -91,20 +94,22 @@ export async function POST(request: NextRequest) {
   }
 
   // 5. Parse request body
-  let body: { documentId: string; projectId: string; analysisId: string }
+  let body: { documentId: string; projectId: string; analysisId: string; analysisMode?: string }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { documentId, projectId, analysisId } = body
+  const { documentId, projectId, analysisId, analysisMode = 'elements' } = body
   if (!documentId || !projectId || !analysisId) {
     return NextResponse.json(
       { error: 'documentId, projectId, and analysisId are required' },
       { status: 400 }
     )
   }
+
+  const isSurfaceMode = analysisMode === 'surfaces'
 
   // 6. Fetch document record
   const { data: doc, error: docError } = await supabase
@@ -194,73 +199,128 @@ export async function POST(request: NextRequest) {
           ? buildings.map((b) => b.name).join(', ')
           : 'Engar byggingar skilgreindar enn (no buildings defined yet)'
 
-      const userPrompt = buildUserPrompt({
-        projectName: project?.name || 'Unknown',
-        documentName: doc.name,
-        buildingList,
-      })
+      // Select prompt and parser based on analysis mode
+      const systemPrompt = isSurfaceMode ? SURFACE_ANALYSIS_PROMPT : SYSTEM_PROMPT
+      const userPrompt = isSurfaceMode
+        ? buildSurfaceUserPrompt({
+            projectName: project?.name || 'Unknown',
+            documentName: doc.name,
+            buildingList,
+          })
+        : buildUserPrompt({
+            projectName: project?.name || 'Unknown',
+            documentName: doc.name,
+            buildingList,
+          })
 
       const aiResult = await provider.analyzeDrawing({
         pdfBase64,
-        systemPrompt: SYSTEM_PROMPT,
+        systemPrompt,
         userPrompt,
         maxTokens: 32000,
       })
 
-      // Parse and validate the response
-      const parseResult = parseDrawingAnalysisResponse(aiResult.responseText)
+      if (isSurfaceMode) {
+        // ── Surface analysis mode ──
+        const parseResult = parseSurfaceAnalysisResponse(aiResult.responseText)
 
-      if (!parseResult.success) {
-        console.error('Failed to parse AI response:', parseResult.error)
-        console.error('Raw response:', parseResult.rawText)
+        if (!parseResult.success) {
+          console.error('Failed to parse surface AI response:', parseResult.error)
+          await serviceClient
+            .from('drawing_analyses')
+            .update({
+              status: 'failed',
+              error_message: 'AI skilaði ógild JSON svari. Reyndu aftur.',
+              ai_confidence_notes: parseResult.rawText,
+            })
+            .eq('id', analysisId)
+          return
+        }
 
-        await serviceClient
-          .from('drawing_analyses')
-          .update({
-            status: 'failed',
-            error_message:
-              'AI skilaði ógild JSON svari. Reyndu aftur eða hlaðið upp öðru skjali.',
-            ai_confidence_notes: parseResult.rawText,
-          })
-          .eq('id', analysisId)
-        return
-      }
-
-      if (parseResult.validated) {
-        // Full validation passed
-        const analysisResult = parseResult.data
-
-        await serviceClient
-          .from('drawing_analyses')
-          .update({
-            status: 'completed',
-            extracted_elements: analysisResult.elements,
-            ai_summary: analysisResult.page_description,
-            ai_model: aiResult.model,
-            ai_confidence_notes:
-              analysisResult.warnings.length > 0
-                ? analysisResult.warnings.join('\n')
-                : null,
-            pages_analyzed: 1,
-            page_count: 1,
-          })
-          .eq('id', analysisId)
+        if (parseResult.validated) {
+          const result = parseResult.data
+          await serviceClient
+            .from('drawing_analyses')
+            .update({
+              status: 'completed',
+              extracted_elements: result.surfaces as unknown as Json[],
+              ai_summary: result.page_description,
+              ai_model: aiResult.model,
+              ai_confidence_notes:
+                result.warnings.length > 0 ? result.warnings.join('\n') : null,
+              pages_analyzed: 1,
+              page_count: 1,
+            })
+            .eq('id', analysisId)
+        } else {
+          const { surfaces, page_description } = parseResult.data
+          await serviceClient
+            .from('drawing_analyses')
+            .update({
+              status: 'completed',
+              extracted_elements: surfaces as unknown as Json[],
+              ai_summary: page_description,
+              ai_model: aiResult.model,
+              ai_confidence_notes:
+                'Svör AI stóðust ekki fulla staðfestingu. Skoðaðu gögn vandlega.',
+              pages_analyzed: 1,
+            })
+            .eq('id', analysisId)
+        }
       } else {
-        // Partial data salvaged
-        const { elements, page_description } = parseResult.data
+        // ── Element analysis mode (existing) ──
+        const parseResult = parseDrawingAnalysisResponse(aiResult.responseText)
 
-        await serviceClient
-          .from('drawing_analyses')
-          .update({
-            status: 'completed',
-            extracted_elements: elements,
-            ai_summary: page_description,
-            ai_model: aiResult.model,
-            ai_confidence_notes:
-              'Svör AI stóðust ekki fulla staðfestingu. Skoðaðu gögn vandlega.',
-            pages_analyzed: 1,
-          })
-          .eq('id', analysisId)
+        if (!parseResult.success) {
+          console.error('Failed to parse AI response:', parseResult.error)
+          console.error('Raw response:', parseResult.rawText)
+
+          await serviceClient
+            .from('drawing_analyses')
+            .update({
+              status: 'failed',
+              error_message:
+                'AI skilaði ógild JSON svari. Reyndu aftur eða hlaðið upp öðru skjali.',
+              ai_confidence_notes: parseResult.rawText,
+            })
+            .eq('id', analysisId)
+          return
+        }
+
+        if (parseResult.validated) {
+          const analysisResult = parseResult.data
+
+          await serviceClient
+            .from('drawing_analyses')
+            .update({
+              status: 'completed',
+              extracted_elements: analysisResult.elements,
+              ai_summary: analysisResult.page_description,
+              ai_model: aiResult.model,
+              ai_confidence_notes:
+                analysisResult.warnings.length > 0
+                  ? analysisResult.warnings.join('\n')
+                  : null,
+              pages_analyzed: 1,
+              page_count: 1,
+            })
+            .eq('id', analysisId)
+        } else {
+          const { elements, page_description } = parseResult.data
+
+          await serviceClient
+            .from('drawing_analyses')
+            .update({
+              status: 'completed',
+              extracted_elements: elements,
+              ai_summary: page_description,
+              ai_model: aiResult.model,
+              ai_confidence_notes:
+                'Svör AI stóðust ekki fulla staðfestingu. Skoðaðu gögn vandlega.',
+              pages_analyzed: 1,
+            })
+            .eq('id', analysisId)
+        }
       }
     } catch (err) {
       console.error('Background AI analysis failed:', err)

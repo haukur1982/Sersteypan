@@ -72,12 +72,13 @@ export default async function AnalyzeDrawingsPage({
           <Sparkles className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm text-purple-900 font-medium mb-1">
-              AI-greining á burðarþolsteikningum
+              AI-greining á teikningum
             </p>
             <p className="text-sm text-purple-700">
-              Hlaðið upp PDF teikningum og kerfið greinir þær sjálfkrafa.
-              Steypueiningar, mál, járnauppsetning og þyngd eru dregin út.
-              Eftir yfirferð er hægt að stofna allar einingar í einu.
+              Tveir greiningar-hamur: <strong>Framleiðsluteikningar</strong> (BF/BS)
+              — greinir steypueiningar, mál og járnauppsetningu.{' '}
+              <strong>Plötugreining</strong> — greinir veggi og gólffleti úr
+              aðaluppdráttum og býr til plötusnið sjálfkrafa.
             </p>
           </div>
         </div>

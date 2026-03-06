@@ -44,7 +44,7 @@ export async function getAnalysesForProject(projectId: string) {
 
   const { data, error } = await supabase
     .from('drawing_analyses')
-    .select('id, status, document_name, page_count, pages_analyzed, extracted_elements, ai_summary, ai_confidence_notes, elements_created, error_message, created_at, updated_at')
+    .select('id, status, document_name, page_count, pages_analyzed, extracted_elements, ai_summary, ai_confidence_notes, elements_created, error_message, created_at, updated_at, analysis_mode')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
 

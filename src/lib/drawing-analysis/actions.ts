@@ -14,7 +14,8 @@ import { estimateWeight } from './weight'
  */
 export async function startDrawingAnalysis(
   projectId: string,
-  documentIds: string[]
+  documentIds: string[],
+  analysisMode: 'elements' | 'surfaces' = 'elements'
 ) {
   const supabase = await createClient()
 
@@ -57,6 +58,7 @@ export async function startDrawingAnalysis(
     document_id: doc.id,
     document_name: doc.name || 'Ónefnt skjal',
     status: 'pending' as const,
+    analysis_mode: analysisMode,
     created_by: user.id,
   }))
 
@@ -73,6 +75,7 @@ export async function startDrawingAnalysis(
   // Return analysis IDs — the client will trigger the API route for each
   return {
     success: true,
+    analysisMode,
     analyses: analyses.map((a) => ({
       id: a.id,
       documentId: a.document_id,
@@ -530,9 +533,12 @@ export async function deleteAnalysis(analysisId: string) {
 /**
  * Retry a stale or failed analysis.
  * Resets the status back to 'pending' so the client can re-trigger the API.
- * Only works for 'processing' (stale) or 'failed' analyses.
+ * Optionally switches the analysis mode (e.g. elements → surfaces).
  */
-export async function retryAnalysis(analysisId: string) {
+export async function retryAnalysis(
+  analysisId: string,
+  newMode?: 'elements' | 'surfaces'
+) {
   const supabase = await createClient()
 
   const {
@@ -554,7 +560,7 @@ export async function retryAnalysis(analysisId: string) {
 
   const { data: analysis } = await supabase
     .from('drawing_analyses')
-    .select('status, project_id, document_id')
+    .select('status, project_id, document_id, analysis_mode')
     .eq('id', analysisId)
     .single()
 
@@ -562,8 +568,8 @@ export async function retryAnalysis(analysisId: string) {
     return { error: 'Greining fannst ekki' }
   }
 
-  if (!['pending', 'processing', 'failed'].includes(analysis.status)) {
-    return { error: 'Aðeins hægt að reyna aftur greiningar sem eru í bið, í vinnslu eða hafa mistekist' }
+  if (!['pending', 'processing', 'failed', 'completed'].includes(analysis.status)) {
+    return { error: 'Ekki er hægt að reyna aftur greiningar sem hafa verið staðfestar' }
   }
 
   const { error } = await supabase
@@ -572,6 +578,9 @@ export async function retryAnalysis(analysisId: string) {
       status: 'pending',
       error_message: null,
       ai_confidence_notes: null,
+      extracted_elements: null,
+      ai_summary: null,
+      ...(newMode && { analysis_mode: newMode }),
     })
     .eq('id', analysisId)
 
@@ -582,10 +591,13 @@ export async function retryAnalysis(analysisId: string) {
 
   revalidatePath(`/admin/projects/${analysis.project_id}/analyze-drawings`)
 
+  const effectiveMode = newMode || analysis.analysis_mode || 'elements'
+
   return {
     success: true,
     documentId: analysis.document_id,
     projectId: analysis.project_id,
+    analysisMode: effectiveMode,
   }
 }
 

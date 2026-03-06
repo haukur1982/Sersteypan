@@ -24,9 +24,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Plus, Loader2, AlertCircle } from 'lucide-react'
 import { createPanelizationLayout } from '@/lib/panelization/actions'
 import {
-  DEFAULT_WALL_THICKNESS_MM,
   DEFAULT_FLOOR_HEIGHT_MM,
   DEFAULT_FILIGRAN_THICKNESS_MM,
+  WALL_THICKNESSES,
+  WALL_TYPE_LABELS,
+  type WallType,
 } from '@/lib/panelization/types'
 
 interface Building {
@@ -45,13 +47,14 @@ export function PanelizationCreateDialog({
 }: PanelizationCreateDialogProps) {
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<'wall' | 'filigran'>('wall')
+  const [wallType, setWallType] = useState<WallType>('outer')
   const [state, formAction, isPending] = useActionState(createPanelizationLayout, {
     error: '',
   })
 
-  // Default values based on mode
+  // Default values based on mode and wall type
   const defaultThickness =
-    mode === 'wall' ? DEFAULT_WALL_THICKNESS_MM : DEFAULT_FILIGRAN_THICKNESS_MM
+    mode === 'wall' ? WALL_THICKNESSES[wallType] : DEFAULT_FILIGRAN_THICKNESS_MM
   const defaultHeight =
     mode === 'wall' ? DEFAULT_FLOOR_HEIGHT_MM : 0
   const defaultPrefix = mode === 'wall' ? 'V' : 'F'
@@ -73,10 +76,13 @@ export function PanelizationCreateDialog({
         </DialogHeader>
 
         <form action={formAction} className="space-y-4">
-          {/* Hidden project_id */}
+          {/* Hidden fields */}
           <input type="hidden" name="project_id" value={projectId} />
           <input type="hidden" name="mode" value={mode} />
           <input type="hidden" name="name_prefix" value={defaultPrefix} />
+          {mode === 'wall' && (
+            <input type="hidden" name="wall_type" value={wallType} />
+          )}
 
           {/* Mode selector */}
           <div className="space-y-2">
@@ -113,9 +119,37 @@ export function PanelizationCreateDialog({
             </div>
           </div>
 
-          {/* Name */}
+          {/* Wall type selector (wall mode only) */}
+          {mode === 'wall' && (
+            <div className="space-y-2">
+              <Label>Vegggerð</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.keys(WALL_THICKNESSES) as WallType[]).map((wt) => (
+                  <button
+                    key={wt}
+                    type="button"
+                    className={`rounded-lg border-2 p-2 text-center transition-colors ${
+                      wallType === wt
+                        ? 'border-zinc-900 bg-zinc-50'
+                        : 'border-zinc-200 hover:border-zinc-300'
+                    }`}
+                    onClick={() => setWallType(wt)}
+                  >
+                    <span className="font-medium text-xs block">
+                      {WALL_TYPE_LABELS[wt]}
+                    </span>
+                    <span className="text-xs text-zinc-500 block">
+                      {WALL_THICKNESSES[wt]} mm
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Name (optional — auto-generated if empty) */}
           <div className="space-y-2">
-            <Label htmlFor="panel-name">Heiti</Label>
+            <Label htmlFor="panel-name">Heiti (valfrjálst)</Label>
             <Input
               id="panel-name"
               name="name"
@@ -124,8 +158,10 @@ export function PanelizationCreateDialog({
                   ? 'T.d. Norðurveggur 1H'
                   : 'T.d. Gólfplata 1H'
               }
-              required
             />
+            <p className="text-xs text-zinc-500">
+              Ef tómt verður heiti sjálfkrafa búið til.
+            </p>
           </div>
 
           {/* Building selector */}
@@ -169,7 +205,7 @@ export function PanelizationCreateDialog({
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <span className="text-xs text-zinc-500 mb-1 block">
-                  {mode === 'wall' ? 'Lengd' : 'Lengd'}
+                  Lengd
                 </span>
                 <Input
                   name="surface_length_mm"
@@ -211,6 +247,16 @@ export function PanelizationCreateDialog({
                 />
               </div>
             </div>
+            {mode === 'filigran' && (
+              <p className="text-xs text-zinc-500">
+                Hámark: 2.500 mm breidd, 4.600 mm lengd per plata
+              </p>
+            )}
+            {mode === 'wall' && (
+              <p className="text-xs text-zinc-500">
+                Hámark: 8.000 x 4.000 mm, 20 tonn per veggeiningu
+              </p>
+            )}
           </div>
 
           {/* Strip direction (filigran only) */}

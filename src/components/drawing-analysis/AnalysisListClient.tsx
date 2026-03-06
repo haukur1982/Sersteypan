@@ -16,6 +16,7 @@ type AnalysisData = {
   error_message: string | null
   created_at: string
   updated_at: string
+  analysis_mode?: string
 }
 
 /**

@@ -124,12 +124,12 @@ export interface PanelizationResult {
 
 // ── Default Constraints ──────────────────────────────────────
 
-/** Factory defaults derived from real Icelandic precast production (Víkursandur 4 drawings) */
+/** Factory defaults from owner's real production limits */
 export const DEFAULT_CONSTRAINTS: PanelizationConstraints = {
-  maxPanelWidthMm: 3500,
-  preferredPanelWidthMm: 2500,
+  maxPanelWidthMm: 2500,
+  preferredPanelWidthMm: 2000,
   minPanelWidthMm: 600,
-  maxPanelWeightKg: 10000,
+  maxPanelWeightKg: 20000,
   jointWidthMm: 20,
   concreteDensityKgM3: 2400,
   maxTransportWidthMm: 3000,
@@ -138,8 +138,35 @@ export const DEFAULT_CONSTRAINTS: PanelizationConstraints = {
   maxTableWidthMm: 4000,
 }
 
-/** Default wall thickness (mm) */
-export const DEFAULT_WALL_THICKNESS_MM = 200
+/** Mode-specific constraint overrides applied on top of DEFAULT_CONSTRAINTS */
+export const WALL_CONSTRAINT_OVERRIDES: Partial<PanelizationConstraints> = {
+  maxPanelWidthMm: 8000,
+  maxTransportHeightMm: 4000,
+}
+
+export const FILIGRAN_CONSTRAINT_OVERRIDES: Partial<PanelizationConstraints> = {
+  maxPanelWidthMm: 2500,
+  maxTableLengthMm: 4600,
+}
+
+// ── Wall Types ──────────────────────────────────────────────
+
+export type WallType = 'outer' | 'sandwich' | 'inner'
+
+export const WALL_THICKNESSES: Record<WallType, number> = {
+  outer: 220,
+  sandwich: 320,
+  inner: 200,
+}
+
+export const WALL_TYPE_LABELS: Record<WallType, string> = {
+  outer: 'Útveggur',
+  sandwich: 'Samlokuveggur',
+  inner: 'Stoðveggur',
+}
+
+/** Default wall thickness (mm) — outer wall is most common */
+export const DEFAULT_WALL_THICKNESS_MM = 220
 
 /** Default floor-to-floor height (mm) — from Víkursandur 4: Hæð 1→2 = 2850mm */
 export const DEFAULT_FLOOR_HEIGHT_MM = 2850

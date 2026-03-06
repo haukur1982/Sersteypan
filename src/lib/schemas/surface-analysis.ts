@@ -1,0 +1,60 @@
+import { z } from 'zod'
+
+/**
+ * AI Surface Analysis schemas
+ *
+ * Defines the structure of data extracted by Claude Vision from
+ * architectural floor plans. Unlike element analysis (which extracts
+ * individual production elements from BF/BS drawings), surface analysis
+ * extracts wall segments and floor areas from architectural plans
+ * for subsequent panelization.
+ */
+
+export const confidenceLevelSchema = z.enum(['high', 'medium', 'low'])
+
+// Opening on a wall surface (window/door)
+export const extractedOpeningSchema = z.object({
+  type: z.enum(['window', 'door', 'other']),
+  offset_x_mm: z.number().int().min(0),
+  offset_y_mm: z.number().int().min(0),
+  width_mm: z.number().int().positive().max(10000),
+  height_mm: z.number().int().positive().max(10000),
+  label: z.string().max(100).nullable().optional(),
+})
+
+// A surface extracted from an architectural floor plan
+export const extractedSurfaceSchema = z.object({
+  name: z.string().min(1).max(200),
+  surface_type: z.enum(['wall', 'floor']),
+  wall_type: z.enum(['outer', 'inner', 'sandwich']).nullable().optional(),
+  length_mm: z.number().int().positive().max(50000),
+  height_mm: z.number().int().positive().max(50000),
+  thickness_mm: z.number().int().positive().max(500),
+  floor: z.number().int().nullable(),
+  building: z.string().max(50).nullable(),
+  openings: z.array(extractedOpeningSchema).default([]),
+  confidence: z.object({
+    dimensions: confidenceLevelSchema,
+  }),
+})
+
+// Full response from surface analysis of an architectural drawing
+export const surfaceAnalysisResponseSchema = z.object({
+  drawing_reference: z.string().max(200),
+  building: z.string().max(50).nullable(),
+  floor: z.number().int().nullable(),
+  general_notes: z.string().max(2000).default(''),
+  surfaces: z.array(extractedSurfaceSchema),
+  warnings: z.array(z.string()),
+  page_description: z.string().max(1000),
+})
+
+// Types
+export type ExtractedOpening = z.infer<typeof extractedOpeningSchema>
+export type ExtractedSurface = z.infer<typeof extractedSurfaceSchema>
+export type SurfaceAnalysisResponse = z.infer<typeof surfaceAnalysisResponseSchema>
+
+// Validation
+export function validateSurfaceAnalysisResponse(data: unknown) {
+  return surfaceAnalysisResponseSchema.safeParse(data)
+}

@@ -5,11 +5,18 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { panelizationCreateSchema, panelizationOpeningSchema } from '@/lib/schemas/panelization'
 import { calculateWallPanels, calculateFiligranPanels } from './algorithm'
-import { DEFAULT_WALL_THICKNESS_MM, DEFAULT_FILIGRAN_THICKNESS_MM } from './types'
-import type { PanelizationConstraints, OpeningDefinition } from './types'
+import {
+  DEFAULT_WALL_THICKNESS_MM,
+  DEFAULT_FILIGRAN_THICKNESS_MM,
+  WALL_CONSTRAINT_OVERRIDES,
+  FILIGRAN_CONSTRAINT_OVERRIDES,
+  WALL_THICKNESSES,
+} from './types'
+import type { PanelizationConstraints, OpeningDefinition, WallType } from './types'
 import type { Database } from '@/types/database'
 import type { ExtractedElement } from '@/lib/schemas/drawing-analysis'
 import { mapElementType } from '@/lib/schemas/drawing-analysis'
+import type { ExtractedSurface } from '@/lib/schemas/surface-analysis'
 
 type LayoutRow = Database['public']['Tables']['panelization_layouts']['Row']
 type PanelRow = Database['public']['Tables']['panelization_panels']['Row']
@@ -135,6 +142,29 @@ async function recalculateAndSavePanels(
   return { error: null, panelCount: result.panels.length }
 }
 
+// ── Field Labels (Icelandic) ────────────────────────────────
+
+const FIELD_LABELS: Record<string, string> = {
+  name: 'Heiti',
+  mode: 'Tegund',
+  surface_length_mm: 'Lengd',
+  surface_height_mm: 'Hæð/Breidd',
+  thickness_mm: 'Þykkt',
+  floor: 'Hæð',
+  project_id: 'Verkefni',
+  building_id: 'Bygging',
+  name_prefix: 'Forskeyti',
+  strip_direction: 'Stefna remsna',
+}
+
+function formatZodError(issues: { path: PropertyKey[]; message: string }[]): string {
+  const first = issues[0]
+  if (!first) return 'Ógild gögn'
+  const fieldKey = String(first.path[0] ?? '')
+  const label = FIELD_LABELS[fieldKey] || fieldKey
+  return `${label}: ${first.message}`
+}
+
 // ── Actions ──────────────────────────────────────────────────
 
 /**
@@ -147,27 +177,48 @@ export async function createPanelizationLayout(
   const { supabase, user, error: authError } = await getAdminUser()
   if (authError || !user) return { error: authError ?? 'Óþekkt villa' }
 
+  const mode = formData.get('mode') as string
+  const floor = Number(formData.get('floor') || 1)
+  const wallType = formData.get('wall_type') as WallType | null
+
+  // Auto-generate name if empty
+  let name = (formData.get('name') as string)?.trim()
+  if (!name) {
+    const label = mode === 'wall' ? 'Veggur' : 'Gólfplata'
+    name = `${label} ${floor}H`
+  }
+
+  // Auto-set thickness from wall type if applicable
+  let thickness = Number(formData.get('thickness_mm'))
+  if (mode === 'wall' && wallType && WALL_THICKNESSES[wallType]) {
+    thickness = WALL_THICKNESSES[wallType]
+  }
+
   // Parse form data
   const raw = {
     project_id: formData.get('project_id') as string,
-    building_id: formData.get('building_id') as string,
-    mode: formData.get('mode') as string,
-    name: formData.get('name') as string,
-    floor: Number(formData.get('floor') || 1),
+    building_id: (formData.get('building_id') as string) ?? '',
+    mode,
+    name,
+    floor,
     surface_length_mm: Number(formData.get('surface_length_mm')),
     surface_height_mm: Number(formData.get('surface_height_mm')),
-    thickness_mm: Number(formData.get('thickness_mm')),
-    name_prefix: (formData.get('name_prefix') as string) || (formData.get('mode') === 'wall' ? 'V' : 'F'),
-    strip_direction: formData.get('strip_direction') as string | undefined,
+    thickness_mm: thickness,
+    name_prefix: (formData.get('name_prefix') as string) || (mode === 'wall' ? 'V' : 'F'),
+    ...(formData.get('strip_direction') && { strip_direction: formData.get('strip_direction') as string }),
   }
 
   const parsed = panelizationCreateSchema.safeParse(raw)
   if (!parsed.success) {
-    const firstError = parsed.error.issues[0]
-    return { error: firstError?.message ?? 'Ógild gögn' }
+    return { error: formatZodError(parsed.error.issues) }
   }
 
   const data = parsed.data
+
+  // Apply mode-specific constraint overrides
+  const modeOverrides = data.mode === 'wall'
+    ? WALL_CONSTRAINT_OVERRIDES
+    : FILIGRAN_CONSTRAINT_OVERRIDES
 
   // Insert layout
   const { data: layout, error: insertError } = await supabase
@@ -183,7 +234,11 @@ export async function createPanelizationLayout(
       thickness_mm: data.thickness_mm,
       name_prefix: data.name_prefix,
       strip_direction: data.strip_direction ?? null,
-      // Use provided constraints or keep DB defaults
+      // Apply mode-specific defaults, then user overrides
+      ...(modeOverrides.maxPanelWidthMm && { max_panel_width_mm: modeOverrides.maxPanelWidthMm }),
+      ...(modeOverrides.maxTableLengthMm && { max_table_length_mm: modeOverrides.maxTableLengthMm }),
+      ...(modeOverrides.maxTransportHeightMm && { max_transport_height_mm: modeOverrides.maxTransportHeightMm }),
+      // User-provided constraints override mode defaults
       ...(data.max_panel_width_mm && { max_panel_width_mm: data.max_panel_width_mm }),
       ...(data.preferred_panel_width_mm && { preferred_panel_width_mm: data.preferred_panel_width_mm }),
       ...(data.min_panel_width_mm && { min_panel_width_mm: data.min_panel_width_mm }),
@@ -544,6 +599,140 @@ export async function createPanelizationFromAnalysis(
 
   if (layoutIds.length === 0) {
     return { error: 'Engar einingar með nægileg mál fundust til að búa til plötusnið' }
+  }
+
+  revalidatePath(`/admin/projects/${projectId}/panelization`)
+
+  return { error: null, layoutIds, count: layoutIds.length }
+}
+
+/**
+ * Create panelization layouts from AI surface analysis results.
+ *
+ * Unlike createPanelizationFromAnalysis (which works with ExtractedElement),
+ * this handles ExtractedSurface objects from architectural floor plan analysis.
+ * Each surface already has the right structure: wall type, thickness, openings.
+ */
+export async function createPanelizationFromSurfaces(
+  analysisId: string,
+  projectId: string,
+  selectedIndices: number[]
+): Promise<{ error: string | null; layoutIds?: string[]; count?: number }> {
+  const { supabase, user, error: authError } = await getAdminUser()
+  if (authError || !user) return { error: authError ?? 'Óþekkt villa' }
+
+  // Fetch the analysis to get extracted surfaces
+  const { data: analysis } = await supabase
+    .from('drawing_analyses')
+    .select('extracted_elements, analysis_mode')
+    .eq('id', analysisId)
+    .single()
+
+  if (!analysis) return { error: 'Greining fannst ekki' }
+  if (analysis.analysis_mode !== 'surfaces') {
+    return { error: 'Þessi greining er ekki plötugreining' }
+  }
+
+  const allSurfaces = (analysis.extracted_elements as unknown as ExtractedSurface[]) ?? []
+
+  // Fetch existing buildings for name → id matching
+  const { data: existingBuildings } = await supabase
+    .from('buildings')
+    .select('id, name')
+    .eq('project_id', projectId)
+
+  const buildingMap = new Map<string, string>()
+  for (const b of existingBuildings ?? []) {
+    buildingMap.set(b.name.toLowerCase(), b.id)
+    const stripped = b.name.toLowerCase().replace(/^hús\s+/i, '')
+    if (stripped !== b.name.toLowerCase()) {
+      buildingMap.set(stripped, b.id)
+    }
+  }
+
+  const layoutIds: string[] = []
+
+  for (const idx of selectedIndices) {
+    const surface = allSurfaces[idx]
+    if (!surface) continue
+
+    const isWall = surface.surface_type === 'wall'
+    const mode = isWall ? 'wall' : 'filigran'
+
+    // Use wall_type thickness or surface thickness
+    const thicknessMm = surface.thickness_mm
+    const modeOverrides = isWall ? WALL_CONSTRAINT_OVERRIDES : FILIGRAN_CONSTRAINT_OVERRIDES
+
+    // Match building name
+    let buildingId: string | null = null
+    if (surface.building) {
+      const lower = surface.building.toLowerCase()
+      buildingId = buildingMap.get(lower)
+        ?? buildingMap.get(lower.replace(/^hús\s+/i, ''))
+        ?? null
+    }
+
+    const namePrefix = isWall ? 'V' : 'F'
+    const floor = surface.floor ?? 1
+
+    // Insert the panelization layout with mode-specific constraints
+    const { data: layout, error: insertError } = await supabase
+      .from('panelization_layouts')
+      .insert({
+        project_id: projectId,
+        building_id: buildingId,
+        mode,
+        name: surface.name,
+        floor,
+        surface_length_mm: surface.length_mm,
+        surface_height_mm: surface.height_mm,
+        thickness_mm: thicknessMm,
+        name_prefix: namePrefix,
+        strip_direction: isWall ? null : 'length',
+        ...(modeOverrides.maxPanelWidthMm && { max_panel_width_mm: modeOverrides.maxPanelWidthMm }),
+        ...(modeOverrides.maxTableLengthMm && { max_table_length_mm: modeOverrides.maxTableLengthMm }),
+        ...(modeOverrides.maxTransportHeightMm && { max_transport_height_mm: modeOverrides.maxTransportHeightMm }),
+        created_by: user.id,
+      })
+      .select()
+      .single()
+
+    if (insertError || !layout) {
+      console.error('Error creating layout from surface:', insertError)
+      continue
+    }
+
+    // Insert openings from the surface (walls only)
+    const openingRows: OpeningRow[] = []
+    if (isWall && surface.openings?.length > 0) {
+      const openingInserts = surface.openings.map((o) => ({
+        layout_id: layout.id,
+        opening_type: o.type,
+        offset_x_mm: o.offset_x_mm,
+        offset_y_mm: o.offset_y_mm,
+        width_mm: o.width_mm,
+        height_mm: o.height_mm,
+        label: o.label ?? null,
+      }))
+
+      const { data: insertedOpenings } = await supabase
+        .from('panelization_openings')
+        .insert(openingInserts)
+        .select()
+
+      if (insertedOpenings) {
+        openingRows.push(...insertedOpenings)
+      }
+    }
+
+    // Auto-calculate panels with openings
+    await recalculateAndSavePanels(supabase, layout, openingRows)
+
+    layoutIds.push(layout.id)
+  }
+
+  if (layoutIds.length === 0) {
+    return { error: 'Engir fletir með nægileg mál fundust til að búa til plötusnið' }
   }
 
   revalidatePath(`/admin/projects/${projectId}/panelization`)

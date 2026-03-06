@@ -15,6 +15,7 @@ import {
   Weight,
   Ruler,
   Info,
+  Sparkles,
 } from 'lucide-react'
 import { PanelizationCreateDialog } from '@/components/panelization/PanelizationCreateDialog'
 
@@ -55,10 +56,18 @@ export default async function PanelizationPage({
           </p>
         </div>
 
-        <PanelizationCreateDialog
-          projectId={projectId}
-          buildings={buildings}
-        />
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href={`/admin/projects/${projectId}/analyze-drawings`}>
+              <Sparkles className="mr-2 h-4 w-4 text-purple-500" />
+              Greina teikningu
+            </Link>
+          </Button>
+          <PanelizationCreateDialog
+            projectId={projectId}
+            buildings={buildings}
+          />
+        </div>
       </div>
 
       {/* Educational guide — always visible */}
@@ -212,9 +221,16 @@ export default async function PanelizationPage({
               Ekkert plötusnið enn
             </h3>
             <p className="text-sm text-zinc-500 text-center max-w-md mb-4">
-              Smelltu á &quot;Nýtt plötusnið&quot; til að byrja. Kerfið reiknar
-              sjálfkrafa bestu skiptingu miðað við skorður verksmiðjunnar.
+              Smelltu á &quot;Nýtt plötusnið&quot; til að búa til handvirkt,
+              eða notaðu <strong>Greina teikningu</strong> til að hlaða upp
+              aðaluppdráttum og láta AI greina veggi og gólffleti sjálfkrafa.
             </p>
+            <Button variant="outline" asChild className="mb-2">
+              <Link href={`/admin/projects/${projectId}/analyze-drawings`}>
+                <Sparkles className="mr-2 h-4 w-4 text-purple-500" />
+                Greina teikningu með AI
+              </Link>
+            </Button>
           </CardContent>
         </Card>
       ) : (

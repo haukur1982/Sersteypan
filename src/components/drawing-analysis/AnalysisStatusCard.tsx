@@ -14,6 +14,7 @@ import {
   CheckCheck,
   Trash2,
   RefreshCw,
+  Layers,
 } from 'lucide-react'
 import { deleteAnalysis, retryAnalysis } from '@/lib/drawing-analysis/actions'
 
@@ -30,6 +31,7 @@ type AnalysisData = {
   error_message: string | null
   created_at: string
   updated_at: string
+  analysis_mode?: string
 }
 
 const statusConfig: Record<
@@ -58,6 +60,22 @@ const statusConfig: Record<
     label: 'Staðfest',
     icon: CheckCheck,
   },
+}
+
+/** Check if the AI summary suggests this is an architectural drawing, not a production drawing */
+function looksLikeArchitectural(summary: string | null): boolean {
+  if (!summary) return false
+  const lower = summary.toLowerCase()
+  return (
+    lower.includes('architectural') ||
+    lower.includes('not a precast') ||
+    lower.includes('floor plan') ||
+    lower.includes('not a production') ||
+    lower.includes('room layout') ||
+    lower.includes('aðaluppdráttur') ||
+    lower.includes('plöntuteikning') ||
+    lower.includes('ekki framleiðslu')
+  )
 }
 
 /**
@@ -124,7 +142,7 @@ export function AnalysisStatusCard({
       return
     }
 
-    // Re-trigger the AI analysis API
+    // Re-trigger the AI analysis API with the correct mode
     if (result.documentId && result.projectId) {
       try {
         await fetch('/api/ai/analyze-drawing', {
@@ -134,6 +152,7 @@ export function AnalysisStatusCard({
             documentId: result.documentId,
             projectId: result.projectId,
             analysisId: analysis.id,
+            analysisMode: result.analysisMode || analysis.analysis_mode || 'elements',
           }),
         })
       } catch (err) {
@@ -142,6 +161,42 @@ export function AnalysisStatusCard({
     }
     setIsRetrying(false)
   }
+
+  async function handleReanalyzeAsSurfaces() {
+    setIsRetrying(true)
+    const result = await retryAnalysis(analysis.id, 'surfaces')
+    if (result.error) {
+      alert(result.error)
+      setIsRetrying(false)
+      return
+    }
+
+    // Re-trigger the AI analysis API in surface mode
+    if (result.documentId && result.projectId) {
+      try {
+        await fetch('/api/ai/analyze-drawing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentId: result.documentId,
+            projectId: result.projectId,
+            analysisId: analysis.id,
+            analysisMode: 'surfaces',
+          }),
+        })
+      } catch (err) {
+        console.error('Error re-triggering surface analysis:', err)
+      }
+    }
+    setIsRetrying(false)
+  }
+
+  // Show hint when elements analysis found nothing on an architectural drawing
+  const showSurfaceHint =
+    status === 'completed' &&
+    analysis.analysis_mode !== 'surfaces' &&
+    elementCount === 0 &&
+    looksLikeArchitectural(analysis.ai_summary)
 
   return (
     <Card className="border-zinc-200">
@@ -166,9 +221,14 @@ export function AnalysisStatusCard({
               >
                 {statusInfo.label}
               </Badge>
+              {analysis.analysis_mode === 'surfaces' && (
+                <Badge variant="outline" className="text-xs text-orange-700 border-orange-300">
+                  Plötugreining
+                </Badge>
+              )}
               {(status === 'completed' || status === 'reviewed') && (
                 <span className="text-sm text-zinc-600">
-                  {elementCount} einingar fundust
+                  {elementCount} {analysis.analysis_mode === 'surfaces' ? 'fletir fundust' : 'einingar fundust'}
                 </span>
               )}
               {status === 'committed' &&
@@ -190,6 +250,38 @@ export function AnalysisStatusCard({
               <p className="text-sm text-zinc-600 mb-2 line-clamp-2">
                 {analysis.ai_summary}
               </p>
+            )}
+
+            {/* Hint: suggest surface mode when elements analysis found nothing on an architectural drawing */}
+            {showSurfaceHint && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 mb-2">
+                <Layers className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm text-blue-800">
+                    Þetta lítur út fyrir aðaluppdrátt, ekki framleiðsluteikningu.
+                    Reyndu <strong>plötugreiningu</strong> til að greina veggi og gólffleti.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleReanalyzeAsSurfaces}
+                    disabled={isRetrying}
+                    className="mt-2 text-blue-700 border-blue-300 hover:bg-blue-100"
+                  >
+                    {isRetrying ? (
+                      <>
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        Greining í gangi...
+                      </>
+                    ) : (
+                      <>
+                        <Layers className="mr-1 h-3 w-3" />
+                        Greina aftur sem plötugreiningu
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
             )}
 
             {analysis.error_message && (

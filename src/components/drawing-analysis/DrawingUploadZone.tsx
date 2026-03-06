@@ -8,6 +8,8 @@ import { Upload, FileText, Loader2, AlertCircle } from 'lucide-react'
 import { uploadDocument } from '@/lib/documents/actions'
 import { startDrawingAnalysis } from '@/lib/drawing-analysis/actions'
 
+type AnalysisMode = 'elements' | 'surfaces'
+
 export function DrawingUploadZone({ projectId }: { projectId: string }) {
   const router = useRouter()
   const [isDragging, setIsDragging] = useState(false)
@@ -15,6 +17,7 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('elements')
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -117,7 +120,11 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
         return updated
       })
 
-      const analysisResult = await startDrawingAnalysis(projectId, documentIds)
+      const analysisResult = await startDrawingAnalysis(
+        projectId,
+        documentIds,
+        analysisMode
+      )
 
       if (analysisResult.error) {
         setError(analysisResult.error)
@@ -140,6 +147,7 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
               documentId: analysis.documentId,
               projectId,
               analysisId: analysis.id,
+              analysisMode: analysisResult.analysisMode,
             }),
           })
             .then(async (resp) => {
@@ -169,6 +177,38 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Analysis Mode Toggle */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          className={`rounded-lg border-2 p-3 text-left transition-colors ${
+            analysisMode === 'elements'
+              ? 'border-purple-600 bg-purple-50'
+              : 'border-zinc-200 hover:border-zinc-300'
+          }`}
+          onClick={() => setAnalysisMode('elements')}
+        >
+          <span className="font-medium text-sm block">Framleiðsluteikningar</span>
+          <span className="text-xs text-zinc-500 block mt-0.5">
+            BF/BS teikningar — greinir stakar einingar (filigran, svalir, stiga, veggi)
+          </span>
+        </button>
+        <button
+          type="button"
+          className={`rounded-lg border-2 p-3 text-left transition-colors ${
+            analysisMode === 'surfaces'
+              ? 'border-purple-600 bg-purple-50'
+              : 'border-zinc-200 hover:border-zinc-300'
+          }`}
+          onClick={() => setAnalysisMode('surfaces')}
+        >
+          <span className="font-medium text-sm block">Plötugreining</span>
+          <span className="text-xs text-zinc-500 block mt-0.5">
+            Aðaluppdrættir — greinir veggi og gólffleti til plötusniðs
+          </span>
+        </button>
+      </div>
+
       {/* Drop Zone */}
       <Card
         className={`border-2 border-dashed transition-colors cursor-pointer ${
@@ -191,7 +231,9 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
               Dragðu PDF teikningar hingað
             </p>
             <p className="text-xs text-zinc-500 mb-3">
-              eða smelltu til að velja skjöl
+              {analysisMode === 'surfaces'
+                ? 'Aðaluppdrættir (plöntuteikning) — smelltu eða dragðu til að hlaða upp'
+                : 'eða smelltu til að velja skjöl'}
             </p>
             <label>
               <input
@@ -267,8 +309,10 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
                 ) : (
                   <>
                     <Upload className="mr-2 h-4 w-4" />
-                    Hlaða upp og greina ({files.length}{' '}
-                    {files.length === 1 ? 'skjal' : 'skjöl'})
+                    {analysisMode === 'surfaces'
+                      ? `Plötugreining (${files.length} ${files.length === 1 ? 'skjal' : 'skjöl'})`
+                      : `Hlaða upp og greina (${files.length} ${files.length === 1 ? 'skjal' : 'skjöl'})`
+                    }
                   </>
                 )}
               </Button>

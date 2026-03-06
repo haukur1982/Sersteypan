@@ -387,6 +387,7 @@ export type Database = {
           ai_confidence_notes: string | null
           ai_model: string | null
           ai_summary: string | null
+          analysis_mode: string
           created_at: string
           created_by: string
           document_id: string | null
@@ -408,6 +409,7 @@ export type Database = {
           ai_confidence_notes?: string | null
           ai_model?: string | null
           ai_summary?: string | null
+          analysis_mode?: string
           created_at?: string
           created_by: string
           document_id?: string | null
@@ -429,6 +431,7 @@ export type Database = {
           ai_confidence_notes?: string | null
           ai_model?: string | null
           ai_summary?: string | null
+          analysis_mode?: string
           created_at?: string
           created_by?: string
           document_id?: string | null
