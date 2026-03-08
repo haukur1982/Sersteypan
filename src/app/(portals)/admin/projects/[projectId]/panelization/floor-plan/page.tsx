@@ -115,8 +115,8 @@ export default async function FloorPlanPage({
               Engin byggingarmynd enn
             </h3>
             <p className="text-sm text-zinc-500 text-center max-w-md mb-4">
-              Hlaðið upp aðaluppdrætti og veljið &quot;Byggingarmynd&quot; til að
-              greina veggi og svæði úr teikningu.
+              Hlaðið upp aðaluppdrætti og veljið &quot;Plötugreining&quot; til að
+              greina veggi, svæði og hæðarmynd úr teikningu.
             </p>
             <Button variant="outline" asChild>
               <Link href={`/admin/projects/${projectId}/analyze-drawings`}>
