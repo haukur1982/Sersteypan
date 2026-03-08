@@ -226,7 +226,12 @@ export function AnalysisStatusCard({
                   Plötugreining
                 </Badge>
               )}
-              {(status === 'completed' || status === 'reviewed') && (
+              {analysis.analysis_mode === 'geometry' && (
+                <Badge variant="outline" className="text-xs text-emerald-700 border-emerald-300">
+                  Byggingarmynd
+                </Badge>
+              )}
+              {(status === 'completed' || status === 'reviewed') && analysis.analysis_mode !== 'geometry' && (
                 <span className="text-sm text-zinc-600">
                   {elementCount} {analysis.analysis_mode === 'surfaces' ? 'fletir fundust' : 'einingar fundust'}
                 </span>
@@ -348,7 +353,17 @@ export function AnalysisStatusCard({
           </div>
 
           <div className="flex gap-2 ml-4">
-            {(status === 'completed' || status === 'reviewed') && (
+            {(status === 'completed' || status === 'reviewed') && analysis.analysis_mode === 'geometry' && (
+              <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                <Link
+                  href={`/admin/projects/${projectId}/panelization/floor-plan`}
+                >
+                  <Eye className="mr-1 h-4 w-4" />
+                  Skoða hæðarmynd
+                </Link>
+              </Button>
+            )}
+            {(status === 'completed' || status === 'reviewed') && analysis.analysis_mode !== 'geometry' && (
               <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700">
                 <Link
                   href={`/admin/projects/${projectId}/analyze-drawings/${analysis.id}`}

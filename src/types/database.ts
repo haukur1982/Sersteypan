@@ -1503,6 +1503,50 @@ export type Database = {
         }
         Relationships: []
       }
+      building_floor_geometries: {
+        Row: {
+          id: string
+          project_id: string
+          building_id: string | null
+          floor: number
+          drawing_analysis_id: string | null
+          source_document_name: string | null
+          bounding_width_mm: number
+          bounding_height_mm: number
+          wall_segments: Record<string, unknown>[]
+          floor_zones: Record<string, unknown>[]
+          scale: string | null
+          general_notes: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          building_id?: string | null
+          floor: number
+          drawing_analysis_id?: string | null
+          source_document_name?: string | null
+          bounding_width_mm: number
+          bounding_height_mm: number
+          wall_segments?: Record<string, unknown>[]
+          floor_zones?: Record<string, unknown>[]
+          scale?: string | null
+          general_notes?: string | null
+          created_by: string
+        }
+        Update: {
+          floor?: number
+          bounding_width_mm?: number
+          bounding_height_mm?: number
+          wall_segments?: Record<string, unknown>[]
+          floor_zones?: Record<string, unknown>[]
+          scale?: string | null
+          general_notes?: string | null
+        }
+        Relationships: []
+      }
       panelization_layouts: {
         Row: {
           id: string
@@ -1526,6 +1570,7 @@ export type Database = {
           max_transport_height_mm: number
           max_table_length_mm: number
           max_table_width_mm: number
+          geometry_zone_id: string | null
           status: string
           elements_created: number | null
           created_by: string
@@ -1554,6 +1599,7 @@ export type Database = {
           max_transport_height_mm?: number
           max_table_length_mm?: number
           max_table_width_mm?: number
+          geometry_zone_id?: string | null
           status?: string
           elements_created?: number | null
           created_by: string
@@ -1582,6 +1628,7 @@ export type Database = {
           max_transport_height_mm?: number
           max_table_length_mm?: number
           max_table_width_mm?: number
+          geometry_zone_id?: string | null
           status?: string
           elements_created?: number | null
           created_by?: string

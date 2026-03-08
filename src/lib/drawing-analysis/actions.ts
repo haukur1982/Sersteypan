@@ -15,7 +15,7 @@ import { estimateWeight } from './weight'
 export async function startDrawingAnalysis(
   projectId: string,
   documentIds: string[],
-  analysisMode: 'elements' | 'surfaces' = 'elements'
+  analysisMode: 'elements' | 'surfaces' | 'geometry' = 'elements'
 ) {
   const supabase = await createClient()
 
@@ -537,7 +537,7 @@ export async function deleteAnalysis(analysisId: string) {
  */
 export async function retryAnalysis(
   analysisId: string,
-  newMode?: 'elements' | 'surfaces'
+  newMode?: 'elements' | 'surfaces' | 'geometry'
 ) {
   const supabase = await createClient()
 

@@ -9,8 +9,10 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { expensiveRateLimiter, getClientIP } from '@/lib/utils/rateLimit'
 import { SYSTEM_PROMPT, buildUserPrompt } from '@/lib/ai/drawing-prompt'
 import { SURFACE_ANALYSIS_PROMPT, buildSurfaceUserPrompt } from '@/lib/ai/surface-prompt'
+import { GEOMETRY_ANALYSIS_PROMPT, buildGeometryUserPrompt } from '@/lib/ai/geometry-prompt'
 import { parseDrawingAnalysisResponse } from '@/lib/ai/parse-response'
 import { parseSurfaceAnalysisResponse } from '@/lib/ai/parse-surface-response'
+import { parseGeometryAnalysisResponse } from '@/lib/ai/parse-geometry-response'
 import { getDrawingAnalysisProvider } from '@/lib/ai/providers'
 import type { Json } from '@/types/database'
 
@@ -110,6 +112,7 @@ export async function POST(request: NextRequest) {
   }
 
   const isSurfaceMode = analysisMode === 'surfaces'
+  const isGeometryMode = analysisMode === 'geometry'
 
   // 6. Fetch document record
   const { data: doc, error: docError } = await supabase
@@ -200,18 +203,28 @@ export async function POST(request: NextRequest) {
           : 'Engar byggingar skilgreindar enn (no buildings defined yet)'
 
       // Select prompt and parser based on analysis mode
-      const systemPrompt = isSurfaceMode ? SURFACE_ANALYSIS_PROMPT : SYSTEM_PROMPT
-      const userPrompt = isSurfaceMode
-        ? buildSurfaceUserPrompt({
+      const systemPrompt = isGeometryMode
+        ? GEOMETRY_ANALYSIS_PROMPT
+        : isSurfaceMode
+          ? SURFACE_ANALYSIS_PROMPT
+          : SYSTEM_PROMPT
+      const userPrompt = isGeometryMode
+        ? buildGeometryUserPrompt({
             projectName: project?.name || 'Unknown',
             documentName: doc.name,
             buildingList,
           })
-        : buildUserPrompt({
-            projectName: project?.name || 'Unknown',
-            documentName: doc.name,
-            buildingList,
-          })
+        : isSurfaceMode
+          ? buildSurfaceUserPrompt({
+              projectName: project?.name || 'Unknown',
+              documentName: doc.name,
+              buildingList,
+            })
+          : buildUserPrompt({
+              projectName: project?.name || 'Unknown',
+              documentName: doc.name,
+              buildingList,
+            })
 
       const aiResult = await provider.analyzeDrawing({
         pdfBase64,
@@ -220,7 +233,44 @@ export async function POST(request: NextRequest) {
         maxTokens: 32000,
       })
 
-      if (isSurfaceMode) {
+      if (isGeometryMode) {
+        // ── Geometry extraction mode ──
+        const parseResult = parseGeometryAnalysisResponse(aiResult.responseText)
+
+        if (!parseResult.success) {
+          console.error('Failed to parse geometry AI response:', parseResult.error)
+          await serviceClient
+            .from('drawing_analyses')
+            .update({
+              status: 'failed',
+              error_message: 'AI skilaði ógild JSON svari. Reyndu aftur.',
+              ai_confidence_notes: parseResult.rawText,
+            })
+            .eq('id', analysisId)
+          return
+        }
+
+        const geoData = parseResult.data
+        const wallCount = geoData.wall_segments.length
+        const zoneCount = geoData.floor_zones.length
+        const summary = `Byggingarmynd: ${wallCount} vegghluti, ${zoneCount} svæði. ${geoData.bounding_width_mm}×${geoData.bounding_height_mm}mm.`
+
+        // Store full geometry result in extracted_elements for auditability
+        await serviceClient
+          .from('drawing_analyses')
+          .update({
+            status: 'completed',
+            extracted_elements: geoData as unknown as Json,
+            ai_summary: summary,
+            ai_model: aiResult.model,
+            ai_confidence_notes: parseResult.validated
+              ? (geoData.warnings.length > 0 ? geoData.warnings.join('\n') : null)
+              : 'Svör AI stóðust ekki fulla staðfestingu. Skoðaðu gögn vandlega.',
+            pages_analyzed: 1,
+            page_count: 1,
+          })
+          .eq('id', analysisId)
+      } else if (isSurfaceMode) {
         // ── Surface analysis mode ──
         const parseResult = parseSurfaceAnalysisResponse(aiResult.responseText)
 

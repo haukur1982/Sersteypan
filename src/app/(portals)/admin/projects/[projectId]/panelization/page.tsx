@@ -16,6 +16,7 @@ import {
   Ruler,
   Info,
   Sparkles,
+  Building,
 } from 'lucide-react'
 import { PanelizationCreateDialog } from '@/components/panelization/PanelizationCreateDialog'
 
@@ -57,6 +58,14 @@ export default async function PanelizationPage({
         </div>
 
         <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link
+              href={`/admin/projects/${projectId}/panelization/floor-plan`}
+            >
+              <Building className="mr-2 h-4 w-4" />
+              Hæðarmynd
+            </Link>
+          </Button>
           <Button variant="outline" asChild>
             <Link href={`/admin/projects/${projectId}/analyze-drawings`}>
               <Sparkles className="mr-2 h-4 w-4 text-purple-500" />
