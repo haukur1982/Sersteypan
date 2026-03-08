@@ -1,21 +1,25 @@
 /**
  * AI Surface Analysis — Response Parser
  *
- * Same pattern as parse-response.ts but for surface analysis results.
+ * Parses the combined surface + geometry response from AI.
  * Handles markdown stripping, JSON parsing, and Zod validation.
+ * Geometry is extracted separately for saving to building_floor_geometries.
  */
 
 import {
   validateSurfaceAnalysisResponse,
   extractedSurfaceSchema,
+  geometryBlockSchema,
   type SurfaceAnalysisResponse,
   type ExtractedSurface,
+  type GeometryBlock,
 } from '@/lib/schemas/surface-analysis'
 
 export type SurfaceParseResult =
   | {
       success: true
       data: SurfaceAnalysisResponse
+      geometry: GeometryBlock | null
       validated: true
     }
   | {
@@ -25,6 +29,7 @@ export type SurfaceParseResult =
         page_description: string
         warnings: string[]
       }
+      geometry: GeometryBlock | null
       validated: false
       validationIssues: string
     }
@@ -35,7 +40,18 @@ export type SurfaceParseResult =
     }
 
 /**
+ * Try to extract and validate geometry from the raw parsed data.
+ * Returns null if geometry is missing or invalid.
+ */
+function extractGeometry(rawData: Record<string, unknown>): GeometryBlock | null {
+  if (!rawData?.geometry || typeof rawData.geometry !== 'object') return null
+  const result = geometryBlockSchema.safeParse(rawData.geometry)
+  return result.success ? result.data : null
+}
+
+/**
  * Parse AI response text into a validated surface analysis result.
+ * Geometry is extracted alongside surfaces when present.
  */
 export function parseSurfaceAnalysisResponse(
   responseText: string
@@ -59,19 +75,24 @@ export function parseSurfaceAnalysisResponse(
     }
   }
 
-  // 3. Validate with Zod schema
+  const rawData = parsed as Record<string, unknown>
+
+  // 3. Extract geometry (independent of surface validation)
+  const geometry = extractGeometry(rawData)
+
+  // 4. Validate full response with Zod schema
   const validation = validateSurfaceAnalysisResponse(parsed)
 
   if (validation.success) {
     return {
       success: true,
       data: validation.data,
+      geometry,
       validated: true,
     }
   }
 
-  // 4. Salvage partial data — validate each surface individually
-  const rawData = parsed as Record<string, unknown>
+  // 5. Salvage partial data — validate each surface individually
   const rawSurfaces = Array.isArray(rawData?.surfaces) ? rawData.surfaces : []
   const validSurfaces: ExtractedSurface[] = []
   const surfaceWarnings: string[] = []
@@ -103,6 +124,7 @@ export function parseSurfaceAnalysisResponse(
           : 'Greining lokið en sum gögn voru ófullnægjandi.',
       warnings: [...existingWarnings, ...surfaceWarnings],
     },
+    geometry,
     validated: false,
     validationIssues: validation.error.issues
       .map((i) => `${i.path.join('.')}: ${i.message}`)

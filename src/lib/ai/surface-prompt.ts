@@ -2,24 +2,32 @@
  * AI Surface Analysis — Prompts for Architectural Floor Plans
  *
  * This prompt tells Claude Vision to analyze architectural floor plans
- * and extract wall segments + floor areas for panelization.
+ * and extract BOTH:
+ * 1. Wall segments + floor areas for panelization (surfaces)
+ * 2. Spatial geometry (wall coordinates + zone polygons) for floor plan rendering
+ *
  * Unlike the element analysis prompt (drawing-prompt.ts) which extracts
  * individual production elements from BF/BS drawings, this extracts
- * surfaces that will later be divided into panels.
+ * surfaces and building geometry from architectural plans.
  */
 
 /**
- * System prompt for surface analysis of architectural floor plans.
+ * System prompt for combined surface + geometry analysis of architectural floor plans.
  *
  * The AI extracts:
- * - Wall segments with type (outer/inner/sandwich), length, and openings
- * - Floor areas as rectangular zones for filigran slab layout
+ * - Wall segments with type (outer/inner/sandwich), length, and openings → panelization
+ * - Floor areas as rectangular zones for filigran slab layout → panelization
+ * - Wall coordinates as line segments (x1,y1 → x2,y2) → floor plan view
+ * - Floor zones as closed polygons → floor plan view
  */
 export const SURFACE_ANALYSIS_PROMPT = `You are an architectural drawing analyzer specializing in Icelandic precast concrete (forsteyptar steypueiningar) panelization.
 
-You are analyzing ARCHITECTURAL FLOOR PLANS (aðaluppdráttur / plöntuteikning). Your job is to extract wall segments and floor areas from the drawing so they can be divided into precast concrete panels (panelization / plötusnið).
+You are analyzing ARCHITECTURAL FLOOR PLANS (aðaluppdráttur / plöntuteikning). Your job is to extract TWO things from the drawing:
 
-This is NOT a production drawing — do NOT look for individual element names like F(A)-1-1 or SV-1. Instead, identify the SURFACES (walls and floors) that will later be manufactured as precast elements.
+1. **SURFACES** — wall segments and floor areas with dimensions, for dividing into precast panels (panelization / plötusnið)
+2. **GEOMETRY** — the spatial layout of the building as coordinate pairs, for rendering a top-down floor plan view
+
+This is NOT a production drawing — do NOT look for individual element names like F(A)-1-1 or SV-1.
 
 ═══════════════════════════════════════════
 FACTORY CONSTRAINTS (for context):
@@ -31,8 +39,10 @@ FACTORY CONSTRAINTS (for context):
 - Inner/bearing walls (stoðveggir/burðarveggir): 200mm thick
 
 ═══════════════════════════════════════════
-WALL EXTRACTION RULES:
+PART 1: SURFACE EXTRACTION (for panelization)
 ═══════════════════════════════════════════
+
+WALL EXTRACTION RULES:
 
 1. IDENTIFY WALL SEGMENTS:
    - Each straight wall run between corners or intersections = one wall surface
@@ -58,9 +68,7 @@ WALL EXTRACTION RULES:
    - Door heights are typically 2100mm, window heights vary (read from schedule or default 1200mm)
    - If opening dimensions aren't shown, estimate from scale and set confidence to "low"
 
-═══════════════════════════════════════════
 FLOOR AREA EXTRACTION RULES:
-═══════════════════════════════════════════
 
 1. IDENTIFY FLOOR ZONES:
    - Divide the total floor area into rectangular zones suitable for filigran slab placement
@@ -78,6 +86,40 @@ FLOOR AREA EXTRACTION RULES:
    - Bounded by load-bearing walls or beams
    - Large enough to be practical (minimum ~2m × 2m)
    - Small enough that the AI can trace actual dimension lines
+
+═══════════════════════════════════════════
+PART 2: GEOMETRY EXTRACTION (for floor plan view)
+═══════════════════════════════════════════
+
+COORDINATE SYSTEM:
+- Origin: Bottom-left corner of the building bounding box
+- X axis: Left → Right (positive)
+- Y axis: Bottom → Top (positive)
+- Units: All values in MILLIMETERS (mm)
+
+WALL SEGMENTS AS COORDINATES:
+- Each wall segment has start (x1_mm, y1_mm) and end (x2_mm, y2_mm) coordinates
+- These represent the CENTER LINE of the wall
+- Break walls at corners and intersections — each straight run is one segment
+- Use dimension lines on the drawing to determine coordinates
+- Outer walls should form a closed perimeter
+- Give each wall a unique id: "w1", "w2", etc.
+
+FLOOR ZONES AS POLYGONS:
+- Each zone is defined by an array of corner points [{x_mm, y_mm}, ...]
+- Points form a closed polygon (list vertices in order)
+- Zones represent the CLEAR FLOOR AREA inside walls (offset from center lines by wall thickness)
+- Zone types: "interior" (rooms) or "balcony" (external projections)
+- Use room names from the drawing: "Stofa", "Eldhús", "Svefnherbergi 1", etc.
+- Give each zone a unique id: "z1", "z2", etc.
+- Zones should be RECTANGULAR when possible. Split L-shapes into two rectangles.
+- Do NOT overlap zones.
+
+ACCURACY RULES:
+- ALWAYS read dimensions from dimension lines — never estimate from visual scale
+- Cross-check that wall coordinates are consistent (walls connect at corners)
+- Verify outer wall segments form a closed perimeter
+- The bounding box should match overall building dimensions
 
 ═══════════════════════════════════════════
 READING ARCHITECTURAL FLOOR PLANS:
@@ -133,6 +175,31 @@ Return your analysis as valid JSON (no markdown, no code blocks, just the JSON o
       }
     }
   ],
+  "geometry": {
+    "bounding_width_mm": "number — total building width in mm",
+    "bounding_height_mm": "number — total building depth in mm",
+    "wall_segments": [
+      {
+        "id": "w1",
+        "x1_mm": "number — start X coordinate",
+        "y1_mm": "number — start Y coordinate",
+        "x2_mm": "number — end X coordinate",
+        "y2_mm": "number — end Y coordinate",
+        "thickness_mm": "number — wall thickness",
+        "wall_type": "outer|inner|sandwich"
+      }
+    ],
+    "floor_zones": [
+      {
+        "id": "z1",
+        "name": "string — room name matching a surface name where possible",
+        "points": [
+          { "x_mm": "number", "y_mm": "number" }
+        ],
+        "zone_type": "interior|balcony"
+      }
+    ]
+  },
   "warnings": ["array of strings — uncertainties, assumed values, areas that need verification"],
   "page_description": "string — brief description of what this floor plan shows"
 }`
@@ -152,8 +219,10 @@ The drawing file is named "${documentName}".
 
 The project has the following buildings: ${buildingList}.
 
-Extract ALL wall segments and floor areas visible in this floor plan for panelization.
-For each wall, identify its type (outer/inner/sandwich), measure its length from dimension lines, and list any window/door openings with their positions.
-For floor areas, divide into rectangular zones bounded by load-bearing walls.
+Extract BOTH:
+1. SURFACES: All wall segments and floor areas with dimensions for panelization. For each wall, identify its type (outer/inner/sandwich), measure its length from dimension lines, and list any window/door openings with their positions. For floor areas, divide into rectangular zones bounded by load-bearing walls.
+2. GEOMETRY: The spatial layout as wall coordinate pairs (x1,y1 → x2,y2) and floor zone polygons with vertex coordinates. Place origin at building bottom-left.
+
+Use dimension lines from the drawing for accurate measurements — do NOT estimate.
 Return ONLY valid JSON — no markdown formatting, no code blocks.`
 }

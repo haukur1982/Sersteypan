@@ -9,10 +9,8 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { expensiveRateLimiter, getClientIP } from '@/lib/utils/rateLimit'
 import { SYSTEM_PROMPT, buildUserPrompt } from '@/lib/ai/drawing-prompt'
 import { SURFACE_ANALYSIS_PROMPT, buildSurfaceUserPrompt } from '@/lib/ai/surface-prompt'
-import { GEOMETRY_ANALYSIS_PROMPT, buildGeometryUserPrompt } from '@/lib/ai/geometry-prompt'
 import { parseDrawingAnalysisResponse } from '@/lib/ai/parse-response'
 import { parseSurfaceAnalysisResponse } from '@/lib/ai/parse-surface-response'
-import { parseGeometryAnalysisResponse } from '@/lib/ai/parse-geometry-response'
 import { getDrawingAnalysisProvider } from '@/lib/ai/providers'
 import type { Json } from '@/types/database'
 
@@ -111,8 +109,8 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const isSurfaceMode = analysisMode === 'surfaces'
-  const isGeometryMode = analysisMode === 'geometry'
+  // 'geometry' mode is now merged into 'surfaces' — treat both the same
+  const isSurfaceMode = analysisMode === 'surfaces' || analysisMode === 'geometry'
 
   // 6. Fetch document record
   const { data: doc, error: docError } = await supabase
@@ -203,28 +201,20 @@ export async function POST(request: NextRequest) {
           : 'Engar byggingar skilgreindar enn (no buildings defined yet)'
 
       // Select prompt and parser based on analysis mode
-      const systemPrompt = isGeometryMode
-        ? GEOMETRY_ANALYSIS_PROMPT
-        : isSurfaceMode
-          ? SURFACE_ANALYSIS_PROMPT
-          : SYSTEM_PROMPT
-      const userPrompt = isGeometryMode
-        ? buildGeometryUserPrompt({
+      const systemPrompt = isSurfaceMode
+        ? SURFACE_ANALYSIS_PROMPT
+        : SYSTEM_PROMPT
+      const userPrompt = isSurfaceMode
+        ? buildSurfaceUserPrompt({
             projectName: project?.name || 'Unknown',
             documentName: doc.name,
             buildingList,
           })
-        : isSurfaceMode
-          ? buildSurfaceUserPrompt({
-              projectName: project?.name || 'Unknown',
-              documentName: doc.name,
-              buildingList,
-            })
-          : buildUserPrompt({
-              projectName: project?.name || 'Unknown',
-              documentName: doc.name,
-              buildingList,
-            })
+        : buildUserPrompt({
+            projectName: project?.name || 'Unknown',
+            documentName: doc.name,
+            buildingList,
+          })
 
       const aiResult = await provider.analyzeDrawing({
         pdfBase64,
@@ -233,45 +223,8 @@ export async function POST(request: NextRequest) {
         maxTokens: 32000,
       })
 
-      if (isGeometryMode) {
-        // ── Geometry extraction mode ──
-        const parseResult = parseGeometryAnalysisResponse(aiResult.responseText)
-
-        if (!parseResult.success) {
-          console.error('Failed to parse geometry AI response:', parseResult.error)
-          await serviceClient
-            .from('drawing_analyses')
-            .update({
-              status: 'failed',
-              error_message: 'AI skilaði ógild JSON svari. Reyndu aftur.',
-              ai_confidence_notes: parseResult.rawText,
-            })
-            .eq('id', analysisId)
-          return
-        }
-
-        const geoData = parseResult.data
-        const wallCount = geoData.wall_segments.length
-        const zoneCount = geoData.floor_zones.length
-        const summary = `Byggingarmynd: ${wallCount} vegghluti, ${zoneCount} svæði. ${geoData.bounding_width_mm}×${geoData.bounding_height_mm}mm.`
-
-        // Store full geometry result in extracted_elements for auditability
-        await serviceClient
-          .from('drawing_analyses')
-          .update({
-            status: 'completed',
-            extracted_elements: geoData as unknown as Json,
-            ai_summary: summary,
-            ai_model: aiResult.model,
-            ai_confidence_notes: parseResult.validated
-              ? (geoData.warnings.length > 0 ? geoData.warnings.join('\n') : null)
-              : 'Svör AI stóðust ekki fulla staðfestingu. Skoðaðu gögn vandlega.',
-            pages_analyzed: 1,
-            page_count: 1,
-          })
-          .eq('id', analysisId)
-      } else if (isSurfaceMode) {
-        // ── Surface analysis mode ──
+      if (isSurfaceMode) {
+        // ── Surface + geometry analysis mode ──
         const parseResult = parseSurfaceAnalysisResponse(aiResult.responseText)
 
         if (!parseResult.success) {
@@ -316,6 +269,48 @@ export async function POST(request: NextRequest) {
               pages_analyzed: 1,
             })
             .eq('id', analysisId)
+        }
+
+        // ── Auto-save geometry to building_floor_geometries ──
+        if (parseResult.geometry) {
+          const geo = parseResult.geometry
+          try {
+            // Get the analysis to find created_by
+            const { data: analysisRow } = await serviceClient
+              .from('drawing_analyses')
+              .select('created_by')
+              .eq('id', analysisId)
+              .single()
+
+            if (analysisRow) {
+              // Determine floor from parsed data
+              const parsedFloor = parseResult.validated
+                ? parseResult.data.floor ?? 1
+                : 1
+
+              await serviceClient
+                .from('building_floor_geometries')
+                .insert({
+                  project_id: projectId,
+                  building_id: null,
+                  floor: parsedFloor,
+                  drawing_analysis_id: analysisId,
+                  source_document_name: doc.name,
+                  bounding_width_mm: geo.bounding_width_mm,
+                  bounding_height_mm: geo.bounding_height_mm,
+                  wall_segments: geo.wall_segments as unknown as Record<string, unknown>[],
+                  floor_zones: geo.floor_zones as unknown as Record<string, unknown>[],
+                  created_by: analysisRow.created_by,
+                })
+
+              console.log(
+                `Auto-saved geometry: ${geo.wall_segments.length} walls, ${geo.floor_zones.length} zones`
+              )
+            }
+          } catch (geoErr) {
+            // Geometry save is best-effort — don't fail the analysis
+            console.error('Failed to auto-save geometry:', geoErr)
+          }
         }
       } else {
         // ── Element analysis mode (existing) ──

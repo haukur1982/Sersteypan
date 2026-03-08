@@ -195,6 +195,7 @@ export function AnalysisStatusCard({
   const showSurfaceHint =
     status === 'completed' &&
     analysis.analysis_mode !== 'surfaces' &&
+    analysis.analysis_mode !== 'geometry' &&
     elementCount === 0 &&
     looksLikeArchitectural(analysis.ai_summary)
 
@@ -221,19 +222,14 @@ export function AnalysisStatusCard({
               >
                 {statusInfo.label}
               </Badge>
-              {analysis.analysis_mode === 'surfaces' && (
+              {(analysis.analysis_mode === 'surfaces' || analysis.analysis_mode === 'geometry') && (
                 <Badge variant="outline" className="text-xs text-orange-700 border-orange-300">
                   Plötugreining
                 </Badge>
               )}
-              {analysis.analysis_mode === 'geometry' && (
-                <Badge variant="outline" className="text-xs text-emerald-700 border-emerald-300">
-                  Byggingarmynd
-                </Badge>
-              )}
-              {(status === 'completed' || status === 'reviewed') && analysis.analysis_mode !== 'geometry' && (
+              {(status === 'completed' || status === 'reviewed') && (
                 <span className="text-sm text-zinc-600">
-                  {elementCount} {analysis.analysis_mode === 'surfaces' ? 'fletir fundust' : 'einingar fundust'}
+                  {elementCount} {(analysis.analysis_mode === 'surfaces' || analysis.analysis_mode === 'geometry') ? 'fletir fundust' : 'einingar fundust'}
                 </span>
               )}
               {status === 'committed' &&
@@ -353,17 +349,17 @@ export function AnalysisStatusCard({
           </div>
 
           <div className="flex gap-2 ml-4">
-            {(status === 'completed' || status === 'reviewed') && analysis.analysis_mode === 'geometry' && (
-              <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+            {(status === 'completed' || status === 'reviewed') && (analysis.analysis_mode === 'surfaces' || analysis.analysis_mode === 'geometry') && (
+              <Button asChild size="sm" variant="outline" className="text-emerald-700 border-emerald-300 hover:bg-emerald-50">
                 <Link
                   href={`/admin/projects/${projectId}/panelization/floor-plan`}
                 >
                   <Eye className="mr-1 h-4 w-4" />
-                  Skoða hæðarmynd
+                  Hæðarmynd
                 </Link>
               </Button>
             )}
-            {(status === 'completed' || status === 'reviewed') && analysis.analysis_mode !== 'geometry' && (
+            {(status === 'completed' || status === 'reviewed') && (
               <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700">
                 <Link
                   href={`/admin/projects/${projectId}/analyze-drawings/${analysis.id}`}

@@ -4,10 +4,9 @@ import { z } from 'zod'
  * AI Surface Analysis schemas
  *
  * Defines the structure of data extracted by Claude Vision from
- * architectural floor plans. Unlike element analysis (which extracts
- * individual production elements from BF/BS drawings), surface analysis
- * extracts wall segments and floor areas from architectural plans
- * for subsequent panelization.
+ * architectural floor plans. Includes both:
+ * 1. Surfaces (walls + floors with dimensions) for panelization
+ * 2. Geometry (wall coordinates + zone polygons) for floor plan rendering
  */
 
 export const confidenceLevelSchema = z.enum(['high', 'medium', 'low'])
@@ -38,6 +37,37 @@ export const extractedSurfaceSchema = z.object({
   }),
 })
 
+// Geometry: wall segment as a coordinate pair
+const geoWallSegmentSchema = z.object({
+  id: z.string().min(1).max(50),
+  x1_mm: z.number(),
+  y1_mm: z.number(),
+  x2_mm: z.number(),
+  y2_mm: z.number(),
+  thickness_mm: z.number().int().positive().max(1000),
+  wall_type: z.enum(['outer', 'inner', 'sandwich']),
+  label: z.string().max(200).nullable().optional(),
+})
+
+// Geometry: floor zone as a closed polygon
+const geoFloorZoneSchema = z.object({
+  id: z.string().min(1).max(50),
+  name: z.string().min(1).max(200),
+  points: z.array(z.object({
+    x_mm: z.number(),
+    y_mm: z.number(),
+  })).min(3),
+  zone_type: z.enum(['interior', 'balcony']),
+})
+
+// Geometry block — spatial layout for floor plan rendering
+export const geometryBlockSchema = z.object({
+  bounding_width_mm: z.number().int().positive().max(200000),
+  bounding_height_mm: z.number().int().positive().max(200000),
+  wall_segments: z.array(geoWallSegmentSchema),
+  floor_zones: z.array(geoFloorZoneSchema),
+})
+
 // Full response from surface analysis of an architectural drawing
 export const surfaceAnalysisResponseSchema = z.object({
   drawing_reference: z.string().max(200),
@@ -45,6 +75,7 @@ export const surfaceAnalysisResponseSchema = z.object({
   floor: z.number().int().nullable(),
   general_notes: z.string().max(2000).default(''),
   surfaces: z.array(extractedSurfaceSchema),
+  geometry: geometryBlockSchema.optional().nullable(),
   warnings: z.array(z.string()),
   page_description: z.string().max(1000),
 })
@@ -52,6 +83,7 @@ export const surfaceAnalysisResponseSchema = z.object({
 // Types
 export type ExtractedOpening = z.infer<typeof extractedOpeningSchema>
 export type ExtractedSurface = z.infer<typeof extractedSurfaceSchema>
+export type GeometryBlock = z.infer<typeof geometryBlockSchema>
 export type SurfaceAnalysisResponse = z.infer<typeof surfaceAnalysisResponseSchema>
 
 // Validation

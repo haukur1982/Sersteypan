@@ -8,7 +8,7 @@ import { Upload, FileText, Loader2, AlertCircle } from 'lucide-react'
 import { uploadDocument } from '@/lib/documents/actions'
 import { startDrawingAnalysis } from '@/lib/drawing-analysis/actions'
 
-type AnalysisMode = 'elements' | 'surfaces' | 'geometry'
+type AnalysisMode = 'elements' | 'surfaces'
 
 export function DrawingUploadZone({ projectId }: { projectId: string }) {
   const router = useRouter()
@@ -178,7 +178,7 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-4">
       {/* Analysis Mode Toggle */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           className={`rounded-lg border-2 p-3 text-left transition-colors ${
@@ -204,21 +204,7 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
         >
           <span className="font-medium text-sm block">Plötugreining</span>
           <span className="text-xs text-zinc-500 block mt-0.5">
-            Aðaluppdrættir — greinir veggi og fleti til plötusniðs
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`rounded-lg border-2 p-3 text-left transition-colors ${
-            analysisMode === 'geometry'
-              ? 'border-purple-600 bg-purple-50'
-              : 'border-zinc-200 hover:border-zinc-300'
-          }`}
-          onClick={() => setAnalysisMode('geometry')}
-        >
-          <span className="font-medium text-sm block">Byggingarmynd</span>
-          <span className="text-xs text-zinc-500 block mt-0.5">
-            Greinir vegghnit og svæði til hæðarmyndar
+            Aðaluppdrættir — greinir veggi, fleti og hæðarmynd
           </span>
         </button>
       </div>
@@ -245,11 +231,9 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
               Dragðu PDF teikningar hingað
             </p>
             <p className="text-xs text-zinc-500 mb-3">
-              {analysisMode === 'geometry'
-                ? 'Aðaluppdrættir — greinir veggform og herbergi til yfirlitsteikningu'
-                : analysisMode === 'surfaces'
-                  ? 'Aðaluppdrættir (plöntuteikning) — smelltu eða dragðu til að hlaða upp'
-                  : 'eða smelltu til að velja skjöl'}
+              {analysisMode === 'surfaces'
+                ? 'Aðaluppdrættir (plöntuteikning) — smelltu eða dragðu til að hlaða upp'
+                : 'eða smelltu til að velja skjöl'}
             </p>
             <label>
               <input
@@ -325,11 +309,9 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
                 ) : (
                   <>
                     <Upload className="mr-2 h-4 w-4" />
-                    {analysisMode === 'geometry'
-                      ? `Byggingarmynd (${files.length} ${files.length === 1 ? 'skjal' : 'skjöl'})`
-                      : analysisMode === 'surfaces'
-                        ? `Plötugreining (${files.length} ${files.length === 1 ? 'skjal' : 'skjöl'})`
-                        : `Hlaða upp og greina (${files.length} ${files.length === 1 ? 'skjal' : 'skjöl'})`
+                    {analysisMode === 'surfaces'
+                      ? `Plötugreining (${files.length} ${files.length === 1 ? 'skjal' : 'skjöl'})`
+                      : `Hlaða upp og greina (${files.length} ${files.length === 1 ? 'skjal' : 'skjöl'})`
                     }
                   </>
                 )}
