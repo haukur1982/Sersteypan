@@ -40,6 +40,7 @@ export const extractedSurfaceSchema = z.object({
 // Geometry: wall segment as a coordinate pair
 const geoWallSegmentSchema = z.object({
   id: z.string().min(1).max(50),
+  surface_name: z.string().max(200).nullable().optional(),
   x1_mm: z.number(),
   y1_mm: z.number(),
   x2_mm: z.number(),
@@ -70,6 +71,7 @@ export const geometryBlockSchema = z.object({
 
 // Full response from surface analysis of an architectural drawing
 export const surfaceAnalysisResponseSchema = z.object({
+  spatial_planning: z.string().max(2000).optional().nullable(),
   drawing_reference: z.string().max(200),
   building: z.string().max(50).nullable(),
   floor: z.number().int().nullable(),

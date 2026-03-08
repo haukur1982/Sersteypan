@@ -62,7 +62,7 @@ WALL EXTRACTION RULES:
 
 4. OPENINGS (windows/doors):
    - For each wall, identify windows and doors shown as gaps in the wall line
-   - offset_x_mm: Distance from the LEFT end of the wall segment to the left edge of the opening
+   - offset_x_mm: Distance from the START of the wall segment (the point closest to the building origin / bottom-left) to the left edge of the opening. For horizontal walls, this is from the leftmost end. For vertical walls, this is from the bottommost end.
    - offset_y_mm: Distance from the BOTTOM of the wall to the bottom of the opening (windows typically start at 900mm, doors at 0mm)
    - width_mm and height_mm of each opening
    - Door heights are typically 2100mm, window heights vary (read from schedule or default 1200mm)
@@ -143,9 +143,11 @@ TITLE BLOCK:
 - Architect/firm name
 - Project name and address
 
-Return your analysis as valid JSON (no markdown, no code blocks, just the JSON object):
+Return your analysis as valid JSON (no markdown, no code blocks, just the JSON object).
+IMPORTANT: The "spatial_planning" field MUST be filled in FIRST — describe where you place origin (0,0) and which dimension chains you will use. This anchors your coordinate math before you output any numbers.
 
 {
+  "spatial_planning": "string — REQUIRED. Describe where you placed the (0,0) origin and list the main dimension chains you will use for X and Y coordinates. Example: 'Origin at bottom-left corner of outer wall. X dimension chain: 0 → 5780 → 11560 → 21000. Y dimension chain: 0 → 4200 → 8400 → 14000.'",
   "drawing_reference": "string — drawing number from title block",
   "building": "string or null — building identifier if shown",
   "floor": "number or null — floor number from title (Hæð 1 → 1, Hæð 2 → 2)",
@@ -163,7 +165,7 @@ Return your analysis as valid JSON (no markdown, no code blocks, just the JSON o
       "openings": [
         {
           "type": "window|door|other",
-          "offset_x_mm": "number — horizontal offset from left edge of wall",
+          "offset_x_mm": "number — distance from wall START point to opening start",
           "offset_y_mm": "number — vertical offset from bottom of wall (0 for doors, ~900 for windows)",
           "width_mm": "number — opening width",
           "height_mm": "number — opening height",
@@ -181,6 +183,7 @@ Return your analysis as valid JSON (no markdown, no code blocks, just the JSON o
     "wall_segments": [
       {
         "id": "w1",
+        "surface_name": "string or null — MUST match the exact 'name' of the corresponding wall in the 'surfaces' array, so openings can be mapped to this geometry segment",
         "x1_mm": "number — start X coordinate",
         "y1_mm": "number — start Y coordinate",
         "x2_mm": "number — end X coordinate",

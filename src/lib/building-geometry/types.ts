@@ -11,6 +11,7 @@
 
 export interface WallSegment {
   id: string
+  surfaceName?: string | null
   x1Mm: number
   y1Mm: number
   x2Mm: number
@@ -53,6 +54,7 @@ export interface BuildingFloorGeometry {
 export function parseWallSegment(raw: Record<string, unknown>): WallSegment {
   return {
     id: String(raw.id || ''),
+    surfaceName: (raw.surface_name as string) || null,
     x1Mm: Number(raw.x1_mm || 0),
     y1Mm: Number(raw.y1_mm || 0),
     x2Mm: Number(raw.x2_mm || 0),
