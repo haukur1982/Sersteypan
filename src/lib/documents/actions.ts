@@ -160,7 +160,7 @@ export async function uploadDocument(projectId: string, formData: FormData) {
     .from(DOCUMENTS_BUCKET)
     .upload(fileName, file, {
       cacheControl: '3600',
-      contentType: isCadFile ? 'application/octet-stream' : file.type,
+      contentType: isCadFile ? 'application/dwg' : file.type,
       upsert: false
     })
 
@@ -399,7 +399,7 @@ export async function replaceDocument(documentId: string, projectId: string, for
     .from(DOCUMENTS_BUCKET)
     .upload(fileName, file, {
       cacheControl: '3600',
-      contentType: isCadFile ? 'application/octet-stream' : file.type,
+      contentType: isCadFile ? 'application/dwg' : file.type,
       upsert: false
     })
 
