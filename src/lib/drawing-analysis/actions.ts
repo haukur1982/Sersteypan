@@ -578,7 +578,7 @@ export async function retryAnalysis(
       status: 'pending',
       error_message: null,
       ai_confidence_notes: null,
-      extracted_elements: null,
+      extracted_elements: [],
       ai_summary: null,
       ...(newMode && { analysis_mode: newMode }),
     })
