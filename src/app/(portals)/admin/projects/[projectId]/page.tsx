@@ -4,6 +4,7 @@ import { getProject } from '@/lib/projects/actions'
 import { getElementsForProject } from '@/lib/elements/actions'
 import { getProjectDocuments } from '@/lib/documents/actions'
 import { getProjectBuildings } from '@/lib/drawing-analysis/queries'
+import { getGeometriesForProject } from '@/lib/building-geometry/queries'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -28,6 +29,7 @@ import {
     Map,
     Sparkles,
     Grid3X3,
+    Building2,
 } from 'lucide-react'
 import { DocumentUploadTabs } from '@/components/documents/DocumentUploadTabs'
 import { DocumentListWithFilter } from '@/components/documents/DocumentListWithFilter'
@@ -84,13 +86,15 @@ export default async function ProjectPage({
     const elementList = (elements ?? []) as ElementRow[]
     const elementIds = elementList.map((el) => el.id)
 
-    // Fetch documents and buildings for this project
-    const [documentsResult, buildings] = await Promise.all([
+    // Fetch documents, buildings, and geometries for this project
+    const [documentsResult, buildings, geometriesResult] = await Promise.all([
         getProjectDocuments(projectId),
         getProjectBuildings(projectId),
+        getGeometriesForProject(projectId),
     ])
     const { data: documents, error: documentsError } = documentsResult
     const documentList = (documents ?? []) as ProjectDocumentWithProfile[]
+    const hasFloorPlanOverlay = geometriesResult.data.length > 0
 
     return (
         <div className="space-y-8">
@@ -113,6 +117,14 @@ export default async function ProjectPage({
                             Plötusnið
                         </Link>
                     </Button>
+                    {hasFloorPlanOverlay && (
+                        <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                            <Link href={`/admin/projects/${projectId}/panelization/floor-plan`}>
+                                <Building2 className="mr-2 h-4 w-4" />
+                                Hæðarmynd
+                            </Link>
+                        </Button>
+                    )}
                     <Button variant="outline" asChild>
                         <Link href={`/admin/projects/${projectId}/floor-plans`}>
                             <Map className="mr-2 h-4 w-4" />
