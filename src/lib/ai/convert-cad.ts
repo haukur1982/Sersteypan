@@ -38,13 +38,23 @@ export function isCadConversionConfigured(): boolean {
 }
 
 /** Detect CAD file type from filename extension */
-export function getCadFormat(
-  filename: string
-): 'dwg' | 'dxf' | null {
+export function getCadFormat(filename: string): 'dwg' | 'dxf' | null {
   const ext = filename.toLowerCase().split('.').pop()
   if (ext === 'dwg') return 'dwg'
   if (ext === 'dxf') return 'dxf'
   return null
+}
+
+/** Create an AbortSignal with timeout, compatible with Node.js */
+function createTimeoutSignal(ms: number): AbortSignal {
+  // AbortSignal.timeout is available in Node.js 18+
+  if (typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms)
+  }
+  // Fallback for older runtimes
+  const controller = new AbortController()
+  setTimeout(() => controller.abort(new Error('Timeout')), ms)
+  return controller.signal
 }
 
 /**
@@ -79,10 +89,18 @@ export async function convertCadToPdf(
     )
   }
 
+  console.log(
+    `[convert-cad] Starting ${format.toUpperCase()} → PDF conversion for: ${filename} (${(fileBuffer.byteLength / 1024).toFixed(0)} KB)`
+  )
+
   const base64Data = Buffer.from(fileBuffer).toString('base64')
+  console.log(
+    `[convert-cad] Base64 encoded: ${(base64Data.length / 1024).toFixed(0)} KB`
+  )
 
   // ConvertAPI REST endpoint: /convert/{from}/to/{to}
   const endpoint = `${CONVERTAPI_BASE_URL}/convert/${format}/to/pdf`
+  console.log(`[convert-cad] POST ${endpoint}`)
 
   let response: Response
   try {
@@ -109,25 +127,40 @@ export async function convertCadToPdf(
           { Name: 'StoreFile', Value: 'true' },
         ],
       }),
-      signal: AbortSignal.timeout(120_000), // 2 min timeout
+      signal: createTimeoutSignal(120_000), // 2 min timeout
     })
   } catch (err) {
-    if (err instanceof DOMException && err.name === 'TimeoutError') {
+    const errMsg = err instanceof Error ? err.message : String(err)
+    console.error(`[convert-cad] Fetch failed:`, errMsg)
+
+    // Check for timeout (works for both DOMException and AbortError)
+    if (
+      errMsg.includes('Timeout') ||
+      errMsg.includes('timeout') ||
+      errMsg.includes('aborted') ||
+      (err instanceof Error && err.name === 'AbortError')
+    ) {
       throw new CadConversionError(
         'DWG umbreyting tók of langan tíma (>2 mín). Prófaðu minni skrá.',
         'TIMEOUT'
       )
     }
     throw new CadConversionError(
-      `Ekki tókst að tengjast ConvertAPI: ${err instanceof Error ? err.message : String(err)}`,
+      `Ekki tókst að tengjast ConvertAPI: ${errMsg}`,
       'CONVERSION_FAILED'
     )
   }
 
+  console.log(`[convert-cad] Response status: ${response.status}`)
+
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '')
+    console.error(
+      `[convert-cad] API error ${response.status}:`,
+      errorBody.slice(0, 500)
+    )
 
-    if (response.status === 403) {
+    if (response.status === 401 || response.status === 403) {
       throw new CadConversionError(
         'ConvertAPI kvóti er uppurinn eða lykill er ógildur. Athugaðu CONVERTAPI_SECRET.',
         'QUOTA_EXCEEDED'
@@ -136,7 +169,7 @@ export async function convertCadToPdf(
 
     if (response.status === 400 || response.status === 422) {
       throw new CadConversionError(
-        `Ógild DWG/DXF skrá: ${filename}. Skráin gæti verið skemmd eða á óþekktu sniði.`,
+        `Ógild DWG/DXF skrá: ${filename}. Skráin gæti verið skemmd eða á óþekktu sniði. (${errorBody.slice(0, 200)})`,
         'INVALID_FILE'
       )
     }
@@ -147,11 +180,31 @@ export async function convertCadToPdf(
     )
   }
 
-  // Parse ConvertAPI response — contains Files array with Url or FileData
-  const result = await response.json()
-  const files = result?.Files
+  // Parse ConvertAPI response
+  let result: Record<string, unknown>
+  try {
+    result = await response.json()
+  } catch (jsonErr) {
+    console.error('[convert-cad] Failed to parse JSON response:', jsonErr)
+    throw new CadConversionError(
+      'ConvertAPI skilaði ólæsilegu svari (ekki JSON).',
+      'CONVERSION_FAILED'
+    )
+  }
+
+  console.log(
+    `[convert-cad] Response keys: ${Object.keys(result).join(', ')}`
+  )
+
+  const files = result?.Files as
+    | Array<{ Url?: string; FileData?: string; FileName?: string; FileSize?: number }>
+    | undefined
 
   if (!Array.isArray(files) || files.length === 0) {
+    console.error(
+      '[convert-cad] No Files in response:',
+      JSON.stringify(result).slice(0, 500)
+    )
     throw new CadConversionError(
       'ConvertAPI skilaði engri PDF skrá.',
       'CONVERSION_FAILED'
@@ -159,43 +212,69 @@ export async function convertCadToPdf(
   }
 
   const pdfFile = files[0]
+  console.log(
+    `[convert-cad] PDF file: ${pdfFile.FileName || 'unnamed'}, ${pdfFile.FileSize || '?'} bytes, Url: ${pdfFile.Url ? 'yes' : 'no'}, FileData: ${pdfFile.FileData ? 'yes' : 'no'}`
+  )
 
   // ConvertAPI returns either a download Url or inline FileData (base64)
   if (pdfFile.Url) {
-    // Download the converted PDF from ConvertAPI's temporary storage
+    console.log(`[convert-cad] Downloading PDF from: ${pdfFile.Url}`)
     let pdfResponse: Response
     try {
       pdfResponse = await fetch(pdfFile.Url, {
-        signal: AbortSignal.timeout(60_000), // 1 min timeout for download
+        signal: createTimeoutSignal(60_000), // 1 min timeout for download
       })
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'TimeoutError') {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      console.error(`[convert-cad] PDF download failed:`, errMsg)
+
+      if (
+        errMsg.includes('Timeout') ||
+        errMsg.includes('timeout') ||
+        errMsg.includes('aborted')
+      ) {
         throw new CadConversionError(
           'Niðurhal á umbreyttri PDF tók of langan tíma.',
           'TIMEOUT'
         )
       }
       throw new CadConversionError(
-        `Ekki tókst að sækja umbreytta PDF: ${err instanceof Error ? err.message : String(err)}`,
+        `Ekki tókst að sækja umbreytta PDF: ${errMsg}`,
         'DOWNLOAD_FAILED'
       )
     }
 
     if (!pdfResponse.ok) {
+      console.error(
+        `[convert-cad] PDF download HTTP ${pdfResponse.status}`
+      )
       throw new CadConversionError(
         `Ekki tókst að sækja umbreytta PDF (${pdfResponse.status}).`,
         'DOWNLOAD_FAILED'
       )
     }
 
-    return await pdfResponse.arrayBuffer()
+    const pdfBuffer = await pdfResponse.arrayBuffer()
+    console.log(
+      `[convert-cad] PDF downloaded: ${(pdfBuffer.byteLength / 1024).toFixed(0)} KB`
+    )
+    return pdfBuffer
   }
 
   // Fallback: inline base64 FileData
   if (pdfFile.FileData) {
-    return Buffer.from(pdfFile.FileData, 'base64').buffer as ArrayBuffer
+    console.log('[convert-cad] Using inline FileData (base64)')
+    const buffer = Buffer.from(pdfFile.FileData, 'base64')
+    console.log(
+      `[convert-cad] PDF decoded: ${(buffer.byteLength / 1024).toFixed(0)} KB`
+    )
+    return buffer.buffer as ArrayBuffer
   }
 
+  console.error(
+    '[convert-cad] No Url or FileData in response file:',
+    JSON.stringify(pdfFile).slice(0, 300)
+  )
   throw new CadConversionError(
     'ConvertAPI svar innihélt enga PDF gögn.',
     'CONVERSION_FAILED'
