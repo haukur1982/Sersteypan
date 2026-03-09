@@ -117,6 +117,8 @@ export async function uploadDocument(projectId: string, formData: FormData) {
   }
 
   // Validate file type
+  // Browsers send wildly inconsistent MIME types for DWG/DXF,
+  // so we also check filename extension as fallback.
   const allowedTypes = [
     'application/pdf',
     'image/jpeg',
@@ -126,11 +128,26 @@ export async function uploadDocument(projectId: string, formData: FormData) {
     'application/vnd.ms-excel',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    // CAD formats — browsers send varying MIME types for DWG/DXF
+    'application/acad',
+    'application/x-acad',
+    'application/autocad_dwg',
+    'application/dwg',
+    'application/x-dwg',
+    'image/vnd.dwg',
+    'image/x-dwg',
+    'application/dxf',
+    'image/vnd.dxf',
+    'application/x-dxf',
   ]
 
-  if (!allowedTypes.includes(file.type)) {
-    return { error: 'Invalid file type. Allowed: PDF, images, Excel, Word' }
+  const fileExtension = file.name.toLowerCase().split('.').pop()
+  const cadExtensions = ['dwg', 'dxf']
+  const isCadFile = cadExtensions.includes(fileExtension || '')
+
+  if (!allowedTypes.includes(file.type) && !isCadFile) {
+    return { error: 'Invalid file type. Allowed: PDF, images, Excel, Word, DWG' }
   }
 
   // Generate unique filename
@@ -143,7 +160,7 @@ export async function uploadDocument(projectId: string, formData: FormData) {
     .from(DOCUMENTS_BUCKET)
     .upload(fileName, file, {
       cacheControl: '3600',
-      contentType: file.type,
+      contentType: isCadFile ? 'application/octet-stream' : file.type,
       upsert: false
     })
 
@@ -155,9 +172,11 @@ export async function uploadDocument(projectId: string, formData: FormData) {
   // Determine file type category
   let fileType = 'other'
   if (file.type === 'application/pdf') fileType = 'pdf'
-  else if (file.type.startsWith('image/')) fileType = 'image'
+  else if (file.type.startsWith('image/') && !isCadFile) fileType = 'image'
   else if (file.type.includes('excel') || file.type.includes('spreadsheet')) fileType = 'excel'
   else if (file.type.includes('word') || file.type.includes('document')) fileType = 'word'
+  else if (isCadFile || file.type.includes('dwg') || file.type.includes('acad')) fileType = 'dwg'
+  else if (file.type.includes('dxf') || fileExtension === 'dxf') fileType = 'dxf'
 
   // Create document record
   const { data: docRecord, error: dbError } = await supabase
@@ -350,18 +369,25 @@ export async function replaceDocument(documentId: string, projectId: string, for
     return { error: 'Skrá of stór. Hámark 50MB.' }
   }
 
-  // Validate file type
+  // Validate file type (same logic as uploadDocument)
   const allowedTypes = [
     'application/pdf',
     'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
     'application/vnd.ms-excel',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/acad', 'application/x-acad', 'application/autocad_dwg',
+    'application/dwg', 'application/x-dwg', 'image/vnd.dwg', 'image/x-dwg',
+    'application/dxf', 'image/vnd.dxf', 'application/x-dxf',
   ]
 
-  if (!allowedTypes.includes(file.type)) {
-    return { error: 'Ógild skráartegund. Leyft: PDF, myndir, Excel, Word' }
+  const fileExtension = file.name.toLowerCase().split('.').pop()
+  const cadExtensions = ['dwg', 'dxf']
+  const isCadFile = cadExtensions.includes(fileExtension || '')
+
+  if (!allowedTypes.includes(file.type) && !isCadFile) {
+    return { error: 'Ógild skráartegund. Leyft: PDF, myndir, Excel, Word, DWG' }
   }
 
   // Upload new file to storage
@@ -373,7 +399,7 @@ export async function replaceDocument(documentId: string, projectId: string, for
     .from(DOCUMENTS_BUCKET)
     .upload(fileName, file, {
       cacheControl: '3600',
-      contentType: file.type,
+      contentType: isCadFile ? 'application/octet-stream' : file.type,
       upsert: false
     })
 
@@ -385,9 +411,11 @@ export async function replaceDocument(documentId: string, projectId: string, for
   // Determine file type
   let fileType = 'other'
   if (file.type === 'application/pdf') fileType = 'pdf'
-  else if (file.type.startsWith('image/')) fileType = 'image'
+  else if (file.type.startsWith('image/') && !isCadFile) fileType = 'image'
   else if (file.type.includes('excel') || file.type.includes('spreadsheet')) fileType = 'excel'
   else if (file.type.includes('word') || file.type.includes('document')) fileType = 'word'
+  else if (isCadFile || file.type.includes('dwg') || file.type.includes('acad')) fileType = 'dwg'
+  else if (file.type.includes('dxf') || fileExtension === 'dxf') fileType = 'dxf'
 
   // Insert new document inheriting metadata from old document
   const { error: insertError } = await supabase

@@ -34,11 +34,14 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
     setIsDragging(false)
 
     const droppedFiles = Array.from(e.dataTransfer.files).filter(
-      (f) => f.type === 'application/pdf'
+      (f) => {
+        const ext = f.name.toLowerCase().split('.').pop()
+        return f.type === 'application/pdf' || ext === 'dwg' || ext === 'dxf'
+      }
     )
 
     if (droppedFiles.length === 0) {
-      setError('Aðeins PDF skjöl eru leyfileg.')
+      setError('Aðeins PDF eða DWG skjöl eru leyfileg.')
       return
     }
 
@@ -49,11 +52,14 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const selectedFiles = Array.from(e.target.files || []).filter(
-        (f) => f.type === 'application/pdf'
+        (f) => {
+          const ext = f.name.toLowerCase().split('.').pop()
+          return f.type === 'application/pdf' || ext === 'dwg' || ext === 'dxf'
+        }
       )
 
       if (selectedFiles.length === 0) {
-        setError('Aðeins PDF skjöl eru leyfileg.')
+        setError('Aðeins PDF eða DWG skjöl eru leyfileg.')
         return
       }
 
@@ -228,7 +234,7 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
               }`}
             />
             <p className="text-sm font-medium text-zinc-700 mb-1">
-              Dragðu PDF teikningar hingað
+              Dragðu PDF eða DWG teikningar hingað
             </p>
             <p className="text-xs text-zinc-500 mb-3">
               {analysisMode === 'surfaces'
@@ -238,7 +244,7 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
             <label>
               <input
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.dwg,.dxf"
                 multiple
                 onChange={handleFileSelect}
                 className="hidden"
@@ -268,7 +274,11 @@ export function DrawingUploadZone({ projectId }: { projectId: string }) {
                   className="flex items-center justify-between p-2 rounded bg-zinc-50"
                 >
                   <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-red-500" />
+                    <FileText className={`h-4 w-4 ${
+                      file.name.toLowerCase().endsWith('.dwg') || file.name.toLowerCase().endsWith('.dxf')
+                        ? 'text-blue-500'
+                        : 'text-red-500'
+                    }`} />
                     <span className="text-sm text-zinc-700 truncate max-w-[250px]">
                       {file.name}
                     </span>

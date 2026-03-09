@@ -12,6 +12,7 @@ import { SURFACE_ANALYSIS_PROMPT, buildSurfaceUserPrompt } from '@/lib/ai/surfac
 import { parseDrawingAnalysisResponse } from '@/lib/ai/parse-response'
 import { parseSurfaceAnalysisResponse } from '@/lib/ai/parse-surface-response'
 import { getDrawingAnalysisProvider } from '@/lib/ai/providers'
+import { convertCadToPdf, CadConversionError, isCadConversionConfigured, getCadFormat } from '@/lib/ai/convert-cad'
 import type { Json } from '@/types/database'
 
 /**
@@ -124,6 +125,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Document not found' }, { status: 404 })
   }
 
+  // 6b. Check if document is a CAD file (DWG/DXF) needing conversion
+  const isDwg = doc.file_type === 'dwg' || doc.file_type === 'dxf' ||
+    !!getCadFormat(doc.file_url) || !!getCadFormat(doc.name)
+
+  if (isDwg && !isCadConversionConfigured()) {
+    return NextResponse.json(
+      { error: 'DWG umbreyting er ekki stillt. Vantar CONVERTAPI_SECRET umhverfisbreytu.' },
+      { status: 500 }
+    )
+  }
+
   // 7. Fetch project info for context
   const { data: project } = await supabase
     .from('projects')
@@ -193,7 +205,43 @@ export async function POST(request: NextRequest) {
   //     when the analysis completes or fails in the background.
   after(async () => {
     try {
-      const pdfBase64 = Buffer.from(pdfBuffer).toString('base64')
+      // Convert DWG/DXF to PDF if needed, otherwise use the buffer as-is
+      let finalBuffer = pdfBuffer
+      if (isDwg) {
+        console.log(`Converting CAD file to PDF: ${doc.name}`)
+
+        // Show conversion status to user via Realtime
+        await serviceClient
+          .from('drawing_analyses')
+          .update({
+            status: 'processing',
+            ai_summary: 'Umbreyti DWG skrá í PDF...',
+          })
+          .eq('id', analysisId)
+
+        try {
+          finalBuffer = await convertCadToPdf(pdfBuffer, doc.name)
+          console.log(`CAD conversion complete: ${doc.name} (${(finalBuffer.byteLength / 1024 / 1024).toFixed(1)} MB PDF)`)
+        } catch (convErr) {
+          console.error('CAD conversion failed:', convErr)
+
+          const errorMsg = convErr instanceof CadConversionError
+            ? convErr.message
+            : 'Ekki tókst að umbreyta DWG skrá í PDF.'
+
+          await serviceClient
+            .from('drawing_analyses')
+            .update({
+              status: 'failed',
+              error_message: errorMsg,
+              ai_summary: null,
+            })
+            .eq('id', analysisId)
+          return // Exit the after() callback
+        }
+      }
+
+      const pdfBase64 = Buffer.from(finalBuffer).toString('base64')
 
       const buildingList =
         buildings && buildings.length > 0
