@@ -55,11 +55,18 @@ export function PhotoUploadForm({
   const uploadFile = useCallback(async (uploadingFile: UploadingFile) => {
     const supabase = createClient()
 
+    console.log(`[photo-upload] PhotoForm: file=${uploadingFile.file.name}, type=${uploadingFile.file.type}, size=${(uploadingFile.file.size / 1024).toFixed(0)}KB, element=${elementId}, stage=${stage}`)
+
     // Get current user
     const {
-      data: { user }
+      data: { user },
+      error: authError
     } = await supabase.auth.getUser()
+    if (authError) {
+      console.error('[photo-upload] Auth error:', authError.message)
+    }
     if (!user) {
+      console.error('[photo-upload] No user session')
       setUploadingFiles((prev) =>
         prev.map((f) =>
           f.file === uploadingFile.file
@@ -70,6 +77,7 @@ export function PhotoUploadForm({
       onUploadError?.('Please log in to upload photos')
       return
     }
+    console.log(`[photo-upload] Auth OK: user=${user.id}`)
 
     try {
       // Generate file path: element-photos/[user_id]/[element_id]/[timestamp]_[stage].[ext]
@@ -78,6 +86,7 @@ export function PhotoUploadForm({
       const filePath = `${user.id}/${elementId}/${timestamp}_${stage}.${ext}`
 
       // Upload to Supabase Storage
+      console.log(`[photo-upload] Uploading to storage: ${filePath}`)
       const { error: uploadError } = await supabase.storage
         .from('element-photos')
         .upload(filePath, uploadingFile.file, {
@@ -86,8 +95,10 @@ export function PhotoUploadForm({
         })
 
       if (uploadError) {
+        console.error('[photo-upload] Storage upload failed:', uploadError.message)
         throw uploadError
       }
+      console.log('[photo-upload] Storage upload OK')
 
       // Update progress to 50% (upload complete, now creating DB record)
       setUploadingFiles((prev) =>
@@ -101,14 +112,17 @@ export function PhotoUploadForm({
         data: { publicUrl }
       } = supabase.storage.from('element-photos').getPublicUrl(filePath)
 
-      // Create database record via server action (bypasses RLS)
+      // Create database record via server action
+      console.log('[photo-upload] Calling createElementPhoto server action...')
       const dbResult = await createElementPhoto(elementId, stage, publicUrl)
 
       if (dbResult.error) {
+        console.error('[photo-upload] Server action failed:', dbResult.error)
         // If DB insert fails, try to delete the uploaded file
         await supabase.storage.from('element-photos').remove([filePath])
         throw new Error(dbResult.error)
       }
+      console.log('[photo-upload] DB record created OK')
 
       // Update progress to 100%
       setUploadingFiles((prev) =>
@@ -125,8 +139,8 @@ export function PhotoUploadForm({
         setUploadingFiles((prev) => prev.filter((f) => f.file !== uploadingFile.file))
       }, 1000)
     } catch (error) {
-      console.error('Upload error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Upload failed'
+      console.error('[photo-upload] PhotoForm error:', errorMessage)
 
       setUploadingFiles((prev) =>
         prev.map((f) =>

@@ -70,38 +70,58 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus, photoC
         const file = files[0]
         e.target.value = '' // Reset input for re-trigger
 
+        console.log(`[photo-upload] QuickPhoto: file=${file.name}, type=${file.type}, size=${(file.size / 1024).toFixed(0)}KB, element=${elementId}`)
+
         // Validate
         if (!ACCEPTED_TYPES.includes(file.type)) {
-            setErrorMsg('A\u00f0eins JPEG, PNG og WebP myndir')
+            console.error(`[photo-upload] Invalid type: ${file.type}`)
+            setErrorMsg('Aðeins JPEG, PNG og WebP myndir')
             setState('error')
-            setTimeout(() => setState('idle'), 3000)
+            setTimeout(() => setState('idle'), 5000)
             return
         }
         if (file.size > MAX_FILE_SIZE) {
-            setErrorMsg('Mynd of st\u00f3r (h\u00e1m. 10MB)')
+            console.error(`[photo-upload] File too large: ${file.size}`)
+            setErrorMsg('Mynd of stór (hám. 10MB)')
             setState('error')
-            setTimeout(() => setState('idle'), 3000)
+            setTimeout(() => setState('idle'), 5000)
             return
         }
 
         const stage = photoStage || (nextStatus ? stageByStatus[nextStatus] : null)
-        if (!stage) return
+        if (!stage) {
+            console.error('[photo-upload] No valid stage for status:', status)
+            return
+        }
 
         setState('uploading')
         setErrorMsg(null)
 
+        // Safety timeout — if upload hangs for 30s, force error state
+        const safetyTimer = setTimeout(() => {
+            console.error('[photo-upload] Upload timed out after 30s')
+            setErrorMsg('Upphleðsla tók of langan tíma. Reyndu aftur.')
+            setState('error')
+            setTimeout(() => setState('idle'), 5000)
+        }, 30_000)
+
         try {
             const supabase = createClient()
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) {
-                throw new Error('Ekki innskr\u00e1\u00f0ur')
+            const { data: { user }, error: authError } = await supabase.auth.getUser()
+            if (authError) {
+                console.error('[photo-upload] Auth error:', authError.message)
             }
+            if (!user) {
+                throw new Error('Ekki innskráður')
+            }
+            console.log(`[photo-upload] Auth OK: user=${user.id}`)
 
             // Upload photo to storage
             const timestamp = Date.now()
             const ext = file.name.split('.').pop() || 'jpg'
             const filePath = `${user.id}/${elementId}/${timestamp}_${stage}.${ext}`
 
+            console.log(`[photo-upload] Uploading to storage: ${filePath}`)
             const { error: uploadError } = await supabase.storage
                 .from('element-photos')
                 .upload(filePath, file, {
@@ -109,7 +129,11 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus, photoC
                     upsert: false,
                 })
 
-            if (uploadError) throw uploadError
+            if (uploadError) {
+                console.error('[photo-upload] Storage upload failed:', uploadError.message)
+                throw uploadError
+            }
+            console.log('[photo-upload] Storage upload OK')
 
             // Get public URL
             const { data: { publicUrl } } = supabase.storage
@@ -117,6 +141,7 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus, photoC
                 .getPublicUrl(filePath)
 
             // Create DB record
+            console.log('[photo-upload] Inserting DB record...')
             const { error: dbError } = await supabase.from('element_photos').insert({
                 element_id: elementId,
                 stage: stage,
@@ -125,10 +150,12 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus, photoC
             })
 
             if (dbError) {
+                console.error('[photo-upload] DB insert failed:', dbError.message, dbError.code, dbError.details)
                 // Clean up uploaded file
                 await supabase.storage.from('element-photos').remove([filePath])
                 throw dbError
             }
+            console.log('[photo-upload] DB insert OK')
 
             // Update local photo count
             setLocalPhotoCount(prev => prev + 1)
@@ -138,17 +165,20 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus, photoC
                 const result = await updateElementStatus(elementId, nextStatus)
                 if (result.error) {
                     // Photo was saved successfully, just couldn't advance status — that's OK
-                    console.warn('Status advance failed (photo saved):', result.error)
+                    console.warn('[photo-upload] Status advance failed (photo saved):', result.error)
                 }
             }
 
+            clearTimeout(safetyTimer)
             setState('success')
             setTimeout(() => setState('idle'), 2000)
         } catch (err) {
-            console.error('QuickPhotoAction error:', err)
-            setErrorMsg(err instanceof Error ? err.message : 'Villa kom upp')
+            clearTimeout(safetyTimer)
+            const msg = err instanceof Error ? err.message : String(err)
+            console.error('[photo-upload] QuickPhoto error:', msg)
+            setErrorMsg(msg || 'Villa kom upp')
             setState('error')
-            setTimeout(() => setState('idle'), 3000)
+            setTimeout(() => setState('idle'), 5000)
         }
     }
 

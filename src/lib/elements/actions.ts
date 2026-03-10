@@ -550,10 +550,15 @@ export async function createElementPhoto(
   stage: string,
   photoUrl: string
 ) {
+  console.log(`[photo-upload] createElementPhoto: element=${elementId}, stage=${stage}`)
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError) {
+    console.error('[photo-upload] Server action auth error:', authError.message)
+  }
   if (!user) {
+    console.error('[photo-upload] No user in server action')
     return { error: 'Not authenticated' }
   }
 
@@ -565,10 +570,12 @@ export async function createElementPhoto(
     .single()
 
   if (!profile || !profile.is_active) {
+    console.error(`[photo-upload] Account not active: role=${profile?.role}, is_active=${profile?.is_active}`)
     return { error: 'Account not active' }
   }
 
   if (!['admin', 'factory_manager', 'driver'].includes(profile.role)) {
+    console.error(`[photo-upload] Insufficient permissions: role=${profile.role}`)
     return { error: 'Insufficient permissions' }
   }
 
@@ -580,10 +587,11 @@ export async function createElementPhoto(
     .single()
 
   if (!element) {
+    console.error(`[photo-upload] Element not found: ${elementId}`)
     return { error: 'Element not found' }
   }
 
-  // Insert photo record (server-side bypasses browser RLS restrictions)
+  // Insert photo record
   const { error: dbError } = await supabase.from('element_photos').insert({
     element_id: elementId,
     stage,
@@ -592,10 +600,11 @@ export async function createElementPhoto(
   })
 
   if (dbError) {
-    console.error('Error creating element photo:', dbError)
+    console.error('[photo-upload] DB insert error:', dbError.message, dbError.code, dbError.details)
     return { error: dbError.message }
   }
 
+  console.log('[photo-upload] Photo record created successfully')
   revalidatePath(`/factory/production/${elementId}`)
   return { success: true }
 }
