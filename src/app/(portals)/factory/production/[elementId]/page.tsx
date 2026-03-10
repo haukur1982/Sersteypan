@@ -201,7 +201,7 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
                 )
             `)
             .eq('element_id', elementId)
-            .order('created_at', { ascending: false }),
+            .order('taken_at', { ascending: false }),
         supabase
             .from('fix_in_factory')
             .select('id, priority, status, issue_description, created_at, completed_at')

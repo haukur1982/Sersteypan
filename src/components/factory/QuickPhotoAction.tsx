@@ -3,7 +3,10 @@
 import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Camera, Loader2, CheckCircle, AlertCircle, ImageIcon, RefreshCw } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { PhotoGallery } from '@/components/shared/PhotoGallery'
 import { uploadElementPhoto } from '@/lib/elements/actions'
+import type { ElementPhoto } from '@/components/buyer/project/types'
 
 type ElementStatus = 'planned' | 'rebar' | 'cast' | 'curing' | 'ready' | 'loaded' | 'delivered'
 type PhotoStage = 'rebar' | 'cast' | 'curing' | 'ready' | 'loaded' | 'before_delivery' | 'after_delivery'
@@ -45,12 +48,14 @@ interface QuickPhotoActionProps {
     elementName: string
     currentStatus: string
     photoCount?: number
+    photos?: ElementPhoto[]
 }
 
-export function QuickPhotoAction({ elementId, elementName, currentStatus, photoCount = 0 }: QuickPhotoActionProps) {
+export function QuickPhotoAction({ elementId, elementName, currentStatus, photoCount = 0, photos }: QuickPhotoActionProps) {
     const [state, setState] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
     const [errorMsg, setErrorMsg] = useState<string | null>(null)
     const [localPhotoCount, setLocalPhotoCount] = useState(photoCount)
+    const [showGallery, setShowGallery] = useState(false)
     const cameraRef = useRef<HTMLInputElement>(null)
     const uploadRef = useRef<HTMLInputElement>(null)
 
@@ -142,84 +147,117 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus, photoC
 
     if (isDisabled) {
         return (
-            <div className="relative inline-flex items-center">
-                {hasPhotos && (
-                    <span className="absolute -top-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white">
-                        {localPhotoCount > 9 ? '9+' : localPhotoCount}
-                    </span>
+            <>
+                <div className="relative inline-flex items-center">
+                    {hasPhotos && (
+                        <button
+                            onClick={() => setShowGallery(true)}
+                            className="absolute -top-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white hover:bg-green-600 transition-colors"
+                        >
+                            {localPhotoCount > 9 ? '9+' : localPhotoCount}
+                        </button>
+                    )}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-11 w-11 md:h-8 md:w-8 ${hasPhotos ? 'text-green-600 cursor-pointer' : 'text-muted-foreground/30 cursor-not-allowed'}`}
+                        disabled={!hasPhotos}
+                        onClick={hasPhotos ? () => setShowGallery(true) : undefined}
+                        title={hasPhotos ? `${localPhotoCount} myndir — smelltu til að sjá` : tooltipText}
+                    >
+                        {hasPhotos ? <ImageIcon className="h-5 w-5 md:h-4 md:w-4" /> : <Camera className="h-5 w-5 md:h-4 md:w-4" />}
+                    </Button>
+                </div>
+                {hasPhotos && photos && (
+                    <Dialog open={showGallery} onOpenChange={setShowGallery}>
+                        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                            <DialogHeader>
+                                <DialogTitle>{elementName} — Myndir</DialogTitle>
+                            </DialogHeader>
+                            <PhotoGallery photos={photos} />
+                        </DialogContent>
+                    </Dialog>
                 )}
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-11 w-11 md:h-8 md:w-8 text-muted-foreground/30 cursor-not-allowed"
-                    disabled
-                    title={tooltipText}
-                >
-                    {hasPhotos ? <ImageIcon className="h-5 w-5 md:h-4 md:w-4" /> : <Camera className="h-5 w-5 md:h-4 md:w-4" />}
-                </Button>
-            </div>
+            </>
         )
     }
 
     return (
-        <div className="relative inline-flex items-center">
-            {/* Green badge showing photo count */}
-            {hasPhotos && state === 'idle' && (
-                <span className="absolute -top-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white">
-                    {localPhotoCount > 9 ? '9+' : localPhotoCount}
-                </span>
+        <>
+            <div className="relative inline-flex items-center">
+                {/* Green badge showing photo count — clickable to view gallery */}
+                {hasPhotos && state === 'idle' && (
+                    <button
+                        onClick={() => setShowGallery(true)}
+                        className="absolute -top-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white hover:bg-green-600 transition-colors"
+                    >
+                        {localPhotoCount > 9 ? '9+' : localPhotoCount}
+                    </button>
+                )}
+
+                {/* Camera input (mobile — opens rear camera directly) */}
+                <input
+                    ref={cameraRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic"
+                    capture="environment"
+                    onChange={handleCapture}
+                    className="hidden"
+                />
+
+                {/* File upload input (no capture — opens file picker / gallery) */}
+                <input
+                    ref={uploadRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic"
+                    onChange={handleCapture}
+                    className="hidden"
+                />
+
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-11 w-11 md:h-8 md:w-8 ${
+                        state === 'success'
+                            ? 'text-green-600 hover:text-green-700 bg-green-50'
+                            : state === 'error'
+                            ? 'text-red-600 hover:text-red-700 bg-red-50'
+                            : hasPhotos
+                            ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                            : 'text-muted-foreground hover:text-orange-600 hover:bg-orange-50'
+                    }`}
+                    disabled={state === 'uploading'}
+                    onClick={() => {
+                        // On mobile use camera capture, on desktop use file picker
+                        // Simple heuristic: check for touch support
+                        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+                        if (isMobile) {
+                            cameraRef.current?.click()
+                        } else {
+                            uploadRef.current?.click()
+                        }
+                    }}
+                    title={tooltipText}
+                >
+                    {state === 'uploading' && <Loader2 className="h-5 w-5 md:h-4 md:w-4 animate-spin" />}
+                    {state === 'success' && <CheckCircle className="h-5 w-5 md:h-4 md:w-4" />}
+                    {state === 'error' && <AlertCircle className="h-5 w-5 md:h-4 md:w-4" />}
+                    {state === 'idle' && hasPhotos && <RefreshCw className="h-5 w-5 md:h-4 md:w-4" />}
+                    {state === 'idle' && !hasPhotos && <Camera className="h-5 w-5 md:h-4 md:w-4" />}
+                </Button>
+            </div>
+
+            {/* Photo gallery dialog */}
+            {hasPhotos && photos && (
+                <Dialog open={showGallery} onOpenChange={setShowGallery}>
+                    <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>{elementName} — Myndir</DialogTitle>
+                        </DialogHeader>
+                        <PhotoGallery photos={photos} />
+                    </DialogContent>
+                </Dialog>
             )}
-
-            {/* Camera input (mobile — opens rear camera directly) */}
-            <input
-                ref={cameraRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic"
-                capture="environment"
-                onChange={handleCapture}
-                className="hidden"
-            />
-
-            {/* File upload input (no capture — opens file picker / gallery) */}
-            <input
-                ref={uploadRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic"
-                onChange={handleCapture}
-                className="hidden"
-            />
-
-            <Button
-                variant="ghost"
-                size="icon"
-                className={`h-11 w-11 md:h-8 md:w-8 ${
-                    state === 'success'
-                        ? 'text-green-600 hover:text-green-700 bg-green-50'
-                        : state === 'error'
-                        ? 'text-red-600 hover:text-red-700 bg-red-50'
-                        : hasPhotos
-                        ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                        : 'text-muted-foreground hover:text-orange-600 hover:bg-orange-50'
-                }`}
-                disabled={state === 'uploading'}
-                onClick={() => {
-                    // On mobile use camera capture, on desktop use file picker
-                    // Simple heuristic: check for touch support
-                    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0
-                    if (isMobile) {
-                        cameraRef.current?.click()
-                    } else {
-                        uploadRef.current?.click()
-                    }
-                }}
-                title={tooltipText}
-            >
-                {state === 'uploading' && <Loader2 className="h-5 w-5 md:h-4 md:w-4 animate-spin" />}
-                {state === 'success' && <CheckCircle className="h-5 w-5 md:h-4 md:w-4" />}
-                {state === 'error' && <AlertCircle className="h-5 w-5 md:h-4 md:w-4" />}
-                {state === 'idle' && hasPhotos && <RefreshCw className="h-5 w-5 md:h-4 md:w-4" />}
-                {state === 'idle' && !hasPhotos && <Camera className="h-5 w-5 md:h-4 md:w-4" />}
-            </Button>
-        </div>
+        </>
     )
 }

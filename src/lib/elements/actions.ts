@@ -687,6 +687,7 @@ export async function uploadElementPhoto(formData: FormData) {
     stage,
     photo_url: publicUrl,
     taken_by: user.id,
+    taken_at: new Date().toISOString(),
   })
 
   if (dbError) {

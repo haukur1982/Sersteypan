@@ -83,19 +83,30 @@ export default async function BatchDetailPage({
     }
   }
 
-  // Fetch photo counts for batch elements
+  // Fetch photos for batch elements (used for both counts and gallery viewing)
   const elementIds = (batch.elements || []).map((el) => el.id)
-  let photoCountMap: Record<string, number> = {}
+  const photoCountMap: Record<string, number> = {}
+  const photoMap: Record<string, { id: string; stage: string | null; photo_url: string; caption: string | null; taken_at: string | null; created_by: { full_name: string } | null }[]> = {}
   if (elementIds.length > 0) {
-    const { data: photoCounts } = await supabase
+    const { data: photos } = await supabase
       .from('element_photos')
-      .select('element_id')
+      .select('id, element_id, stage, photo_url, caption, taken_at, taken_by:profiles!element_photos_taken_by_fkey(full_name)')
       .in('element_id', elementIds)
-    if (photoCounts) {
-      photoCountMap = photoCounts.reduce<Record<string, number>>((acc, row) => {
-        acc[row.element_id] = (acc[row.element_id] || 0) + 1
-        return acc
-      }, {})
+      .order('taken_at', { ascending: false })
+    if (photos) {
+      for (const photo of photos) {
+        const eid = photo.element_id
+        photoCountMap[eid] = (photoCountMap[eid] || 0) + 1
+        if (!photoMap[eid]) photoMap[eid] = []
+        photoMap[eid].push({
+          id: photo.id,
+          stage: photo.stage,
+          photo_url: photo.photo_url,
+          caption: photo.caption,
+          taken_at: photo.taken_at,
+          created_by: photo.taken_by as { full_name: string } | null,
+        })
+      }
     }
   }
 
@@ -266,6 +277,7 @@ export default async function BatchDetailPage({
                               elementName={element.name}
                               currentStatus={element.status || 'planned'}
                               photoCount={photoCountMap[element.id] || 0}
+                              photos={photoMap[element.id]}
                             />
                           </div>
                         </div>
