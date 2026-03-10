@@ -609,6 +609,107 @@ export async function createElementPhoto(
   return { success: true }
 }
 
+/**
+ * Server action: Upload a photo file and create the DB record.
+ * Handles both storage upload and element_photos insert server-side,
+ * bypassing client-side auth issues with @supabase/ssr.
+ */
+export async function uploadElementPhoto(formData: FormData) {
+  const elementId = formData.get('elementId') as string
+  const stage = formData.get('stage') as string
+  const file = formData.get('file') as File
+  const advanceStatus = formData.get('advanceStatus') as string | null
+
+  console.log(`[photo-upload] uploadElementPhoto: element=${elementId}, stage=${stage}, file=${file?.name}, size=${file?.size}`)
+
+  if (!elementId || !stage || !file) {
+    console.error('[photo-upload] Missing required fields')
+    return { error: 'Missing required fields' }
+  }
+
+  const supabase = await createClient()
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError) {
+    console.error('[photo-upload] uploadElementPhoto auth error:', authError.message)
+  }
+  if (!user) {
+    console.error('[photo-upload] uploadElementPhoto: no user')
+    return { error: 'Not authenticated' }
+  }
+
+  // Validate role
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, is_active')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !profile.is_active) {
+    console.error(`[photo-upload] Account not active: role=${profile?.role}`)
+    return { error: 'Account not active' }
+  }
+
+  if (!['admin', 'factory_manager', 'driver'].includes(profile.role)) {
+    console.error(`[photo-upload] Insufficient permissions: role=${profile.role}`)
+    return { error: 'Insufficient permissions' }
+  }
+
+  // Upload to storage
+  const timestamp = Date.now()
+  const ext = file.name.split('.').pop() || 'jpg'
+  const filePath = `${user.id}/${elementId}/${timestamp}_${stage}.${ext}`
+
+  console.log(`[photo-upload] Uploading to storage: ${filePath}`)
+  const arrayBuffer = await file.arrayBuffer()
+  const { error: uploadError } = await supabase.storage
+    .from('element-photos')
+    .upload(filePath, arrayBuffer, {
+      contentType: file.type || 'image/jpeg',
+      cacheControl: '3600',
+      upsert: false,
+    })
+
+  if (uploadError) {
+    console.error('[photo-upload] Storage upload failed:', uploadError.message)
+    return { error: `Upload failed: ${uploadError.message}` }
+  }
+  console.log('[photo-upload] Storage upload OK')
+
+  // Get public URL
+  const { data: { publicUrl } } = supabase.storage
+    .from('element-photos')
+    .getPublicUrl(filePath)
+
+  // Insert photo record
+  const { error: dbError } = await supabase.from('element_photos').insert({
+    element_id: elementId,
+    stage,
+    photo_url: publicUrl,
+    taken_by: user.id,
+  })
+
+  if (dbError) {
+    console.error('[photo-upload] DB insert error:', dbError.message, dbError.code, dbError.details)
+    // Clean up uploaded file
+    await supabase.storage.from('element-photos').remove([filePath])
+    return { error: dbError.message }
+  }
+
+  console.log('[photo-upload] Photo record created successfully')
+
+  // Optionally advance element status
+  if (advanceStatus) {
+    const statusResult = await updateElementStatus(elementId, advanceStatus)
+    if (statusResult.error) {
+      console.warn('[photo-upload] Status advance failed (photo saved):', statusResult.error)
+    }
+  }
+
+  revalidatePath(`/factory/production/${elementId}`)
+  return { success: true, photoUrl: publicUrl }
+}
+
 // Update element status (used by factory managers)
 export async function updateElementStatus(id: string, newStatus: string, notes?: string) {
   const supabase = await createClient()

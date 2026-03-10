@@ -3,8 +3,7 @@
 import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Camera, Loader2, CheckCircle, AlertCircle, ImageIcon, RefreshCw } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { updateElementStatus } from '@/lib/elements/actions'
+import { uploadElementPhoto } from '@/lib/elements/actions'
 
 type ElementStatus = 'planned' | 'rebar' | 'cast' | 'curing' | 'ready' | 'loaded' | 'delivered'
 type PhotoStage = 'rebar' | 'cast' | 'curing' | 'ready' | 'loaded' | 'before_delivery' | 'after_delivery'
@@ -97,83 +96,29 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus, photoC
         setState('uploading')
         setErrorMsg(null)
 
-        // Safety timeout — if upload hangs for 30s, force error state
-        const safetyTimer = setTimeout(() => {
-            console.error('[photo-upload] Upload timed out after 30s')
-            setErrorMsg('Upphleðsla tók of langan tíma. Reyndu aftur.')
-            setState('error')
-            setTimeout(() => setState('idle'), 5000)
-        }, 30_000)
-
         try {
-            const supabase = createClient()
-            const { data: { user }, error: authError } = await supabase.auth.getUser()
-            if (authError) {
-                console.error('[photo-upload] Auth error:', authError.message)
-            }
-            if (!user) {
-                throw new Error('Ekki innskráður')
-            }
-            console.log(`[photo-upload] Auth OK: user=${user.id}`)
-
-            // Upload photo to storage
-            const timestamp = Date.now()
-            const ext = file.name.split('.').pop() || 'jpg'
-            const filePath = `${user.id}/${elementId}/${timestamp}_${stage}.${ext}`
-
-            console.log(`[photo-upload] Uploading to storage: ${filePath}`)
-            const { error: uploadError } = await supabase.storage
-                .from('element-photos')
-                .upload(filePath, file, {
-                    cacheControl: '3600',
-                    upsert: false,
-                })
-
-            if (uploadError) {
-                console.error('[photo-upload] Storage upload failed:', uploadError.message)
-                throw uploadError
-            }
-            console.log('[photo-upload] Storage upload OK')
-
-            // Get public URL
-            const { data: { publicUrl } } = supabase.storage
-                .from('element-photos')
-                .getPublicUrl(filePath)
-
-            // Create DB record
-            console.log('[photo-upload] Inserting DB record...')
-            const { error: dbError } = await supabase.from('element_photos').insert({
-                element_id: elementId,
-                stage: stage,
-                photo_url: publicUrl,
-                taken_by: user.id,
-            })
-
-            if (dbError) {
-                console.error('[photo-upload] DB insert failed:', dbError.message, dbError.code, dbError.details)
-                // Clean up uploaded file
-                await supabase.storage.from('element-photos').remove([filePath])
-                throw dbError
-            }
-            console.log('[photo-upload] DB insert OK')
-
-            // Update local photo count
-            setLocalPhotoCount(prev => prev + 1)
-
-            // Only advance status if there's a next status and we haven't already advanced
+            // Use server action — bypasses client-side auth issues
+            const formData = new FormData()
+            formData.append('elementId', elementId)
+            formData.append('stage', stage)
+            formData.append('file', file)
             if (nextStatus) {
-                const result = await updateElementStatus(elementId, nextStatus)
-                if (result.error) {
-                    // Photo was saved successfully, just couldn't advance status — that's OK
-                    console.warn('[photo-upload] Status advance failed (photo saved):', result.error)
-                }
+                formData.append('advanceStatus', nextStatus)
             }
 
-            clearTimeout(safetyTimer)
+            console.log('[photo-upload] Calling uploadElementPhoto server action...')
+            const result = await uploadElementPhoto(formData)
+
+            if (result.error) {
+                console.error('[photo-upload] Server action error:', result.error)
+                throw new Error(result.error)
+            }
+
+            console.log('[photo-upload] Upload complete!')
+            setLocalPhotoCount(prev => prev + 1)
             setState('success')
             setTimeout(() => setState('idle'), 2000)
         } catch (err) {
-            clearTimeout(safetyTimer)
             const msg = err instanceof Error ? err.message : String(err)
             console.error('[photo-upload] QuickPhoto error:', msg)
             setErrorMsg(msg || 'Villa kom upp')

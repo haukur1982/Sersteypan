@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { createElementPhoto } from '@/lib/elements/actions'
+import { uploadElementPhoto } from '@/lib/elements/actions'
 import { Button } from '@/components/ui/button'
 import { Upload, X, ImageIcon, Loader2 } from 'lucide-react'
 import Image from 'next/image'
@@ -36,93 +35,43 @@ export function PhotoUploadForm({
 
   // Validate file before upload
   const validateFile = (file: File): string | null => {
-    // Check file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic']
     if (!allowedTypes.includes(file.type)) {
       return 'Invalid file type. Please upload JPEG, PNG, WebP, or HEIC images.'
     }
-
-    // Check file size (10MB max)
     const maxSize = 10 * 1024 * 1024 // 10MB
     if (file.size > maxSize) {
       return `File too large. Maximum size is 10MB, got ${(file.size / (1024 * 1024)).toFixed(1)}MB.`
     }
-
     return null
   }
 
-  // Upload a single file
+  // Upload a single file via server action
   const uploadFile = useCallback(async (uploadingFile: UploadingFile) => {
-    const supabase = createClient()
-
     console.log(`[photo-upload] PhotoForm: file=${uploadingFile.file.name}, type=${uploadingFile.file.type}, size=${(uploadingFile.file.size / 1024).toFixed(0)}KB, element=${elementId}, stage=${stage}`)
 
-    // Get current user
-    const {
-      data: { user },
-      error: authError
-    } = await supabase.auth.getUser()
-    if (authError) {
-      console.error('[photo-upload] Auth error:', authError.message)
-    }
-    if (!user) {
-      console.error('[photo-upload] No user session')
-      setUploadingFiles((prev) =>
-        prev.map((f) =>
-          f.file === uploadingFile.file
-            ? { ...f, error: 'Not authenticated', progress: 0 }
-            : f
-        )
-      )
-      onUploadError?.('Please log in to upload photos')
-      return
-    }
-    console.log(`[photo-upload] Auth OK: user=${user.id}`)
-
     try {
-      // Generate file path: element-photos/[user_id]/[element_id]/[timestamp]_[stage].[ext]
-      const timestamp = Date.now()
-      const ext = uploadingFile.file.name.split('.').pop()
-      const filePath = `${user.id}/${elementId}/${timestamp}_${stage}.${ext}`
-
-      // Upload to Supabase Storage
-      console.log(`[photo-upload] Uploading to storage: ${filePath}`)
-      const { error: uploadError } = await supabase.storage
-        .from('element-photos')
-        .upload(filePath, uploadingFile.file, {
-          cacheControl: '3600',
-          upsert: false
-        })
-
-      if (uploadError) {
-        console.error('[photo-upload] Storage upload failed:', uploadError.message)
-        throw uploadError
-      }
-      console.log('[photo-upload] Storage upload OK')
-
-      // Update progress to 50% (upload complete, now creating DB record)
+      // Update progress to 25% (starting upload)
       setUploadingFiles((prev) =>
         prev.map((f) =>
-          f.file === uploadingFile.file ? { ...f, progress: 50 } : f
+          f.file === uploadingFile.file ? { ...f, progress: 25 } : f
         )
       )
 
-      // Get public URL
-      const {
-        data: { publicUrl }
-      } = supabase.storage.from('element-photos').getPublicUrl(filePath)
+      // Use server action — handles both storage upload and DB insert server-side
+      const formData = new FormData()
+      formData.append('elementId', elementId)
+      formData.append('stage', stage)
+      formData.append('file', uploadingFile.file)
 
-      // Create database record via server action
-      console.log('[photo-upload] Calling createElementPhoto server action...')
-      const dbResult = await createElementPhoto(elementId, stage, publicUrl)
+      console.log('[photo-upload] Calling uploadElementPhoto server action...')
+      const result = await uploadElementPhoto(formData)
 
-      if (dbResult.error) {
-        console.error('[photo-upload] Server action failed:', dbResult.error)
-        // If DB insert fails, try to delete the uploaded file
-        await supabase.storage.from('element-photos').remove([filePath])
-        throw new Error(dbResult.error)
+      if (result.error) {
+        console.error('[photo-upload] Server action failed:', result.error)
+        throw new Error(result.error)
       }
-      console.log('[photo-upload] DB record created OK')
+      console.log('[photo-upload] Upload complete!')
 
       // Update progress to 100%
       setUploadingFiles((prev) =>
@@ -132,7 +81,9 @@ export function PhotoUploadForm({
       )
 
       // Call success callback
-      onUploadComplete?.(publicUrl)
+      if ('photoUrl' in result && result.photoUrl) {
+        onUploadComplete?.(result.photoUrl)
+      }
 
       // Remove from uploading list after 1 second
       setTimeout(() => {
@@ -159,7 +110,6 @@ export function PhotoUploadForm({
     async (files: FileList | null) => {
       if (!files || files.length === 0) return
 
-      // Check max files limit
       if (uploadingFiles.length + files.length > maxFiles) {
         onUploadError?.(`Maximum ${maxFiles} photos allowed`)
         return
@@ -167,7 +117,6 @@ export function PhotoUploadForm({
 
       const newFiles: UploadingFile[] = []
 
-      // Validate and create previews
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
         const error = validateFile(file)
@@ -177,22 +126,14 @@ export function PhotoUploadForm({
           continue
         }
 
-        // Create preview URL
         const preview = URL.createObjectURL(file)
-
-        newFiles.push({
-          file,
-          preview,
-          progress: 0,
-          error: undefined
-        })
+        newFiles.push({ file, preview, progress: 0, error: undefined })
       }
 
       if (newFiles.length === 0) return
 
       setUploadingFiles((prev) => [...prev, ...newFiles])
 
-      // Upload files
       for (const uploadingFile of newFiles) {
         await uploadFile(uploadingFile)
       }
