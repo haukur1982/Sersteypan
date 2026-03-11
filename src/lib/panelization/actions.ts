@@ -268,7 +268,7 @@ export async function createPanelizationLayout(
  */
 export async function updateLayoutConstraints(
   layoutId: string,
-  constraints: Record<string, number>
+  constraints: Record<string, number | string>
 ) {
   const { supabase, user, error: authError } = await getAdminUser()
   if (authError || !user) return { error: authError ?? 'Óþekkt villa' }
@@ -772,4 +772,193 @@ export async function deletePanelizationLayout(layoutId: string) {
 
   revalidatePath(`/admin/projects/${layout.project_id}/panelization`)
   return { error: null }
+}
+
+// ── Auto Panelization ────────────────────────────────────────
+
+import { parseGeometryRow, computeZoneBBox } from '@/lib/building-geometry/types'
+
+/**
+ * Automatically panelize all interior floor zones in a building geometry.
+ *
+ * For each interior FloorZone:
+ * 1. Compute AABB bounding box → surface dimensions
+ * 2. Auto-detect strip direction (longest span)
+ * 3. Create panelization_layout with filigran defaults
+ * 4. Run calculateFiligranPanels() → save panels
+ * 5. Link layout to zone via geometry_zone_id
+ */
+export async function autoPanelizeGeometry(
+  geometryId: string,
+  projectId: string
+): Promise<{ error: string | null; layoutIds?: string[]; totalPanels?: number; zonesProcessed?: number }> {
+  const { supabase, user, error: authError } = await getAdminUser()
+  if (authError || !user) return { error: authError ?? 'Óþekkt villa' }
+
+  // Fetch geometry
+  const { data: geoRow, error: geoError } = await supabase
+    .from('building_floor_geometries')
+    .select('*')
+    .eq('id', geometryId)
+    .single()
+
+  if (geoError || !geoRow) return { error: 'Byggingarmynd fannst ekki' }
+  if (geoRow.project_id !== projectId) return { error: 'Verkefni passar ekki' }
+
+  const geometry = parseGeometryRow(geoRow as Record<string, unknown>)
+
+  // Filter to interior zones only (skip balconies)
+  const interiorZones = geometry.floorZones.filter(z => z.zoneType === 'interior')
+
+  if (interiorZones.length === 0) {
+    return { error: 'Engin innri svæði fundust í byggingarmynd' }
+  }
+
+  const layoutIds: string[] = []
+  let totalPanels = 0
+
+  for (const zone of interiorZones) {
+    const bbox = computeZoneBBox(zone.points)
+    const surfaceLengthMm = bbox.maxX - bbox.minX
+    const surfaceHeightMm = bbox.maxY - bbox.minY
+
+    // Skip zones too small for a panel
+    if (surfaceLengthMm < 600 || surfaceHeightMm < 600) continue
+
+    // Auto-detect strip direction: strips span the longer dimension
+    const stripDirection = surfaceLengthMm >= surfaceHeightMm ? 'length' : 'width'
+
+    // Insert layout with filigran constraint overrides
+    const { data: layout, error: insertError } = await supabase
+      .from('panelization_layouts')
+      .insert({
+        project_id: projectId,
+        building_id: geometry.buildingId,
+        mode: 'filigran',
+        name: zone.name || `Svæði ${layoutIds.length + 1}`,
+        floor: geometry.floor,
+        surface_length_mm: Math.round(surfaceLengthMm),
+        surface_height_mm: Math.round(surfaceHeightMm),
+        thickness_mm: DEFAULT_FILIGRAN_THICKNESS_MM,
+        name_prefix: 'F',
+        strip_direction: stripDirection,
+        geometry_zone_id: `${geometryId}:${zone.id}`,
+        // Filigran-specific constraint overrides
+        ...(FILIGRAN_CONSTRAINT_OVERRIDES.maxPanelWidthMm && {
+          max_panel_width_mm: FILIGRAN_CONSTRAINT_OVERRIDES.maxPanelWidthMm,
+        }),
+        ...(FILIGRAN_CONSTRAINT_OVERRIDES.maxTableLengthMm && {
+          max_table_length_mm: FILIGRAN_CONSTRAINT_OVERRIDES.maxTableLengthMm,
+        }),
+        created_by: user.id,
+      })
+      .select()
+      .single()
+
+    if (insertError || !layout) {
+      console.error(`Error creating auto layout for zone ${zone.name}:`, insertError)
+      continue
+    }
+
+    // Auto-calculate panels (no openings for filigran)
+    const result = await recalculateAndSavePanels(supabase, layout, [])
+    if (!result.error) {
+      totalPanels += result.panelCount ?? 0
+    }
+
+    layoutIds.push(layout.id)
+  }
+
+  if (layoutIds.length === 0) {
+    return { error: 'Engin svæði voru nógu stór til að búa til plötusnið' }
+  }
+
+  revalidatePath(`/admin/projects/${projectId}/panelization`)
+  revalidatePath(`/admin/projects/${projectId}/panelization/auto`)
+
+  return { error: null, layoutIds, totalPanels, zonesProcessed: layoutIds.length }
+}
+
+/**
+ * Batch commit all auto-panelization layouts for a geometry.
+ * Creates real elements from all draft layouts linked to this geometry.
+ */
+export async function batchCommitAutoPanelization(
+  geometryId: string,
+  projectId: string
+): Promise<{ error: string | null; totalElementsCreated?: number; layoutsCommitted?: number }> {
+  const { supabase, user, error: authError } = await getAdminUser()
+  if (authError || !user) return { error: authError ?? 'Óþekkt villa' }
+
+  // Fetch all draft layouts linked to this geometry
+  const { data: layouts, error: fetchError } = await supabase
+    .from('panelization_layouts')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('status', 'draft')
+    .like('geometry_zone_id', `${geometryId}:%`)
+
+  if (fetchError || !layouts || layouts.length === 0) {
+    return { error: 'Engin drög plötusnið fundust til að staðfesta' }
+  }
+
+  let totalElementsCreated = 0
+  let layoutsCommitted = 0
+
+  for (const layout of layouts) {
+    const result = await commitPanelizationToElements(layout.id)
+    if (!result.error) {
+      totalElementsCreated += result.elementsCreated ?? 0
+      layoutsCommitted++
+    } else {
+      console.error(`Error committing layout ${layout.id}:`, result.error)
+    }
+  }
+
+  revalidatePath(`/admin/projects/${projectId}`)
+  revalidatePath(`/admin/projects/${projectId}/panelization`)
+  revalidatePath(`/admin/projects/${projectId}/panelization/auto`)
+
+  return { error: null, totalElementsCreated, layoutsCommitted }
+}
+
+/**
+ * Delete all draft auto-panelization layouts for a geometry.
+ * Used for "start over" / reset functionality.
+ */
+export async function deleteAutoLayouts(
+  geometryId: string,
+  projectId: string
+): Promise<{ error: string | null; deleted?: number }> {
+  const { supabase, user, error: authError } = await getAdminUser()
+  if (authError || !user) return { error: authError ?? 'Óþekkt villa' }
+
+  // Find all draft layouts linked to this geometry
+  const { data: layouts, error: fetchError } = await supabase
+    .from('panelization_layouts')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('status', 'draft')
+    .like('geometry_zone_id', `${geometryId}:%`)
+
+  if (fetchError) return { error: 'Villa við að sækja plötusnið' }
+  if (!layouts || layouts.length === 0) return { error: null, deleted: 0 }
+
+  // CASCADE delete handles panels and openings
+  const { error: deleteError } = await supabase
+    .from('panelization_layouts')
+    .delete()
+    .eq('project_id', projectId)
+    .eq('status', 'draft')
+    .like('geometry_zone_id', `${geometryId}:%`)
+
+  if (deleteError) {
+    console.error('Error deleting auto layouts:', deleteError)
+    return { error: 'Villa við að eyða plötuniðum' }
+  }
+
+  revalidatePath(`/admin/projects/${projectId}/panelization`)
+  revalidatePath(`/admin/projects/${projectId}/panelization/auto`)
+
+  return { error: null, deleted: layouts.length }
 }

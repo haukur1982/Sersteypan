@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { getProject } from '@/lib/projects/actions'
 import { getLayoutsForProject } from '@/lib/panelization/queries'
 import { getProjectBuildings } from '@/lib/drawing-analysis/queries'
+import { getGeometriesForProject } from '@/lib/building-geometry/queries'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -30,12 +31,14 @@ export default async function PanelizationPage({
   const { data: project, error } = await getProject(projectId)
   if (error || !project) notFound()
 
-  const [layoutsResult, buildings] = await Promise.all([
+  const [layoutsResult, buildings, { data: geometries }] = await Promise.all([
     getLayoutsForProject(projectId),
     getProjectBuildings(projectId),
+    getGeometriesForProject(projectId),
   ])
 
   const layouts = layoutsResult.data
+  const hasGeometries = geometries.length > 0
 
   return (
     <div className="space-y-6">
@@ -58,6 +61,20 @@ export default async function PanelizationPage({
         </div>
 
         <div className="flex gap-2">
+          {hasGeometries && (
+            <Button
+              variant="outline"
+              asChild
+              className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+            >
+              <Link
+                href={`/admin/projects/${projectId}/panelization/auto`}
+              >
+                <Layers className="mr-2 h-4 w-4 text-emerald-500" />
+                Sjálfvirkt filigransnið
+              </Link>
+            </Button>
+          )}
           <Button variant="outline" asChild>
             <Link
               href={`/admin/projects/${projectId}/panelization/floor-plan`}
