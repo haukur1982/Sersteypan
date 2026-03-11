@@ -35,12 +35,13 @@ const WALL_INNER_COLOR = '#a1a1aa' // zinc-400
 const WALL_SANDWICH_COLOR = '#3f3f46' // zinc-700
 const ZONE_FILL = '#f4f4f5' // zinc-100
 const ZONE_BALCONY_FILL = '#dbeafe' // blue-100
-const PANEL_OK_FILL = '#bbf7d0' // green-200
-const PANEL_WARN_FILL = '#fef08a' // yellow-200
-const PANEL_ERROR_FILL = '#fecaca' // red-200
-const PANEL_OK_STROKE = '#22c55e'
-const PANEL_WARN_STROKE = '#eab308'
-const PANEL_ERROR_STROKE = '#ef4444'
+const PANEL_OK_FILL = '#86efac' // green-300
+const PANEL_WARN_FILL = '#fde047' // yellow-300
+const PANEL_ERROR_FILL = '#fca5a5' // red-300
+const PANEL_OK_STROKE = '#16a34a' // green-600
+const PANEL_WARN_STROKE = '#ca8a04' // yellow-600
+const PANEL_ERROR_STROKE = '#dc2626' // red-600
+const PANEL_GAP = 8 // visual gap between adjacent panels (mm in SVG coords)
 
 /**
  * Composite SVG floor plan showing building walls, floor zones,
@@ -216,19 +217,22 @@ export function BuildingFloorPlan({
                   if (!bbox) return null
 
                   // Panels are positioned relative to zone origin (bottom-left of bbox)
-                  return linkedLayout.panels.map((panel) => {
+                  return linkedLayout.panels.map((panel, panelIndex) => {
                     const { fill, stroke } = panelColors(panel)
                     const isHovered = hoveredPanel === panel.id
 
-                    // Panel position: zone origin + panel offset
-                    const px = bbox.minX + panel.offset_x_mm
-                    const py = bbox.minY + panel.offset_y_mm
-                    const pw = panel.width_mm
-                    const ph = panel.height_mm
+                    // Panel position: zone origin + panel offset + gap inset
+                    const px = bbox.minX + panel.offset_x_mm + PANEL_GAP
+                    const py = bbox.minY + panel.offset_y_mm + PANEL_GAP
+                    const pw = panel.width_mm - PANEL_GAP * 2
+                    const ph = panel.height_mm - PANEL_GAP * 2
 
                     // Transform to SVG coordinates
                     const svgX = px
                     const svgY = toSvgY(py + ph) // top-left in SVG
+
+                    // Alternate opacity for visual separation between adjacent panels
+                    const baseOpacity = panelIndex % 2 === 0 ? 0.75 : 0.6
 
                     return (
                       <g
@@ -243,13 +247,13 @@ export function BuildingFloorPlan({
                         <rect
                           x={svgX}
                           y={svgY}
-                          width={pw}
-                          height={ph}
+                          width={Math.max(0, pw)}
+                          height={Math.max(0, ph)}
                           fill={fill}
-                          fillOpacity={isHovered ? 0.9 : 0.5}
+                          fillOpacity={isHovered ? 0.95 : baseOpacity}
                           stroke={stroke}
-                          strokeWidth={isHovered ? 3 : 1.5}
-                          rx={4}
+                          strokeWidth={isHovered ? 4 : 2.5}
+                          rx={6}
                         />
                         {/* Panel label */}
                         {showLabels && pw > labelSize * 2 && (
@@ -259,8 +263,8 @@ export function BuildingFloorPlan({
                             textAnchor="middle"
                             dominantBaseline="middle"
                             fontSize={labelSize * 0.7}
-                            fontWeight="600"
-                            fill="#374151"
+                            fontWeight="700"
+                            fill="#1f2937"
                             style={{ userSelect: 'none' }}
                           >
                             {panel.name}
@@ -274,10 +278,11 @@ export function BuildingFloorPlan({
                             textAnchor="middle"
                             dominantBaseline="middle"
                             fontSize={labelSize * 0.5}
-                            fill="#6b7280"
+                            fontWeight="500"
+                            fill="#4b5563"
                             style={{ userSelect: 'none' }}
                           >
-                            {(pw / 1000).toFixed(1)}×{(ph / 1000).toFixed(1)}m
+                            {(panel.width_mm / 1000).toFixed(1)}×{(panel.height_mm / 1000).toFixed(1)}m
                           </text>
                         )}
                       </g>
