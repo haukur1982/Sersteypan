@@ -383,11 +383,24 @@ export async function POST(request: NextRequest) {
         if (parseResult.validated) {
           const analysisResult = parseResult.data
 
+          // Store full response (with slab_area) when position data is present,
+          // otherwise just the elements array for backward compatibility
+          const hasSlabArea = analysisResult.slab_area != null
+          const extractedData = hasSlabArea
+            ? {
+                elements: analysisResult.elements,
+                slab_area: analysisResult.slab_area,
+                drawing_type: analysisResult.drawing_type,
+                building: analysisResult.building,
+                floor: analysisResult.floor,
+              }
+            : analysisResult.elements
+
           await serviceClient
             .from('drawing_analyses')
             .update({
               status: 'completed',
-              extracted_elements: analysisResult.elements,
+              extracted_elements: extractedData as unknown as Json[],
               ai_summary: analysisResult.page_description,
               ai_model: aiResult.model,
               ai_confidence_notes:

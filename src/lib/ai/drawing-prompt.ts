@@ -64,6 +64,22 @@ QUANTITY:
 GENERAL NOTES (right-side panel):
 - Extract ALL notes including: plate thickness, shear connector specs ("skerkóna c/c 600"), reference to related drawings
 
+POSITION EXTRACTION (BF drawings only):
+BF drawings show filigran elements at their physical positions. Extract the position of each element for floor plan visualization.
+- COORDINATE SYSTEM: Origin at the BOTTOM-LEFT corner of the total slab area
+  - X axis: Left → Right (positive)
+  - Y axis: Bottom → Top (positive)
+  - All values in millimeters (mm)
+- For each element rectangle, extract:
+  - position_x_mm: X coordinate of the element's BOTTOM-LEFT corner (distance from left edge of slab area)
+  - position_y_mm: Y coordinate of the element's BOTTOM-LEFT corner (distance from bottom edge of slab area)
+  - rotation_deg: 0 if the element's length_mm runs LEFT-TO-RIGHT (horizontal), 90 if it runs BOTTOM-TO-TOP (vertical)
+- Use DIMENSION CHAINS on the drawing to determine coordinates (cumulative from edges)
+- Cross-check: adjacent element edges should be flush or have consistent gaps
+- Also extract "slab_area" at the response level: total floor area bounding box { width_mm, height_mm }
+  - This is the overall extent of the filigran placement area (read from the outermost dimension lines)
+- If positions cannot be determined with confidence, set position_x_mm and position_y_mm to null and add a warning
+
 ═══════════════════════════════════════════
 BALCONY DRAWINGS (BS_xx / BS-x):  Precast balcony detail sheets
 ═══════════════════════════════════════════
@@ -199,6 +215,7 @@ Return your analysis as valid JSON (no markdown, no code blocks, just the JSON o
   "building": "string or null — building identifier from title block (e.g., 'A', 'B', 'C', 'Hús A')",
   "floor": "number or null — floor number if this drawing is floor-specific (from title: 'yfir 1. hæð' → 1)",
   "general_notes": "string — ALL general specifications: plate thickness, concrete class, shear connector specs, rebar general notes, any ATH (warnings/notes) from the drawing",
+  "slab_area": "object or null — FOR BF DRAWINGS ONLY: { width_mm: number, height_mm: number } — total slab area bounding box from outermost dimension lines. Null for non-BF drawings",
   "elements": [
     {
       "name": "string — element ID exactly as shown on drawing (e.g., 'F(A)-1-1', 'SV-1', 'SG-5', 'Stigategund A')",
@@ -216,7 +233,10 @@ Return your analysis as valid JSON (no markdown, no code blocks, just the JSON o
         "name": "high|medium|low",
         "dimensions": "high|medium|low",
         "weight": "high|medium|low"
-      }
+      },
+      "position_x_mm": "number or null — FOR BF DRAWINGS: X of element bottom-left corner from slab area origin. Null for non-BF or if position unclear",
+      "position_y_mm": "number or null — FOR BF DRAWINGS: Y of element bottom-left corner from slab area origin. Null for non-BF or if position unclear",
+      "rotation_deg": "number or null — FOR BF DRAWINGS: 0 if length is horizontal, 90 if vertical. Null for non-BF"
     }
   ],
   "warnings": ["array of strings — ambiguities, missing data, issues found, elements that need manual verification"],

@@ -67,9 +67,12 @@ export function CombinedReviewTable({
   const allElements = useMemo<CombinedElement[]>(() => {
     const result: CombinedElement[] = []
     for (const analysis of analyses) {
-      const elements = Array.isArray(analysis.extracted_elements)
-        ? (analysis.extracted_elements as ExtractedElement[])
-        : []
+      const raw = analysis.extracted_elements as unknown
+      const elements: ExtractedElement[] = Array.isArray(raw)
+        ? (raw as ExtractedElement[])
+        : (raw && typeof raw === 'object' && 'elements' in (raw as Record<string, unknown>))
+          ? ((raw as Record<string, unknown>).elements as ExtractedElement[]) ?? []
+          : []
       for (let i = 0; i < elements.length; i++) {
         result.push({
           ...elements[i],

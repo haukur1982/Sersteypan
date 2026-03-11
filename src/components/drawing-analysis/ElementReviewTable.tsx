@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -69,6 +69,9 @@ export function ElementReviewTable({
   buildings,
   existingNames,
   isCommitted,
+  highlightedElement,
+  onElementHover,
+  onElementClick,
 }: {
   analysisId: string
   projectId: string
@@ -76,8 +79,27 @@ export function ElementReviewTable({
   buildings: Building[]
   existingNames: string[]
   isCommitted: boolean
+  /** Element name to highlight (linked from floor plan) */
+  highlightedElement?: string | null
+  /** Callback when user hovers a row */
+  onElementHover?: (name: string | null) => void
+  /** Callback when user clicks a row (for floor plan linking) */
+  onElementClick?: (name: string) => void
 }) {
   const router = useRouter()
+  // Refs for auto-scrolling to highlighted row
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
+
+  // Auto-scroll to highlighted element when it changes
+  useEffect(() => {
+    if (highlightedElement) {
+      const row = rowRefs.current.get(highlightedElement)
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
+    }
+  }, [highlightedElement])
+
   // Local elements for optimistic updates during inline editing
   const [elements, setElements] = useState<ExtractedElement[]>(initialElements)
   const [selected, setSelected] = useState<Set<number>>(
@@ -440,16 +462,27 @@ export function ElementReviewTable({
               const saveFn = (field: string, value: string | number | null) =>
                 handleCellSave(index, field, value)
 
+              const isHighlighted = highlightedElement === element.name
+
               return (
                 <TableRow
                   key={index}
-                  className={`${
-                    worstConfidence === 'low'
-                      ? 'bg-red-50/50'
-                      : worstConfidence === 'medium'
-                        ? 'bg-yellow-50/30'
-                        : ''
-                  } ${isDuplicate ? 'bg-orange-50/50' : ''}`}
+                  ref={(el) => {
+                    if (el) rowRefs.current.set(element.name, el)
+                  }}
+                  className={`transition-colors ${
+                    isHighlighted
+                      ? 'bg-blue-50 ring-1 ring-inset ring-blue-300'
+                      : worstConfidence === 'low'
+                        ? 'bg-red-50/50'
+                        : worstConfidence === 'medium'
+                          ? 'bg-yellow-50/30'
+                          : ''
+                  } ${isDuplicate && !isHighlighted ? 'bg-orange-50/50' : ''}`}
+                  onMouseEnter={() => onElementHover?.(element.name)}
+                  onMouseLeave={() => onElementHover?.(null)}
+                  onClick={() => onElementClick?.(element.name)}
+                  style={onElementClick ? { cursor: 'pointer' } : undefined}
                 >
                   {!isCommitted && (
                     <TableCell className="py-2">

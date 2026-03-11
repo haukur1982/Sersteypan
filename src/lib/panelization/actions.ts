@@ -516,7 +516,13 @@ export async function createPanelizationFromAnalysis(
 
   if (!analysis) return { error: 'Greining fannst ekki' }
 
-  const allElements = (analysis.extracted_elements as ExtractedElement[]) ?? []
+  // Handle both formats: flat array (legacy) or response object with { elements, slab_area }
+  const rawPan = analysis.extracted_elements as unknown
+  const allElements: ExtractedElement[] = Array.isArray(rawPan)
+    ? rawPan as ExtractedElement[]
+    : (rawPan && typeof rawPan === 'object' && 'elements' in (rawPan as Record<string, unknown>))
+      ? ((rawPan as Record<string, unknown>).elements as ExtractedElement[]) ?? []
+      : []
 
   // Fetch existing buildings for name → id matching
   const { data: existingBuildings } = await supabase

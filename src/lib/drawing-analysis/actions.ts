@@ -127,19 +127,38 @@ export async function updateExtractedElement(
     return { error: 'Ekki hægt að breyta greiningu sem hefur verið staðfest' }
   }
 
-  // Update the element at the specified index
-  const elements = (analysis.extracted_elements as ExtractedElement[]) || []
+  // Handle both formats: flat array (legacy) or response object with { elements, slab_area }
+  const raw = analysis.extracted_elements as unknown
+  let elements: ExtractedElement[]
+  let isWrappedFormat = false
+  let wrapper: Record<string, unknown> | null = null
+
+  if (Array.isArray(raw)) {
+    elements = raw as ExtractedElement[]
+  } else if (raw && typeof raw === 'object' && 'elements' in (raw as Record<string, unknown>)) {
+    wrapper = raw as Record<string, unknown>
+    elements = (wrapper.elements as ExtractedElement[]) || []
+    isWrappedFormat = true
+  } else {
+    elements = []
+  }
+
   if (elementIndex < 0 || elementIndex >= elements.length) {
     return { error: 'Ógilt einingar númer' }
   }
 
   elements[elementIndex] = { ...elements[elementIndex], ...updates }
 
+  // Save back in the same format it was stored
+  const updatedData = isWrappedFormat && wrapper
+    ? { ...wrapper, elements }
+    : elements
+
   // Save back
   const { error: updateError } = await supabase
     .from('drawing_analyses')
     .update({
-      extracted_elements: JSON.parse(JSON.stringify(elements)),
+      extracted_elements: JSON.parse(JSON.stringify(updatedData)),
       status: 'reviewed',
       reviewed_by: user.id,
       reviewed_at: new Date().toISOString(),
@@ -212,8 +231,17 @@ export async function commitAnalysisElements(
   }
 
   const projectId = analysis.project_id
-  const extractedElements =
-    (analysis.extracted_elements as ExtractedElement[]) || []
+
+  // Handle both formats: flat array (legacy) or response object with { elements, slab_area }
+  const rawCommit = analysis.extracted_elements as unknown
+  let extractedElements: ExtractedElement[]
+  if (Array.isArray(rawCommit)) {
+    extractedElements = rawCommit as ExtractedElement[]
+  } else if (rawCommit && typeof rawCommit === 'object' && 'elements' in (rawCommit as Record<string, unknown>)) {
+    extractedElements = ((rawCommit as Record<string, unknown>).elements as ExtractedElement[]) || []
+  } else {
+    extractedElements = []
+  }
 
   // Validate selected indices
   const selectedElements = selectedIndices

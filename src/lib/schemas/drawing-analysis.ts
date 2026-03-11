@@ -29,6 +29,17 @@ export const extractedElementSchema = z.object({
     dimensions: confidenceLevelSchema,
     weight: confidenceLevelSchema,
   }),
+  // Position fields — extracted from BF (filigran) layout drawings
+  // Origin: bottom-left of slab area, X→right, Y→up, in mm
+  position_x_mm: z.number().int().min(0).max(100000).nullable().optional(),
+  position_y_mm: z.number().int().min(0).max(100000).nullable().optional(),
+  rotation_deg: z.number().min(0).max(360).nullable().optional(),
+})
+
+// Slab area bounding box — extracted from BF drawings for floor plan visualization
+export const slabAreaSchema = z.object({
+  width_mm: z.number().int().positive(),
+  height_mm: z.number().int().positive(),
 })
 
 // Full response from Claude Vision analysis of one drawing/page
@@ -41,6 +52,8 @@ export const drawingAnalysisResponseSchema = z.object({
   elements: z.array(extractedElementSchema),
   warnings: z.array(z.string()),
   page_description: z.string().max(1000),
+  // BF drawings: total slab area bounding box for floor plan rendering
+  slab_area: slabAreaSchema.nullable().optional(),
 })
 
 // Schema for committing elements from an analysis
@@ -57,6 +70,7 @@ export const commitAnalysisSchema = z.object({
 // Types
 export type ConfidenceLevel = z.infer<typeof confidenceLevelSchema>
 export type ExtractedElement = z.infer<typeof extractedElementSchema>
+export type SlabArea = z.infer<typeof slabAreaSchema>
 export type DrawingAnalysisResponse = z.infer<typeof drawingAnalysisResponseSchema>
 export type CommitAnalysisInput = z.infer<typeof commitAnalysisSchema>
 
@@ -114,4 +128,33 @@ export const ELEMENT_TYPE_MAP: Record<string, string> = {
 export function mapElementType(aiType: string): string {
   const normalized = aiType.toLowerCase().trim()
   return ELEMENT_TYPE_MAP[normalized] || 'other'
+}
+
+/**
+ * Extract elements array from the stored extracted_elements JSONB.
+ *
+ * Handles both storage formats:
+ * - Legacy: a flat ExtractedElement[] array
+ * - New (BF with positions): { elements: ExtractedElement[], slab_area: {...}, ... }
+ */
+export function extractElementsFromStored(raw: unknown): {
+  elements: ExtractedElement[]
+  slabArea: SlabArea | null
+} {
+  if (Array.isArray(raw)) {
+    return { elements: raw as ExtractedElement[], slabArea: null }
+  }
+  if (raw && typeof raw === 'object' && 'elements' in (raw as Record<string, unknown>)) {
+    const wrapper = raw as Record<string, unknown>
+    const elements = (wrapper.elements as ExtractedElement[]) || []
+    let slabArea: SlabArea | null = null
+    if (wrapper.slab_area && typeof wrapper.slab_area === 'object') {
+      const sa = wrapper.slab_area as { width_mm?: number; height_mm?: number }
+      if (sa.width_mm && sa.height_mm) {
+        slabArea = { width_mm: sa.width_mm, height_mm: sa.height_mm }
+      }
+    }
+    return { elements, slabArea }
+  }
+  return { elements: [], slabArea: null }
 }
