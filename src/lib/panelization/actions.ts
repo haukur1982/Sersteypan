@@ -825,8 +825,9 @@ export async function autoPanelizeGeometry(
     // Skip zones too small for a panel
     if (surfaceLengthMm < 600 || surfaceHeightMm < 600) continue
 
-    // Auto-detect strip direction: strips span the longer dimension
-    const stripDirection = surfaceLengthMm >= surfaceHeightMm ? 'length' : 'width'
+    // Auto-detect strip direction: panels should span the SHORTER dimension
+    // 'length' → panel length = surface_length, 'width' → panel length = surface_height
+    const stripDirection = surfaceLengthMm <= surfaceHeightMm ? 'length' : 'width'
 
     // Insert layout with filigran constraint overrides
     const { data: layout, error: insertError } = await supabase
