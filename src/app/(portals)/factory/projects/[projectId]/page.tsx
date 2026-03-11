@@ -100,17 +100,29 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
     const elementList = (elementsResult.data ?? []) as ElementRow[]
     const documentList = (documentsResult.data ?? []) as ProjectDocumentWithProfile[]
 
-    // Fetch photo counts per element (separate query to avoid N+1)
+    // Fetch photos per element (need full records for gallery + delete, not just counts)
     const elementIds = elementList.map(e => e.id)
     const photoCountMap: Record<string, number> = {}
+    const photoMap: Record<string, Array<{ id: string; stage: string | null; photo_url: string; caption: string | null; taken_at: string | null; created_by: { full_name: string } | null }>> = {}
     if (elementIds.length > 0) {
-        const { data: photoCounts } = await supabase
+        const { data: photos } = await supabase
             .from('element_photos')
-            .select('element_id')
+            .select('id, element_id, stage, photo_url, caption, taken_at, taken_by:profiles!element_photos_taken_by_fkey(full_name)')
             .in('element_id', elementIds)
-        if (photoCounts) {
-            for (const row of photoCounts) {
-                photoCountMap[row.element_id] = (photoCountMap[row.element_id] || 0) + 1
+            .order('taken_at', { ascending: false })
+        if (photos) {
+            for (const row of photos) {
+                const eid = row.element_id
+                photoCountMap[eid] = (photoCountMap[eid] || 0) + 1
+                if (!photoMap[eid]) photoMap[eid] = []
+                photoMap[eid].push({
+                    id: row.id,
+                    stage: row.stage,
+                    photo_url: row.photo_url,
+                    caption: row.caption ?? null,
+                    taken_at: row.taken_at,
+                    created_by: row.taken_by as { full_name: string } | null,
+                })
             }
         }
     }
@@ -230,6 +242,7 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                                             elementName={element.name}
                                             currentStatus={element.status || 'planned'}
                                             photoCount={photoCountMap[element.id] || 0}
+                                            photos={photoMap[element.id]}
                                         />
                                     </div>
                                 </div>
@@ -295,6 +308,7 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                                                         elementName={element.name}
                                                         currentStatus={element.status || 'planned'}
                                                         photoCount={photoCountMap[element.id] || 0}
+                                                        photos={photoMap[element.id]}
                                                     />
                                                     <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-muted-foreground hover:text-blue-600">
                                                         <Link href={`/factory/production/${element.id}`}>
