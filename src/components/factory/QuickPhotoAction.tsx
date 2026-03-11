@@ -2,10 +2,10 @@
 
 import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Camera, Loader2, CheckCircle, AlertCircle, ImageIcon, RefreshCw } from 'lucide-react'
+import { Camera, Loader2, CheckCircle, AlertCircle, ImageIcon } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PhotoGallery } from '@/components/shared/PhotoGallery'
-import { uploadElementPhoto } from '@/lib/elements/actions'
+import { uploadElementPhoto, deleteElementPhoto } from '@/lib/elements/actions'
 import type { ElementPhoto } from '@/components/buyer/project/types'
 
 type ElementStatus = 'planned' | 'rebar' | 'cast' | 'curing' | 'ready' | 'loaded' | 'delivered'
@@ -32,11 +32,11 @@ const stageByStatus: Record<ElementStatus, PhotoStage | null> = {
 
 const statusLabels: Record<ElementStatus, string> = {
     planned: 'Skipulagt',
-    rebar: 'J\u00e1rnabundi\u00f0',
+    rebar: 'Járnabundið',
     cast: 'Steypt',
-    curing: '\u00deornar',
-    ready: 'Tilb\u00fai\u00f0',
-    loaded: '\u00c1 b\u00edl',
+    curing: 'Þornar',
+    ready: 'Tilbúið',
+    loaded: 'Á bíl',
     delivered: 'Afhent',
 }
 
@@ -132,132 +132,146 @@ export function QuickPhotoAction({ elementId, elementName, currentStatus, photoC
         }
     }
 
-    // Build tooltip text
-    const tooltipText = isDisabled
-        ? `${elementName} \u2014 lokasta\u00f0a`
-        : state === 'error' && errorMsg
+    async function handleDeletePhoto(photoId: string) {
+        const result = await deleteElementPhoto(photoId)
+        if (result.error) {
+            throw new Error(result.error)
+        }
+        setLocalPhotoCount(prev => Math.max(0, prev - 1))
+    }
+
+    function triggerCamera() {
+        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+        if (isMobile) {
+            cameraRef.current?.click()
+        } else {
+            uploadRef.current?.click()
+        }
+    }
+
+    // Tooltips
+    const galleryTooltip = `${localPhotoCount} ${localPhotoCount === 1 ? 'mynd' : 'myndir'} — smelltu til að skoða`
+    const cameraTooltip = state === 'error' && errorMsg
         ? errorMsg
         : state === 'success'
-        ? 'Sta\u00f0a uppf\u00e6r\u00f0!'
-        : hasPhotos
-        ? `${localPhotoCount} ${localPhotoCount === 1 ? 'mynd' : 'myndir'} \u2014 taka a\u00f0ra`
+        ? 'Staða uppfærð!'
+        : state === 'uploading'
+        ? 'Hleð upp...'
         : nextStatus
-        ? `Taka mynd og f\u00e6ra \u00ed ${statusLabels[nextStatus]}`
+        ? `Taka mynd og færa í ${statusLabels[nextStatus]}`
         : 'Taka mynd'
 
+    // Gallery button — shown when photos exist
+    const galleryButton = (
+        <Button
+            variant="outline"
+            onClick={() => setShowGallery(true)}
+            className="h-11 md:h-8 px-2.5 md:px-2 gap-1.5 text-green-700 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300 hover:text-green-800 transition-colors"
+            title={galleryTooltip}
+        >
+            <ImageIcon className="w-4 h-4" />
+            <span className="text-xs font-semibold tabular-nums">{localPhotoCount}</span>
+        </Button>
+    )
+
+    // Camera button — shown when status can advance
+    const cameraButton = (
+        <Button
+            variant="ghost"
+            size="icon"
+            className={`h-11 w-11 md:h-8 md:w-8 ${
+                state === 'success'
+                    ? 'text-green-600 hover:text-green-700 bg-green-50'
+                    : state === 'error'
+                    ? 'text-red-600 hover:text-red-700 bg-red-50'
+                    : 'text-orange-600 hover:text-orange-700 hover:bg-orange-50'
+            }`}
+            disabled={state === 'uploading'}
+            onClick={triggerCamera}
+            title={cameraTooltip}
+        >
+            {state === 'uploading' && <Loader2 className="h-5 w-5 md:h-4 md:w-4 animate-spin" />}
+            {state === 'success' && <CheckCircle className="h-5 w-5 md:h-4 md:w-4" />}
+            {state === 'error' && <AlertCircle className="h-5 w-5 md:h-4 md:w-4" />}
+            {state === 'idle' && <Camera className="h-5 w-5 md:h-4 md:w-4" />}
+        </Button>
+    )
+
+    // Gallery dialog
+    const galleryDialog = hasPhotos && photos && (
+        <Dialog open={showGallery} onOpenChange={setShowGallery}>
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>{elementName} — Myndir</DialogTitle>
+                </DialogHeader>
+                <PhotoGallery photos={photos} onDelete={handleDeletePhoto} />
+            </DialogContent>
+        </Dialog>
+    )
+
+    // Hidden file inputs
+    const fileInputs = (
+        <>
+            <input
+                ref={cameraRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic"
+                capture="environment"
+                onChange={handleCapture}
+                className="hidden"
+            />
+            <input
+                ref={uploadRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic"
+                onChange={handleCapture}
+                className="hidden"
+            />
+        </>
+    )
+
+    // === DISABLED STATE (loaded/delivered) ===
     if (isDisabled) {
+        if (hasPhotos) {
+            // Gallery button only — can view but not upload
+            return (
+                <>
+                    <div className="inline-flex items-center">
+                        {galleryButton}
+                    </div>
+                    {galleryDialog}
+                </>
+            )
+        }
+        // No photos, no upload possible
         return (
-            <>
-                <div className="relative inline-flex items-center">
-                    {hasPhotos && (
-                        <button
-                            onClick={() => setShowGallery(true)}
-                            className="absolute -top-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white hover:bg-green-600 transition-colors"
-                        >
-                            {localPhotoCount > 9 ? '9+' : localPhotoCount}
-                        </button>
-                    )}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className={`h-11 w-11 md:h-8 md:w-8 ${hasPhotos ? 'text-green-600 cursor-pointer' : 'text-muted-foreground/30 cursor-not-allowed'}`}
-                        disabled={!hasPhotos}
-                        onClick={hasPhotos ? () => setShowGallery(true) : undefined}
-                        title={hasPhotos ? `${localPhotoCount} myndir — smelltu til að sjá` : tooltipText}
-                    >
-                        {hasPhotos ? <ImageIcon className="h-5 w-5 md:h-4 md:w-4" /> : <Camera className="h-5 w-5 md:h-4 md:w-4" />}
-                    </Button>
-                </div>
-                {hasPhotos && photos && (
-                    <Dialog open={showGallery} onOpenChange={setShowGallery}>
-                        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-                            <DialogHeader>
-                                <DialogTitle>{elementName} — Myndir</DialogTitle>
-                            </DialogHeader>
-                            <PhotoGallery photos={photos} />
-                        </DialogContent>
-                    </Dialog>
-                )}
-            </>
+            <Button
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 md:h-8 md:w-8 text-muted-foreground/30 cursor-not-allowed"
+                disabled
+                title={`${elementName} — lokastaða`}
+            >
+                <Camera className="h-5 w-5 md:h-4 md:w-4" />
+            </Button>
         )
     }
 
+    // === ACTIVE STATE ===
     return (
         <>
-            <div className="relative inline-flex items-center">
-                {/* Green badge showing photo count — clickable to view gallery */}
-                {hasPhotos && state === 'idle' && (
-                    <button
-                        onClick={() => setShowGallery(true)}
-                        className="absolute -top-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white hover:bg-green-600 transition-colors"
-                    >
-                        {localPhotoCount > 9 ? '9+' : localPhotoCount}
-                    </button>
-                )}
+            <div className="inline-flex items-center gap-1.5 md:gap-1">
+                {/* Gallery button — slides in when first photo is taken */}
+                <div className={`overflow-hidden transition-all duration-300 ease-out ${
+                    hasPhotos ? 'max-w-[80px] opacity-100' : 'max-w-0 opacity-0'
+                }`}>
+                    {galleryButton}
+                </div>
 
-                {/* Camera input (mobile — opens rear camera directly) */}
-                <input
-                    ref={cameraRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/heic"
-                    capture="environment"
-                    onChange={handleCapture}
-                    className="hidden"
-                />
-
-                {/* File upload input (no capture — opens file picker / gallery) */}
-                <input
-                    ref={uploadRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/heic"
-                    onChange={handleCapture}
-                    className="hidden"
-                />
-
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className={`h-11 w-11 md:h-8 md:w-8 ${
-                        state === 'success'
-                            ? 'text-green-600 hover:text-green-700 bg-green-50'
-                            : state === 'error'
-                            ? 'text-red-600 hover:text-red-700 bg-red-50'
-                            : hasPhotos
-                            ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                            : 'text-muted-foreground hover:text-orange-600 hover:bg-orange-50'
-                    }`}
-                    disabled={state === 'uploading'}
-                    onClick={() => {
-                        // On mobile use camera capture, on desktop use file picker
-                        // Simple heuristic: check for touch support
-                        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0
-                        if (isMobile) {
-                            cameraRef.current?.click()
-                        } else {
-                            uploadRef.current?.click()
-                        }
-                    }}
-                    title={tooltipText}
-                >
-                    {state === 'uploading' && <Loader2 className="h-5 w-5 md:h-4 md:w-4 animate-spin" />}
-                    {state === 'success' && <CheckCircle className="h-5 w-5 md:h-4 md:w-4" />}
-                    {state === 'error' && <AlertCircle className="h-5 w-5 md:h-4 md:w-4" />}
-                    {state === 'idle' && hasPhotos && <RefreshCw className="h-5 w-5 md:h-4 md:w-4" />}
-                    {state === 'idle' && !hasPhotos && <Camera className="h-5 w-5 md:h-4 md:w-4" />}
-                </Button>
+                {fileInputs}
+                {cameraButton}
             </div>
-
-            {/* Photo gallery dialog */}
-            {hasPhotos && photos && (
-                <Dialog open={showGallery} onOpenChange={setShowGallery}>
-                    <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle>{elementName} — Myndir</DialogTitle>
-                        </DialogHeader>
-                        <PhotoGallery photos={photos} />
-                    </DialogContent>
-                </Dialog>
-            )}
+            {galleryDialog}
         </>
     )
 }

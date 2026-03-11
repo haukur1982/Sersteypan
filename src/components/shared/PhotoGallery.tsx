@@ -2,14 +2,15 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { X, ZoomIn, Download, Calendar, User } from 'lucide-react'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { X, ZoomIn, Download, Calendar, User, Trash2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ElementPhoto } from '@/components/buyer/project/types'
 
 interface PhotoGalleryProps {
   photos: ElementPhoto[]
   className?: string
+  onDelete?: (photoId: string) => Promise<void>
 }
 
 const stageLabels: Record<string, string> = {
@@ -22,8 +23,10 @@ const stageLabels: Record<string, string> = {
   after_delivery: 'Eftir afhendingu'
 }
 
-export function PhotoGallery({ photos, className = '' }: PhotoGalleryProps) {
+export function PhotoGallery({ photos: initialPhotos, className = '', onDelete }: PhotoGalleryProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<ElementPhoto | null>(null)
+  const [photos, setPhotos] = useState(initialPhotos)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   if (photos.length === 0) {
     return (
@@ -37,6 +40,23 @@ export function PhotoGallery({ photos, className = '' }: PhotoGalleryProps) {
         </p>
       </div>
     )
+  }
+
+  async function handleDelete(photoId: string) {
+    if (!onDelete) return
+    const confirmed = window.confirm('Eyða mynd?')
+    if (!confirmed) return
+
+    setIsDeleting(true)
+    try {
+      await onDelete(photoId)
+      setPhotos(prev => prev.filter(p => p.id !== photoId))
+      setSelectedPhoto(null)
+    } catch {
+      // Error handled by parent
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   // Group photos by stage
@@ -68,7 +88,7 @@ export function PhotoGallery({ photos, className = '' }: PhotoGalleryProps) {
             <h3 className="text-sm font-semibold text-zinc-900 mb-3">
               {stageLabels[stage] || stage}
               <span className="text-zinc-500 font-normal ml-2">
-                ({photosByStage[stage].length} myndir)
+                ({photosByStage[stage].length} {photosByStage[stage].length === 1 ? 'mynd' : 'myndir'})
               </span>
             </h3>
 
@@ -112,6 +132,7 @@ export function PhotoGallery({ photos, className = '' }: PhotoGalleryProps) {
       {selectedPhoto && (
         <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
           <DialogContent className="max-w-4xl p-0">
+            <DialogTitle className="sr-only">Mynd</DialogTitle>
             <div className="relative">
               {/* Close button */}
               <Button
@@ -160,23 +181,41 @@ export function PhotoGallery({ photos, className = '' }: PhotoGalleryProps) {
                     </div>
                   </div>
 
-                  {/* Download button */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                  >
-                    <a
-                      href={selectedPhoto.photo_url}
-                      download
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2"
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2">
+                    {onDelete && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(selectedPhoto.id)}
+                        disabled={isDeleting}
+                        className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                        <span className="ml-1.5">Eyða</span>
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
                     >
-                      <Download className="w-4 h-4" />
-                      Niðurhala
-                    </a>
-                  </Button>
+                      <a
+                        href={selectedPhoto.photo_url}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Niðurhala
+                      </a>
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Caption if exists */}

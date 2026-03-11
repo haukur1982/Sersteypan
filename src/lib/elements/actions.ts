@@ -711,6 +711,78 @@ export async function uploadElementPhoto(formData: FormData) {
   return { success: true, photoUrl: publicUrl }
 }
 
+// Delete an element photo (used by factory managers and admins)
+export async function deleteElementPhoto(photoId: string) {
+  'use server'
+
+  if (!photoId) {
+    return { error: 'Missing photo ID' }
+  }
+
+  const supabase = await createClient()
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return { error: 'Not authenticated' }
+  }
+
+  // Validate role
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, is_active')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !profile.is_active || !['admin', 'factory_manager'].includes(profile.role)) {
+    return { error: 'Insufficient permissions' }
+  }
+
+  // Fetch the photo record to get the storage URL
+  const { data: photo, error: fetchError } = await supabase
+    .from('element_photos')
+    .select('id, photo_url, element_id')
+    .eq('id', photoId)
+    .single()
+
+  if (fetchError || !photo) {
+    return { error: 'Photo not found' }
+  }
+
+  // Delete from DB (RLS allows admin/factory_manager)
+  const { error: dbError } = await supabase
+    .from('element_photos')
+    .delete()
+    .eq('id', photoId)
+
+  if (dbError) {
+    console.error('[photo-delete] DB delete failed:', dbError.message)
+    return { error: dbError.message }
+  }
+
+  // Delete from storage using service role (bypasses per-user storage RLS)
+  try {
+    const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (supabaseUrl && serviceRoleKey) {
+      const serviceClient = createSupabaseClient(supabaseUrl, serviceRoleKey)
+      // Extract storage path from public URL: everything after /element-photos/
+      const marker = '/element-photos/'
+      const idx = photo.photo_url.indexOf(marker)
+      if (idx !== -1) {
+        const storagePath = photo.photo_url.slice(idx + marker.length)
+        await serviceClient.storage.from('element-photos').remove([storagePath])
+      }
+    }
+  } catch (err) {
+    // Storage cleanup is best-effort — DB record is already deleted
+    console.warn('[photo-delete] Storage cleanup failed:', err)
+  }
+
+  revalidatePath(`/factory/production/${photo.element_id}`)
+  return { success: true }
+}
+
 // Update element status (used by factory managers)
 export async function updateElementStatus(id: string, newStatus: string, notes?: string) {
   const supabase = await createClient()
