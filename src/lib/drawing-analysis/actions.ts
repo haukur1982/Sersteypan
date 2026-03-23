@@ -290,6 +290,19 @@ export async function commitAnalysisElements(
     }
   }
 
+  // Extract slab_area for position data (BF drawings)
+  const rawForSlabArea = analysis.extracted_elements as unknown
+  let slabArea: { width_mm: number; height_mm: number } | null = null
+  if (rawForSlabArea && typeof rawForSlabArea === 'object' && !Array.isArray(rawForSlabArea)) {
+    const wrapper = rawForSlabArea as Record<string, unknown>
+    if (wrapper.slab_area && typeof wrapper.slab_area === 'object') {
+      const sa = wrapper.slab_area as { width_mm?: number; height_mm?: number }
+      if (sa.width_mm && sa.height_mm) {
+        slabArea = { width_mm: sa.width_mm, height_mm: sa.height_mm }
+      }
+    }
+  }
+
   // Expand elements with quantity > 1 into individual records
   const elementsToInsert: Array<{
     project_id: string
@@ -307,6 +320,9 @@ export async function commitAnalysisElements(
     production_notes: string | null
     priority: number
     created_by: string
+    position_x_mm: number | null
+    position_y_mm: number | null
+    rotation_deg: number | null
   }> = []
 
   const skippedElements: string[] = []
@@ -382,6 +398,9 @@ export async function commitAnalysisElements(
                 production_notes: element.production_notes,
                 priority: 0,
                 created_by: user.id,
+                position_x_mm: null, // Multi-quantity: no individual position
+                position_y_mm: null,
+                rotation_deg: null,
               })
               floorExpandedCount++
             }
@@ -413,11 +432,14 @@ export async function commitAnalysisElements(
             production_notes: element.production_notes,
             priority: 0,
             created_by: user.id,
+            position_x_mm: null, // Multi-quantity: no individual position
+            position_y_mm: null,
+            rotation_deg: null,
           })
         }
       }
     } else {
-      // Single element (quantity === 1)
+      // Single element (quantity === 1) — preserve position data from AI extraction
       elementsToInsert.push({
         project_id: projectId,
         building_id: buildingId,
@@ -434,6 +456,9 @@ export async function commitAnalysisElements(
         production_notes: element.production_notes,
         priority: 0,
         created_by: user.id,
+        position_x_mm: element.position_x_mm ?? null,
+        position_y_mm: element.position_y_mm ?? null,
+        rotation_deg: element.rotation_deg ?? null,
       })
     }
   }
@@ -489,16 +514,62 @@ export async function commitAnalysisElements(
     })
     .eq('id', analysisId)
 
+  // Auto-create building geometry from slab_area (BF drawings)
+  // This provides the bounding box for the building view to render positioned elements
+  const positionedCount = elementsToInsert.filter(e => e.position_x_mm != null).length
+  if (slabArea && positionedCount > 0) {
+    try {
+      // Find the floor and building from the committed elements
+      const sampleElement = elementsToInsert.find(e => e.position_x_mm != null)
+      const geoFloor = sampleElement?.floor ?? 1
+      const geoBuildingId = sampleElement?.building_id ?? null
+
+      // Check if geometry already exists for this project/floor/building
+      const geoQuery = supabase
+        .from('building_floor_geometries')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('floor', geoFloor)
+
+      if (geoBuildingId) {
+        geoQuery.eq('building_id', geoBuildingId)
+      } else {
+        geoQuery.is('building_id', null)
+      }
+
+      const { data: existingGeo } = await geoQuery.maybeSingle()
+
+      if (!existingGeo) {
+        await supabase.from('building_floor_geometries').insert({
+          project_id: projectId,
+          building_id: geoBuildingId,
+          floor: geoFloor,
+          bounding_width_mm: slabArea.width_mm,
+          bounding_height_mm: slabArea.height_mm,
+          wall_segments: [],
+          floor_zones: [],
+          source_document_name: analysis.document_name,
+          created_by: user.id,
+        })
+      }
+    } catch (geoError) {
+      // Non-critical — log but don't fail the commit
+      console.error('Auto-create geometry from slab_area failed:', geoError)
+    }
+  }
+
   // Revalidate pages
   revalidatePath('/admin/projects')
   revalidatePath(`/admin/projects/${projectId}`)
   revalidatePath(`/admin/projects/${projectId}/analyze-drawings`)
+  revalidatePath(`/admin/projects/${projectId}/building-view`)
   revalidatePath('/factory')
   revalidatePath('/factory/production')
 
   return {
     success: true,
     elementsCreated: elementsToInsert.length,
+    positionsCreated: positionedCount,
     ...(skippedElements.length > 0 && {
       warnings: skippedElements,
     }),

@@ -98,6 +98,13 @@ export function ProjectDetailClient({ project, deliveries, floorPlans = [], tab 
             </div>
           )}
         </div>
+        <Link
+          href={`/buyer/projects/${project.id}/building-view`}
+          className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium mt-3"
+        >
+          <Layers className="w-4 h-4" />
+          Byggingaryfirlit
+        </Link>
       </div>
 
       {/* Stats Overview */}

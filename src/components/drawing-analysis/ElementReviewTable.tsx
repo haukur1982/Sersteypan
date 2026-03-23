@@ -244,6 +244,57 @@ export function ElementReviewTable({
     }
   }
 
+  async function handleAcceptAll() {
+    if (elements.length === 0) return
+
+    // Compute total elements including quantity expansion
+    let allTotal = 0
+    for (const el of elements) {
+      allTotal += el.quantity || 1
+    }
+
+    const confirmMsg = `Samþykkja allt?\n\n${elements.length} teikningaeiningar → ${allTotal} einingar verða stofnaðar í kerfinu.${
+      newBuildings.length > 0
+        ? `\n\nNýjar byggingar verða stofnaðar: ${newBuildings.join(', ')}`
+        : ''
+    }`
+
+    if (!confirm(confirmMsg)) return
+
+    // Select all and commit
+    const allIndices = elements.map((_, i) => i)
+    setSelected(new Set(allIndices))
+    setIsCommitting(true)
+    setError(null)
+
+    try {
+      const buildingsToCreate = newBuildings.map((name) => ({
+        name: name.match(/^[A-Za-z]$/) ? `Hús ${name}` : name,
+        tempId: name.toLowerCase(),
+      }))
+
+      const result = await commitAnalysisElements(
+        analysisId,
+        allIndices,
+        buildingsToCreate.length > 0 ? buildingsToCreate : undefined
+      )
+
+      if (result.error) {
+        setError(result.error)
+        setIsCommitting(false)
+        return
+      }
+
+      // Success — redirect to project page
+      router.push(`/admin/projects/${projectId}`)
+      router.refresh()
+    } catch (err) {
+      console.error('Accept all error:', err)
+      setError('Óvænt villa. Reyndu aftur.')
+      setIsCommitting(false)
+    }
+  }
+
   async function handleCreatePanelization() {
     if (panelizableCount === 0) {
       setError('Engar veggja- eða filigraneiningar með mál eru valdar.')
@@ -357,6 +408,23 @@ export function ElementReviewTable({
                 <>
                   <CheckCircle className="mr-2 h-4 w-4" />
                   Stofna valdar einingar ({totalElements})
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={handleAcceptAll}
+              disabled={isCommitting || isCreatingPanelization || elements.length === 0}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {isCommitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Samþykkja allt...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Samþykkja allt ({elements.length})
                 </>
               )}
             </Button>

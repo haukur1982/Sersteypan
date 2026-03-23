@@ -1,7 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { uploadDocument } from '@/lib/documents/actions'
+import { startDrawingAnalysis } from '@/lib/drawing-analysis/actions'
+import { detectAnalysisMode } from '@/lib/drawing-analysis/detect-mode'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,9 +30,11 @@ interface DocumentUploadFormProps {
 }
 
 export function DocumentUploadForm({ projectId, elements, defaultElementId, buildings }: DocumentUploadFormProps) {
+  const router = useRouter()
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [analysisStatus, setAnalysisStatus] = useState<string | null>(null)
   const [selectedBuilding, setSelectedBuilding] = useState('')
 
   // Generate floor options based on selected building
@@ -56,10 +61,65 @@ export function DocumentUploadForm({ projectId, elements, defaultElementId, buil
         // Reset form safely
         form.reset()
         setSelectedBuilding('')
-        // Refresh page after a short delay
-        setTimeout(() => {
-          window.location.reload()
-        }, 1000)
+
+        // Auto-trigger analysis for drawing uploads (PDF, DWG, DXF)
+        const category = formData.get('category') as string
+        const file = formData.get('file') as File
+        const fileExt = file?.name?.toLowerCase().split('.').pop() || ''
+        const analysisFileTypes = ['pdf', 'dwg', 'dxf']
+
+        if (
+          category === 'drawing' &&
+          analysisFileTypes.includes(fileExt) &&
+          result.documentId
+        ) {
+          try {
+            setAnalysisStatus('Greining ræst sjálfkrafa...')
+            const mode = detectAnalysisMode(file.name)
+            const analysisResult = await startDrawingAnalysis(
+              projectId,
+              [result.documentId],
+              mode
+            )
+
+            if (analysisResult.error) {
+              // Analysis failed, but upload succeeded — don't block
+              setAnalysisStatus(`Greining mistókst: ${analysisResult.error}`)
+              setTimeout(() => {
+                window.location.reload()
+              }, 2000)
+            } else if (analysisResult.analyses && analysisResult.analyses.length > 0) {
+              // Trigger the AI analysis API for each analysis
+              for (const analysis of analysisResult.analyses) {
+                try {
+                  await fetch('/api/ai/analyze-drawing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ analysisId: analysis.id }),
+                  })
+                } catch {
+                  // API call failed — analysis will stay in pending state
+                  console.error('Failed to trigger AI analysis for', analysis.id)
+                }
+              }
+              setAnalysisStatus('Greining ræst — opna greiningarsíðu...')
+              // Redirect to the analyze-drawings page
+              router.push(`/admin/projects/${projectId}/analyze-drawings`)
+            }
+          } catch (err) {
+            // Analysis auto-trigger failed, but upload succeeded
+            console.error('Auto-analysis trigger error:', err)
+            setAnalysisStatus('Ekki tókst að ræsa greiningu sjálfkrafa')
+            setTimeout(() => {
+              window.location.reload()
+            }, 2000)
+          }
+        } else {
+          // Non-drawing upload — refresh as before
+          setTimeout(() => {
+            window.location.reload()
+          }, 1000)
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred')
@@ -80,6 +140,12 @@ export function DocumentUploadForm({ projectId, elements, defaultElementId, buil
       {success && (
         <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-800">
           {success}
+        </div>
+      )}
+
+      {analysisStatus && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+          {analysisStatus}
         </div>
       )}
 

@@ -132,6 +132,12 @@ export default async function ProjectPage({
                         </Link>
                     </Button>
                     <Button variant="outline" asChild>
+                        <Link href={`/admin/projects/${projectId}/building-view`}>
+                            <Layers className="mr-2 h-4 w-4" />
+                            Byggingaryfirlit
+                        </Link>
+                    </Button>
+                    <Button variant="outline" asChild>
                         <Link href={`/admin/projects/${projectId}/edit`}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Breyta verkefni

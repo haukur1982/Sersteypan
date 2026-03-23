@@ -769,6 +769,9 @@ export type Database = {
           cast_done_count: number
           status: string | null
           updated_at: string | null
+          position_x_mm: number | null
+          position_y_mm: number | null
+          rotation_deg: number | null
           weight_kg: number | null
           width_mm: number | null
         }
@@ -808,6 +811,9 @@ export type Database = {
           cast_done_count?: number
           status?: string | null
           updated_at?: string | null
+          position_x_mm?: number | null
+          position_y_mm?: number | null
+          rotation_deg?: number | null
           weight_kg?: number | null
           width_mm?: number | null
         }
@@ -847,6 +853,9 @@ export type Database = {
           cast_done_count?: number
           status?: string | null
           updated_at?: string | null
+          position_x_mm?: number | null
+          position_y_mm?: number | null
+          rotation_deg?: number | null
           weight_kg?: number | null
           width_mm?: number | null
         }

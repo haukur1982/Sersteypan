@@ -151,6 +151,13 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
                             </Link>
                         </Button>
                     )}
+                    <Button variant="outline" size="sm" asChild className="flex-shrink-0">
+                        <Link href={`/factory/projects/${projectId}/building-view`}>
+                            <Layers className="mr-1.5 h-4 w-4" />
+                            <span className="hidden sm:inline">Byggingaryfirlit</span>
+                            <span className="sm:hidden">Bygg.</span>
+                        </Link>
+                    </Button>
                 </div>
             </div>
 
