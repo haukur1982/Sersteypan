@@ -171,10 +171,8 @@ export function DeliverPageClient({
                     .upload(photoPath, photoFile)
 
                 if (!photoError) {
-                    const { data: urlData } = supabase.storage
-                        .from('delivery-photos')
-                        .getPublicUrl(photoPath)
-                    photoUrl = urlData.publicUrl
+                    // Store the storage path — readers sign on demand
+                    photoUrl = photoPath
                 }
             }
 
@@ -187,10 +185,7 @@ export function DeliverPageClient({
                     .upload(signaturePath, signatureBlob)
 
                 if (!sigError) {
-                    const { data: urlData } = supabase.storage
-                        .from('signatures')
-                        .getPublicUrl(signaturePath)
-                    signatureUrl = urlData.publicUrl
+                    signatureUrl = signaturePath
                 }
             }
 

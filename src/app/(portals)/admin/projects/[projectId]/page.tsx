@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getProject } from '@/lib/projects/actions'
 import { getElementsForProject } from '@/lib/elements/actions'
+import { resolveStorageUrls } from '@/lib/storage/resolveUrl'
 import { getProjectDocuments } from '@/lib/documents/actions'
 import { getProjectBuildings } from '@/lib/drawing-analysis/queries'
 import { getGeometriesForProject } from '@/lib/building-geometry/queries'
@@ -85,6 +86,15 @@ export default async function ProjectPage({
     const { data: elements, error: elementsError } = await getElementsForProject(projectId)
     const elementList = (elements ?? []) as ElementRow[]
     const elementIds = elementList.map((el) => el.id)
+
+    // qr-codes bucket is private — resolve QR refs to signed URLs for the table links
+    const signedQrUrls = await resolveStorageUrls(
+        elementList.map((el) => el.qr_code_url),
+        'qr-codes'
+    )
+    elementList.forEach((el, i) => {
+        el.qr_code_url = signedQrUrls[i]
+    })
 
     // Fetch documents, buildings, and geometries for this project
     const [documentsResult, buildings, geometriesResult] = await Promise.all([

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { resolveStorageUrls } from '@/lib/storage/resolveUrl'
 
 export async function getFloorPlansForProject(projectId: string) {
   const supabase = await createClient()
@@ -27,7 +28,18 @@ export async function getFloorPlansForProject(projectId: string) {
     .order('floor', { ascending: true })
 
   if (error) throw error
-  return data
+
+  const plans = data ?? []
+  // floor-plans bucket is private — resolve to signed URLs in place
+  const signedUrls = await resolveStorageUrls(
+    plans.map((fp) => fp.plan_image_url),
+    'floor-plans'
+  )
+  plans.forEach((fp, i) => {
+    fp.plan_image_url = signedUrls[i] ?? fp.plan_image_url
+  })
+
+  return plans
 }
 
 export async function saveElementPosition(

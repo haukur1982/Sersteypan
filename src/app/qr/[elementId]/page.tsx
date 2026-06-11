@@ -22,7 +22,7 @@ type ElementPublicData = {
   length_mm: number | null
   width_mm: number | null
   height_mm: number | null
-  qr_code_url: string | null
+  qrSvg: string | null
   created_at: string | null
   rebar_completed_at: string | null
   cast_at: string | null
@@ -99,7 +99,6 @@ export default async function QrLandingPage({
       length_mm,
       width_mm,
       height_mm,
-      qr_code_url,
       created_at,
       rebar_completed_at,
       cast_at,
@@ -133,8 +132,25 @@ export default async function QrLandingPage({
     ? element.project[0]
     : element.project
 
+  // Generate the QR inline — the qr-codes bucket is private, and this page is
+  // public by design (site workers scan printed codes without logins)
+  let qrSvg: string | null = null
+  try {
+    const QRCode = await import('qrcode')
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.sersteypan.is'
+    qrSvg = await QRCode.toString(`${appUrl}/qr/${element.id}`, {
+      type: 'svg',
+      errorCorrectionLevel: 'H',
+      margin: 2,
+      width: 128,
+    })
+  } catch (err) {
+    console.error('Inline QR generation failed:', err)
+  }
+
   const publicData: ElementPublicData = {
     ...element,
+    qrSvg,
     project: project ?? null,
   }
 

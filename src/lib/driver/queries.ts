@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { resolveStorageUrl } from '@/lib/storage/resolveUrl'
 
 /**
  * Get deliveries assigned to the current driver
@@ -93,6 +94,9 @@ export async function getDriverDeliveryDetail(deliveryId: string) {
     console.error('Error fetching delivery detail:', error)
     return null
   }
+
+  // delivery-photos bucket is private — resolve to a signed URL
+  data.delivery_photo_url = await resolveStorageUrl(data.delivery_photo_url, 'delivery-photos')
 
   return data
 }

@@ -80,11 +80,8 @@ export function DriverDeliveryDetail({ delivery }: DriverDeliveryDetailProps) {
 
             if (uploadError) throw uploadError
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('delivery-photos')
-                .getPublicUrl(filePath)
-
-            await updateDeliveryPhoto(delivery.id, publicUrl)
+            // Store the storage path — readers sign on demand
+            await updateDeliveryPhoto(delivery.id, filePath)
             router.refresh()
         } catch (err) {
             console.error('Photo upload failed:', err)

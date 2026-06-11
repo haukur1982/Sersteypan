@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getBatch } from '@/lib/factory/batch-actions'
 import { getServerUser } from '@/lib/auth/getServerUser'
+import { resolveStorageUrls } from '@/lib/storage/resolveUrl'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -94,6 +95,14 @@ export default async function BatchDetailPage({
       .in('element_id', elementIds)
       .order('taken_at', { ascending: false })
     if (photos) {
+      // element-photos bucket is private — resolve to signed URLs
+      const signedPhotoUrls = await resolveStorageUrls(
+        photos.map((p) => p.photo_url),
+        'element-photos'
+      )
+      photos.forEach((p, i) => {
+        p.photo_url = signedPhotoUrls[i] ?? p.photo_url
+      })
       for (const photo of photos) {
         const eid = photo.element_id
         photoCountMap[eid] = (photoCountMap[eid] || 0) + 1

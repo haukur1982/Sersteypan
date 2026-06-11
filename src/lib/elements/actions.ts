@@ -19,6 +19,7 @@ import {
   parseNumber
 } from '@/lib/schemas'
 import { createNotificationsFiltered } from '@/lib/notifications/queries'
+import { parseStorageRef, resolveStorageUrl } from '@/lib/storage/resolveUrl'
 
 type ElementRow = Database['public']['Tables']['elements']['Row']
 
@@ -516,13 +517,11 @@ export async function generateQRCodesForElements(elementIds: string[]) {
         return { error: `Upload failed for element ${elementId}` }
       }
 
-      const { data: publicUrlData } = adminClient.storage
-        .from(bucket)
-        .getPublicUrl(filePath)
-
+      // Store the storage path, not a public URL — readers sign on demand
+      // (resolveStorageUrl also handles historical rows that hold full URLs)
       await adminClient
         .from('elements')
-        .update({ qr_code_url: publicUrlData.publicUrl })
+        .update({ qr_code_url: filePath })
         .eq('id', elementId)
     } catch (err) {
       console.error(`QR generation failed for ${elementId}:`, err)
@@ -676,16 +675,11 @@ export async function uploadElementPhoto(formData: FormData) {
   }
   console.log('[photo-upload] Storage upload OK')
 
-  // Get public URL
-  const { data: { publicUrl } } = supabase.storage
-    .from('element-photos')
-    .getPublicUrl(filePath)
-
-  // Insert photo record
+  // Insert photo record with the storage path — readers sign on demand
   const { error: dbError } = await supabase.from('element_photos').insert({
     element_id: elementId,
     stage,
-    photo_url: publicUrl,
+    photo_url: filePath,
     taken_by: user.id,
     taken_at: new Date().toISOString(),
   })
@@ -708,7 +702,8 @@ export async function uploadElementPhoto(formData: FormData) {
   }
 
   revalidatePath(`/factory/production/${elementId}`)
-  return { success: true, photoUrl: publicUrl }
+  const signedUrl = await resolveStorageUrl(filePath, 'element-photos')
+  return { success: true, photoUrl: signedUrl ?? filePath }
 }
 
 // Delete an element photo (used by factory managers and admins)
@@ -766,13 +761,9 @@ export async function deleteElementPhoto(photoId: string) {
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     if (supabaseUrl && serviceRoleKey) {
       const serviceClient = createSupabaseClient(supabaseUrl, serviceRoleKey)
-      // Extract storage path from public URL: everything after /element-photos/
-      const marker = '/element-photos/'
-      const idx = photo.photo_url.indexOf(marker)
-      if (idx !== -1) {
-        const storagePath = photo.photo_url.slice(idx + marker.length)
-        await serviceClient.storage.from('element-photos').remove([storagePath])
-      }
+      // photo_url may be a bare storage path (new rows) or a full URL (historical)
+      const { bucket, path } = parseStorageRef(photo.photo_url, 'element-photos')
+      await serviceClient.storage.from(bucket).remove([path])
     }
   } catch (err) {
     // Storage cleanup is best-effort — DB record is already deleted

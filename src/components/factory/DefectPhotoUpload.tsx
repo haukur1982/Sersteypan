@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Camera, Loader2, X, ImageIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -26,7 +26,30 @@ export function DefectPhotoUpload({ requestId, photos: initialPhotos, disabled =
   const [photos, setPhotos] = useState<DefectPhoto[]>(initialPhotos)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({})
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // The element-photos bucket is private — sign URLs client-side (the
+  // authenticated session satisfies the storage SELECT policy)
+  useEffect(() => {
+    if (photos.length === 0) return
+    let cancelled = false
+    const supabase = createClient()
+    supabase.storage
+      .from('element-photos')
+      .createSignedUrls(photos.map((p) => p.url), 3600)
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        const map: Record<string, string> = {}
+        data.forEach((entry, i) => {
+          if (entry.signedUrl) map[photos[i].url] = entry.signedUrl
+        })
+        setSignedUrls(map)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [photos])
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files
@@ -127,11 +150,6 @@ export function DefectPhotoUpload({ requestId, photos: initialPhotos, disabled =
     }
   }
 
-  function getPhotoUrl(path: string) {
-    const supabase = createClient()
-    const { data } = supabase.storage.from('element-photos').getPublicUrl(path)
-    return data.publicUrl
-  }
 
   return (
     <div className="space-y-2">
@@ -150,12 +168,18 @@ export function DefectPhotoUpload({ requestId, photos: initialPhotos, disabled =
               key={photo.url}
               className="relative group w-16 h-16 rounded-md overflow-hidden border border-zinc-200 bg-zinc-100"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={getPhotoUrl(photo.url)}
-                alt={photo.name}
-                className="w-full h-full object-cover"
-              />
+              {signedUrls[photo.url] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={signedUrls[photo.url]}
+                  alt={photo.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ImageIcon className="h-4 w-4 text-zinc-400" />
+                </div>
+              )}
               {!disabled && (
                 <button
                   type="button"

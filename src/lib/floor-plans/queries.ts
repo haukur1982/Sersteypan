@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { resolveStorageUrls } from '@/lib/storage/resolveUrl'
 import type { FloorPlanData } from '@/components/floor-plans/GeometryFloorPlanViewer'
 
 /**
@@ -62,6 +63,15 @@ export async function getUnifiedFloorPlans(projectId: string): Promise<FloorPlan
   const floorPlans = floorPlansRes.data ?? []
   const geometries = geometriesRes.data ?? []
   const positionedElements = elementsRes.data ?? []
+
+  // floor-plans bucket is private — resolve stored refs (paths or legacy URLs) to signed URLs
+  const signedPlanUrls = await resolveStorageUrls(
+    floorPlans.map((fp) => fp.plan_image_url),
+    'floor-plans'
+  )
+  floorPlans.forEach((fp, i) => {
+    fp.plan_image_url = signedPlanUrls[i] ?? fp.plan_image_url
+  })
 
   // Re-fetch positions if we have floor plans
   let imagePositions: Array<{

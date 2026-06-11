@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { resolveStorageUrl, resolveStorageUrls } from '@/lib/storage/resolveUrl'
 
 const DOCUMENTS_BUCKET = 'project-documents'
 
@@ -192,6 +193,18 @@ export async function getProjectDetail(projectId: string) {
     return null
   }
 
+  // element-photos bucket is private — resolve to signed URLs in place
+  const allElementPhotos = (data.elements ?? []).flatMap((el) => el.photos ?? [])
+  if (allElementPhotos.length > 0) {
+    const signedPhotos = await resolveStorageUrls(
+      allElementPhotos.map((p) => p.photo_url),
+      'element-photos'
+    )
+    allElementPhotos.forEach((p, i) => {
+      p.photo_url = signedPhotos[i] ?? p.photo_url
+    })
+  }
+
   if (data.documents && data.documents.length > 0) {
     const signedDocuments = await Promise.all(
       data.documents.map(async (doc) => {
@@ -331,6 +344,24 @@ export async function getDeliveryDetail(deliveryId: string) {
     return null
   }
 
+  // Buckets are private — resolve stored refs (paths or legacy URLs) to signed URLs
+  const items = data.items ?? []
+  const itemElementPhotos = items.flatMap((item) => item.element?.photos ?? [])
+  const [signatureUrl, photoUrl, receivedUrls, elementPhotoUrls] = await Promise.all([
+    resolveStorageUrl(data.received_by_signature_url, 'signatures'),
+    resolveStorageUrl(data.delivery_photo_url, 'delivery-photos'),
+    resolveStorageUrls(items.map((item) => item.received_photo_url), 'delivery-photos'),
+    resolveStorageUrls(itemElementPhotos.map((p) => p.photo_url), 'element-photos'),
+  ])
+  data.received_by_signature_url = signatureUrl
+  data.delivery_photo_url = photoUrl
+  items.forEach((item, i) => {
+    item.received_photo_url = receivedUrls[i]
+  })
+  itemElementPhotos.forEach((p, i) => {
+    p.photo_url = elementPhotoUrls[i] ?? p.photo_url
+  })
+
   return data
 }
 
@@ -438,5 +469,15 @@ export async function getProjectFloorPlans(projectId: string) {
     return []
   }
 
-  return data
+  const plans = data ?? []
+  // floor-plans bucket is private — resolve to signed URLs in place
+  const signedPlanUrls = await resolveStorageUrls(
+    plans.map((fp) => fp.plan_image_url),
+    'floor-plans'
+  )
+  plans.forEach((fp, i) => {
+    fp.plan_image_url = signedPlanUrls[i] ?? fp.plan_image_url
+  })
+
+  return plans
 }

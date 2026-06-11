@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getProject } from '@/lib/projects/actions'
 import { getElementsForProject } from '@/lib/elements/actions'
+import { resolveStorageUrls } from '@/lib/storage/resolveUrl'
 import QRLabelsClient from './QRLabelsClient'
 import type { Database } from '@/types/database'
 
@@ -22,6 +23,16 @@ export default async function QRLabelsPage({ params }: QRLabelsPageProps) {
 
     const { data: elements } = await getElementsForProject(projectId)
     const elementList = (elements ?? []) as ElementRow[]
+
+    // qr-codes bucket is private — sign with 24h expiry to survive long printing sessions
+    const signedQrUrls = await resolveStorageUrls(
+        elementList.map((el) => el.qr_code_url),
+        'qr-codes',
+        60 * 60 * 24
+    )
+    elementList.forEach((el, i) => {
+        el.qr_code_url = signedQrUrls[i]
+    })
 
     // Map to the shape expected by client component (enhanced with position/rebar info)
     const mappedElements = elementList.map(el => ({

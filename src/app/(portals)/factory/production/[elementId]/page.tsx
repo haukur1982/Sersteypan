@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { resolveStorageUrls } from '@/lib/storage/resolveUrl'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -238,6 +239,14 @@ export default async function ElementUpdatePage({ params }: ElementUpdatePagePro
             .order('created_at', { ascending: false })
     ])
     const photoList = (photosResult.data ?? []) as ElementPhoto[]
+    // element-photos bucket is private — resolve to signed URLs
+    const signedPhotoUrls = await resolveStorageUrls(
+        photoList.map((p) => p.photo_url),
+        'element-photos'
+    )
+    photoList.forEach((p, i) => {
+        p.photo_url = signedPhotoUrls[i] ?? p.photo_url
+    })
     const fixRequests = fixRequestsResult.data ?? []
     const projectDocCount = documentsCountResult.count ?? 0
     const drawings = drawingsResult.data ?? []

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { resolveStorageUrl, resolveStorageUrls } from '@/lib/storage/resolveUrl'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -143,11 +144,24 @@ export async function getFactoryDeliveryDetail(
     }
   }
 
+  // Buckets are private — resolve stored refs (paths or legacy URLs) to signed URLs
+  const deliveryItems = data.delivery_items as DeliveryItem[]
+  const [photoUrl, signatureUrl, receivedUrls] = await Promise.all([
+    resolveStorageUrl(data.delivery_photo_url, 'delivery-photos'),
+    resolveStorageUrl(data.received_by_signature_url, 'signatures'),
+    resolveStorageUrls(deliveryItems.map((item) => item.received_photo_url), 'delivery-photos'),
+  ])
+  deliveryItems.forEach((item, i) => {
+    item.received_photo_url = receivedUrls[i]
+  })
+
   return {
     ...data,
+    delivery_photo_url: photoUrl,
+    received_by_signature_url: signatureUrl,
     project: data.project as FactoryDeliveryDetail['project'],
     driver: data.driver as FactoryDeliveryDetail['driver'],
-    delivery_items: data.delivery_items as DeliveryItem[],
+    delivery_items: deliveryItems,
     element_defects: elementDefects,
   }
 }

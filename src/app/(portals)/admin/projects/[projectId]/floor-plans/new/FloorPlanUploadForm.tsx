@@ -90,19 +90,14 @@ export function FloorPlanUploadForm({ projectId }: FloorPlanUploadFormProps) {
                 return
             }
 
-            // Get public URL
-            const { data: urlData } = supabase.storage
-                .from('floor-plans')
-                .getPublicUrl(fileName)
-
-            // Create floor plan record
+            // Store the storage path — readers sign on demand
             const { error: insertError } = await supabase
                 .from('floor_plans')
                 .insert({
                     project_id: projectId,
                     name: name.trim(),
                     floor: parseInt(floorNumber) || 1,
-                    plan_image_url: urlData.publicUrl,
+                    plan_image_url: fileName,
                 })
 
             if (insertError) {

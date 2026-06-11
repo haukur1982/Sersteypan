@@ -37,7 +37,7 @@ type ElementPublicData = {
   length_mm: number | null
   width_mm: number | null
   height_mm: number | null
-  qr_code_url: string | null
+  qrSvg: string | null
   created_at: string | null
   rebar_completed_at: string | null
   cast_at: string | null
@@ -103,12 +103,12 @@ export function QrElementPublic({ element }: { element: ElementPublicData }) {
                 </p>
               )}
             </div>
-            {/* QR image */}
-            {element.qr_code_url && (
+            {/* QR image — inline SVG generated server-side (no storage access) */}
+            {element.qrSvg && (
               <div className="flex-shrink-0 ml-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={element.qr_code_url}
+                  src={`data:image/svg+xml;utf8,${encodeURIComponent(element.qrSvg)}`}
                   alt="QR"
                   className="w-16 h-16 rounded"
                 />

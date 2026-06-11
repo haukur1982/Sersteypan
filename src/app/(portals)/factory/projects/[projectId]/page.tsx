@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getProject } from '@/lib/projects/actions'
 import { getElementsForProject } from '@/lib/elements/actions'
+import { resolveStorageUrls } from '@/lib/storage/resolveUrl'
 import { getProjectDocuments } from '@/lib/documents/actions'
 import { getFloorPlansForProject } from '@/lib/floor-plans/actions'
 import { getProjectMessages } from '@/lib/factory/queries'
@@ -111,6 +112,14 @@ export default async function FactoryProjectPage({ params }: ProjectPageProps) {
             .in('element_id', elementIds)
             .order('taken_at', { ascending: false })
         if (photos) {
+            // element-photos bucket is private — resolve to signed URLs
+            const signedPhotoUrls = await resolveStorageUrls(
+                photos.map((p) => p.photo_url),
+                'element-photos'
+            )
+            photos.forEach((p, i) => {
+                p.photo_url = signedPhotoUrls[i] ?? p.photo_url
+            })
             for (const row of photos) {
                 const eid = row.element_id
                 photoCountMap[eid] = (photoCountMap[eid] || 0) + 1

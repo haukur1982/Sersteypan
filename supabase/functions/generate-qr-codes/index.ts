@@ -131,10 +131,6 @@ serve(async (req) => {
         throw new Error(`Upload failed for ${elementId}: ${uploadRes.error.message}`)
       }
 
-      const { data: publicUrlData } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(filePath)
-
       const { data: signedUrlData, error: signedError } = await supabase.storage
         .from(bucket)
         .createSignedUrl(filePath, expiresIn)
@@ -143,9 +139,10 @@ serve(async (req) => {
         throw new Error(`Signed URL failed for ${elementId}: ${signedError?.message ?? 'unknown error'}`)
       }
 
+      // Store the storage path, not a public URL — readers sign on demand
       await supabase
         .from('elements')
-        .update({ qr_code_url: publicUrlData.publicUrl })
+        .update({ qr_code_url: filePath })
         .eq('id', elementId)
 
       results.push({
