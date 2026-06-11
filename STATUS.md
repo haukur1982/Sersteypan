@@ -91,16 +91,22 @@ Shipped and verified in production:
   can still sign storage URLs; anon cannot (400).
 - e2e: 33/33 passed (auth.spec.ts + rbac.spec.ts) against production DB.
 
+**COMPLETED June 11 (late session):**
+- **Upstash Redis live**: Marketplace resource `upstash-kv-aureolin-island` provisioned
+  and connected to the project (all environments). Rate limiter patched to also accept
+  the marketplace var names (`KV_REST_API_URL`/`KV_REST_API_TOKEN`). Pipeline verified
+  against the live instance. Distributed rate limiting active after next deploy.
+- **NEXT_PUBLIC_APP_URL set** in production env (`https://sersteypan.vercel.app`).
+  NOTE: re-point it (and REGENERATE printed QR codes) if a real domain like
+  app.sersteypan.is is stood up before launch.
+- Vercel CLI now linked: repo → sersteypan/sersteypan (the project lives in the
+  "sersteypan" team — same login, use `--scope sersteypan`).
+
 **STILL PENDING (needs Hawk):**
-1. **Upstash Redis for rate limiting**: Vercel project lives in the "sersteypan" team;
-   this Mac's CLI is logged into the personal account. Install the Upstash Marketplace
-   integration from the dashboard (or `vercel login` with the team account), then the
-   limiter picks up `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` automatically.
-2. **NEXT_PUBLIC_APP_URL is unset** — QR codes encode the fallback
-   `https://app.sersteypan.is`, which does not resolve. Set the env var in Vercel
-   (or stand up the domain) before printing real labels.
-3. **DB password was shared in chat** during this session — rotate it in the dashboard
-   when convenient (nothing else uses it; app connects via API keys).
+1. **Rotate the Supabase DB password** (was shared in chat June 11) — Supabase
+   dashboard → Project Settings → Database. Nothing else uses it.
+2. `NEXT_PUBLIC_SENTRY_DSN` was dropped from `.env.local` by the Vercel env pull —
+   re-add locally if local Sentry is wanted (production unaffected; it's set in Vercel).
 
 **Security fast-follows found during the sweep (authenticated-only, mild):**
 - `element_photos` "Anyone can view element photos" — any authenticated user reads all

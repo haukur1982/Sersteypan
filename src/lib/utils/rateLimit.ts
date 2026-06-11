@@ -137,8 +137,9 @@ export function createRateLimiter(config: RateLimitConfig) {
 const isTestEnvironment = process.env.CI === 'true' || process.env.E2E_TEST === 'true'
 
 function getUpstashConfig() {
-  const url = process.env.UPSTASH_REDIS_REST_URL
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  // KV_REST_API_* are the names the Vercel Marketplace Upstash integration provisions
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
   if (!url || !token) return null
   return { url: url.replace(/\/+$/, ''), token }
 }
