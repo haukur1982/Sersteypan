@@ -80,22 +80,36 @@ Shipped and verified in production:
 - Public /qr/[elementId] page now renders QR inline (no bucket dependency).
 - Build ✓, tsc ✓, 117/117 unit tests ✓, ESLint (pre-commit) ✓.
 
+**COMPLETED June 11 (continued session):**
+- Migrations 067 + 068 applied to production. 068 dropped ROGUE DASHBOARD POLICIES that
+  existed in no migration file (`"Users can view all profiles"` to public using(true) on
+  profiles — it nullified all scoped policies — plus 3 public storage-read policies).
+  Lesson: the live DB had drifted from the migration files; policies had been created
+  manually in the dashboard.
+- Verified per-role via REST: admin/factory see all 11 profiles; buyer sees 8 (staff +
+  own company only — cross-company leak CLOSED); driver sees 6; anon sees 0. All roles
+  can still sign storage URLs; anon cannot (400).
+- e2e: 33/33 passed (auth.spec.ts + rbac.spec.ts) against production DB.
+
 **STILL PENDING (needs Hawk):**
-1. **Apply SQL portion of migration 067** (storage policy swap to authenticated,
-   `legacy_id_mapping` RLS, role-scoped `profiles` SELECT). Needs the Supabase DB
-   password: `SUPABASE_DB_PASSWORD=... supabase db push --include-all` — or paste the
-   migration into the dashboard SQL editor. Until then: anon-key holders can still read
-   storage objects via the API (the lazy/public-URL hole is closed), and profiles PII
-   is still readable cross-company.
-2. **Upstash Redis for rate limiting**: Vercel project lives in the "sersteypan" team;
+1. **Upstash Redis for rate limiting**: Vercel project lives in the "sersteypan" team;
    this Mac's CLI is logged into the personal account. Install the Upstash Marketplace
    integration from the dashboard (or `vercel login` with the team account), then the
    limiter picks up `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` automatically.
-3. **NEXT_PUBLIC_APP_URL is unset** — QR codes encode the fallback
+2. **NEXT_PUBLIC_APP_URL is unset** — QR codes encode the fallback
    `https://app.sersteypan.is`, which does not resolve. Set the env var in Vercel
    (or stand up the domain) before printing real labels.
-4. After the SQL lands: run e2e `auth.spec.ts` + `rbac.spec.ts` and click through all
-   four portals (photos, QR labels, floor plans, delivery signatures).
+3. **DB password was shared in chat** during this session — rotate it in the dashboard
+   when convenient (nothing else uses it; app connects via API keys).
+
+**Security fast-follows found during the sweep (authenticated-only, mild):**
+- `element_photos` "Anyone can view element photos" — any authenticated user reads all
+  photo rows cross-company. Scope like profiles were.
+- `project_documents` "Authenticated users can view project documents" — same pattern
+  for document metadata.
+- `element_task_workers` / `element_tasks` — open to all authenticated users.
+- Consider a periodic drift check: compare live pg_policies against migration files
+  (this is how the rogue policies were found).
 
 ## What Should Happen Next (priority order)
 
