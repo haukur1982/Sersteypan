@@ -236,7 +236,20 @@ Messages can optionally reference a specific element via `element_id`. Element t
 
 ## Deployment
 
-- **Hosting**: Vercel (auto-deploy from `main` branch)
+- **Hosting**: Vercel (auto-deploy from `main` branch). The project lives in the **"sersteypan" Vercel team** — NOT the personal `haukur1982-1838` account this Mac's `vercel` CLI is logged into. Production URL: `sersteypan.vercel.app`.
 - **Database**: Supabase (project ref: `rggqjcguhfcfhlwbyrug`, EU West 1)
 - **CI/CD**: GitHub Actions (`.github/workflows/ci.yml`)
 - **Monitoring**: Sentry (conditional, requires `NEXT_PUBLIC_SENTRY_DSN`)
+- **Rate limiting**: in-memory per instance unless `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` are set in Vercel env — required for real rate limiting in production (the limiter in `src/lib/utils/rateLimit.ts` auto-detects them).
+- **QR code base URL**: QR generation falls back to `https://app.sersteypan.is` when `NEXT_PUBLIC_APP_URL` is unset. That domain does not currently resolve — set `NEXT_PUBLIC_APP_URL` in Vercel (or stand up the domain) before printing real labels.
+
+## Storage (private buckets + signed URLs, since migration 067)
+
+All 8 storage buckets are **private**. Never use `getPublicUrl()`. Stored refs in DB columns
+(`element_photos.photo_url`, `elements.qr_code_url`, `deliveries.delivery_photo_url`,
+`delivery_items.received_photo_url`, `floor_plans.plan_image_url`, etc.) are **storage paths**
+for new rows and full legacy URLs for old rows. Always resolve via
+`resolveStorageUrl()` / `resolveStorageUrls()` from `src/lib/storage/resolveUrl.ts`
+(handles both formats; server-side). Client components must receive already-resolved
+signed URLs from server pages, or sign client-side with `createSignedUrls()` (works because
+storage RLS grants authenticated SELECT).

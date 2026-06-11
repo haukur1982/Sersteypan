@@ -67,15 +67,44 @@ Missing before heavy production use:
 
 ---
 
+## Security Sprint — DONE June 10/11 (commit 9b31e03)
+
+Shipped and verified in production:
+- **Signed-URL code live** on Vercel (probe: /qr page serves inline SVG). All readers
+  resolve via `src/lib/storage/resolveUrl.ts`; all writers store storage paths.
+  Historical full-URL rows resolve through the same helper — no backfill.
+- **All 8 storage buckets flipped private** via Storage Admin API. Verified live:
+  old public URL → 400, signed URL → 200 (tested on a real element photo).
+- **Migration 067 written** (`supabase/migrations/20260610000000_067_security_hardening.sql`).
+  Bucket UPDATE portion is already live (idempotent re-run is fine).
+- Public /qr/[elementId] page now renders QR inline (no bucket dependency).
+- Build ✓, tsc ✓, 117/117 unit tests ✓, ESLint (pre-commit) ✓.
+
+**STILL PENDING (needs Hawk):**
+1. **Apply SQL portion of migration 067** (storage policy swap to authenticated,
+   `legacy_id_mapping` RLS, role-scoped `profiles` SELECT). Needs the Supabase DB
+   password: `SUPABASE_DB_PASSWORD=... supabase db push --include-all` — or paste the
+   migration into the dashboard SQL editor. Until then: anon-key holders can still read
+   storage objects via the API (the lazy/public-URL hole is closed), and profiles PII
+   is still readable cross-company.
+2. **Upstash Redis for rate limiting**: Vercel project lives in the "sersteypan" team;
+   this Mac's CLI is logged into the personal account. Install the Upstash Marketplace
+   integration from the dashboard (or `vercel login` with the team account), then the
+   limiter picks up `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` automatically.
+3. **NEXT_PUBLIC_APP_URL is unset** — QR codes encode the fallback
+   `https://app.sersteypan.is`, which does not resolve. Set the env var in Vercel
+   (or stand up the domain) before printing real labels.
+4. After the SQL lands: run e2e `auth.spec.ts` + `rbac.spec.ts` and click through all
+   four portals (photos, QR labels, floor plans, delivery signatures).
+
 ## What Should Happen Next (priority order)
 
-1. **Security migration**: private buckets + signed URLs, RLS on `legacy_id_mapping`,
-   scope `profiles` reads, policies for `notification_reads`. (~half day)
-2. **Upstash Redis env vars in Vercel** for real rate limiting. (15 min)
-3. **Tests for panelization algorithm + AI parsers** — pure functions, easy wins. (~1 day)
-4. **AI cost logging table** — provider, model, tokens, estimated cost per analysis. (~half day)
-5. **Standardize server action error handling** to returned `{ error }` objects.
-6. Then: future-plans roadmap (production scheduling, quoting from drawings —
+1. Finish the 4 pending items above.
+2. **Tests for panelization algorithm + AI parsers** — pure functions, easy wins. (~1 day)
+3. **AI cost logging table** — provider, model, tokens, estimated cost per analysis. (~half day)
+4. **Standardize server action error handling** to returned `{ error }` objects.
+5. Then: future-plans roadmap (Building Twin → framvinda link → production scheduling →
+   quoting from drawings; Lyklapétur stays separate, snapshot-export integration post-launch —
    discussed with Claude June 10, see memory).
 
 ---
